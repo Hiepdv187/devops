@@ -1,0 +1,15 @@
+{{define "content"}}
+<header class="hero">
+    <span class="badge">Về chúng tôi</span>
+    <h1>{{.Title}}</h1>
+    <p>{{.Description}}</p>
+</header>
+<section class="grid">
+    {{range .Sections}}
+    <article class="card">
+        <h3>{{.Heading}}</h3>
+        <p>{{.Content}}</p>
+    </article>
+    {{end}}
+</section>
+{{end}}

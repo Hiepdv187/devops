@@ -1,0 +1,17 @@
+{{define "content"}}
+<header class="hero">
+    <span class="badge">Nhà đóng góp</span>
+    <h1>{{.Title}}</h1>
+    <p>{{.Description}}</p>
+</header>
+<section class="grid grid-3">
+    {{range .Contributors}}
+    <article class="card">
+        <h3>{{.Name}}</h3>
+        <p><strong>Vai trò:</strong> {{.Role}}</p>
+        <p>{{.Bio}}</p>
+        <p><strong>Số đóng góp:</strong> {{.Contributions}}</p>
+    </article>
+    {{end}}
+</section>
+{{end}}

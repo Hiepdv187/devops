@@ -1,0 +1,25 @@
+{{define "content"}}
+<section class="auth-page">
+    <header class="hero hero-basic">
+        <span class="badge">Thành viên mới</span>
+        <h1>{{.Title}}</h1>
+        <p>Gia nhập cộng đồng DevOps, chia sẻ kinh nghiệm và học hỏi từ đồng đội.</p>
+    </header>
+    <div class="card form-card">
+        <form method="post" action="/auth/register" class="stack">
+            <label>Họ và tên
+                <input type="text" name="name" placeholder="Ví dụ: Nguyễn Minh" required minlength="3">
+            </label>
+            <label>Email
+                <input type="email" name="email" placeholder="you@example.com" required>
+            </label>
+            <label>Mật khẩu
+                <input type="password" name="password" placeholder="Tối thiểu 6 ký tự" required minlength="6">
+            </label>
+            <input type="hidden" name="next" value="{{or .Next "/posts"}}">
+            <button type="submit" class="btn primary">Đăng ký</button>
+        </form>
+        <p class="note">Đã có tài khoản? <a href="/auth/login">Đăng nhập</a>.</p>
+    </div>
+</section>
+{{end}}

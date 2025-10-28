@@ -1,0 +1,61 @@
+{{define "content"}}
+<header class="hero hero-split">
+    <div>
+        <span class="badge">Bài viết</span>
+        <h1>{{.Title}}</h1>
+        <p>Cập nhật kiến thức DevOps từ các thành viên cộng đồng. Đóng góp kinh nghiệm thực chiến của bạn để lan tỏa giá trị.</p>
+    </div>
+    <div class="hero-actions">
+        {{if .IsAuthenticated}}
+        <a href="#create" class="btn primary">Tạo bài viết mới</a>
+        {{else}}
+        <a href="/auth/login?next=/posts#create" class="btn ghost">Đăng nhập để chia sẻ</a>
+        {{end}}
+    </div>
+</header>
+<section class="posts-list">
+    {{if .Posts}}
+    <div class="grid">
+        {{range .Posts}}
+        <article class="card post-card">
+            <header>
+                <h2><a href="/posts/{{.ID}}">{{.Title}}</a></h2>
+                <p class="meta">Bởi {{.AuthorName}} · {{.CreatedLabel}}</p>
+            </header>
+            {{if .Summary}}
+            <p>{{.Summary}}</p>
+            {{else}}
+            <p>Đọc bài viết để khám phá chi tiết nội dung.</p>
+            {{end}}
+            <footer>
+                <a href="/posts/{{.ID}}" class="btn ghost">Đọc chi tiết</a>
+            </footer>
+        </article>
+        {{end}}
+    </div>
+    {{else}}
+    <p class="empty">Chưa có bài viết nào. Hãy là người đầu tiên chia sẻ!</p>
+    {{end}}
+</section>
+<section id="create" class="card form-card">
+    <h2>Chia sẻ bài viết mới</h2>
+    {{if .IsAuthenticated}}
+    <form method="post" action="/posts" class="stack">
+        <label>Tựa đề
+            <input type="text" name="title" placeholder="Ví dụ: Thiết lập GitOps trên Kubernetes" required minlength="3">
+        </label>
+        <label>Tóm tắt ngắn
+            <input type="text" name="summary" placeholder="Tóm tắt ngắn gọn (tùy chọn)">
+        </label>
+        <label>Nội dung chi tiết
+            <textarea name="content" rows="6" placeholder="Chia sẻ kiến trúc, công cụ, quy trình và bài học kinh nghiệm" required minlength="10"></textarea>
+        </label>
+        <button type="submit" class="btn primary">Đăng bài</button>
+    </form>
+    {{else}}
+    <div class="empty">
+        <p>Bạn cần <a href="/auth/login?next=/posts#create">đăng nhập</a> trước khi tạo bài viết.</p>
+    </div>
+    {{end}}
+</section>
+{{end}}

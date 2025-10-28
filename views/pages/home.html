@@ -1,0 +1,40 @@
+{{define "content"}}
+<section class="hero">
+    <span class="badge">Cộng đồng DevOps Việt Nam</span>
+    <h1>{{.HeroHeading}}</h1>
+    <p>{{.HeroSub}}</p>
+    <div class="cta-group">
+        <a href="/posts" class="btn primary">Khám phá bài viết</a>
+        {{if .IsAuthenticated}}
+        <a href="/posts#create" class="btn ghost">Chia sẻ kinh nghiệm</a>
+        {{else}}
+        <a href="/auth/register" class="btn ghost">Tham gia cộng đồng</a>
+        {{end}}
+    </div>
+</section>
+<section class="grid grid-3">
+    {{range .Highlights}}
+    <article class="card">
+        <h3>{{.Title}}</h3>
+        <p>{{.Description}}</p>
+    </article>
+    {{end}}
+</section>
+<section class="latest-posts">
+    <h2>Bài viết mới nhất</h2>
+    {{if .LatestPosts}}
+    <div class="grid">
+        {{range .LatestPosts}}
+        <article class="card">
+            <h3><a href="/posts/{{.ID}}">{{.Title}}</a></h3>
+            <p class="meta">Bởi {{.AuthorName}} · {{.CreatedLabel}}</p>
+            <p>{{.Summary}}</p>
+            <a href="/posts/{{.ID}}" class="btn ghost">Đọc tiếp</a>
+        </article>
+        {{end}}
+    </div>
+    {{else}}
+    <p>Chưa có bài viết nào. Hãy là người đầu tiên chia sẻ kinh nghiệm DevOps!</p>
+    {{end}}
+</section>
+{{end}}

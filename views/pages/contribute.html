@@ -1,0 +1,19 @@
+{{define "content"}}
+<header class="hero">
+    <span class="badge">Tham gia</span>
+    <h1>{{.Title}}</h1>
+    <p>{{.Description}}</p>
+</header>
+<section class="grid">
+    {{range .Steps}}
+    <article class="card">
+        <h3>Bước {{.Order}} · {{.Heading}}</h3>
+        <p>{{.Text}}</p>
+    </article>
+    {{end}}
+</section>
+<section class="card" style="margin-top:2rem; text-align:center;">
+    <h3>Liên hệ</h3>
+    <p>Gửi email về <a href="mailto:{{.ContactEmail}}">{{.ContactEmail}}</a> để được hỗ trợ đóng góp.</p>
+</section>
+{{end}}

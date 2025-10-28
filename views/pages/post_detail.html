@@ -1,0 +1,44 @@
+{{define "content"}}
+<article class="post-detail">
+    <header class="hero hero-basic">
+        <span class="badge">Bài viết cộng đồng</span>
+        <h1>{{.Post.Title}}</h1>
+        <p class="meta">Bởi {{.Post.AuthorName}} · {{.Post.CreatedLabel}}</p>
+        {{if .Post.Summary}}
+        <p class="summary">{{.Post.Summary}}</p>
+        {{end}}
+    </header>
+    <section class="card post-body">
+        <p>{{.Post.Content}}</p>
+    </section>
+</article>
+<section class="comments" id="comments">
+    <header class="section-header">
+        <h2>Bình luận</h2>
+        <p>Thảo luận và đóng góp ý kiến của bạn để cùng cải thiện quy trình DevOps.</p>
+    </header>
+    {{if .Comments}}
+    <div class="stack comment-list">
+        {{range .Comments}}
+        <article class="card comment-card">
+            <p>{{.Content}}</p>
+            <p class="meta">Bởi {{.AuthorName}} · {{.CreatedAt}}</p>
+        </article>
+        {{end}}
+    </div>
+    {{else}}
+    <p class="empty">Chưa có bình luận. Hãy là người đầu tiên đặt câu hỏi hoặc chia sẻ kinh nghiệm!</p>
+    {{end}}
+</section>
+<section class="comment-form card" id="add-comment">
+    <h3>Đóng góp bình luận</h3>
+    {{if .IsAuthenticated}}
+    <form method="post" action="/posts/{{.Post.ID}}/comments" class="stack">
+        <textarea name="content" rows="4" placeholder="Chia sẻ kinh nghiệm, bài học, hoặc câu hỏi của bạn" required minlength="3"></textarea>
+        <button type="submit" class="btn primary">Gửi bình luận</button>
+    </form>
+    {{else}}
+    <p>Bạn cần <a href="/auth/login?next=/posts/{{.Post.ID}}#add-comment">đăng nhập</a> để bình luận. Chưa có tài khoản? <a href="/auth/register?next=/posts/{{.Post.ID}}#add-comment">Đăng ký ngay</a>.</p>
+    {{end}}
+</section>
+{{end}}
