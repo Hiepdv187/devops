@@ -60,9 +60,24 @@ body {
   position: relative;
   display: block;
   transition: background 0.2s ease;
-  padding: 0.1rem 2.5rem 0.1rem 0;
+  padding: 0.1rem 160px 0.1rem 0; /* Tăng padding bên phải lên để chừa chỗ cho notice và icons */
   margin: 0;
   line-height: 1.5;
+  max-width: 100%;
+  box-sizing: border-box;
+  /* Aggressive wrapping for very long unbroken strings */
+  overflow-wrap: anywhere;
+  word-wrap: break-word;
+  word-break: break-all;
+}
+
+/* Ensure the main text inside a line doesn't extend into the right reserved area */
+.inline-line > * {
+  display: inline-block;
+  max-width: calc(100% - 160px);
+  vertical-align: middle;
+  overflow-wrap: anywhere;
+  word-break: break-all;
 }
 
 .inline-line.active,
@@ -103,7 +118,7 @@ body {
 }
 
 .annotate-btn {
-  right: 2.5rem;
+  right: 40px; /* Điều chỉnh vị trí nút annotate */
 }
 
 .line-annotation {
@@ -117,7 +132,8 @@ body {
   opacity: 0;
   transition: opacity 0.2s ease;
   pointer-events: none;
-  max-width: 280px;
+  max-width: 200px;
+  min-width: 100px;
   padding: 0.25rem 0.5rem;
   background: rgba(76, 29, 149, 0.15);
   border-radius: 6px;
@@ -501,6 +517,46 @@ nav a.active::after {
   padding: 2rem;
   display: grid;
   gap: 1.5rem;
+  /* Prevent content overflow */
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+/* Preview content: force wrapping and prevent overflow */
+.preview-content {
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  overflow-wrap: anywhere;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+.preview .preview-cover img,
+.preview-content img,
+.preview-images img {
+  /* Show preview images larger and inline (horizontal layout) */
+  max-width: 360px;
+  max-height: 220px;
+  width: auto;
+  height: auto;
+  object-fit: contain; /* preserve aspect ratio without cropping */
+  display: inline-block;
+  margin: 0.5rem 0.75rem 0.5rem 0;
+  vertical-align: top;
+}
+
+/* Gallery container to lay images out horizontally and wrap when needed */
+.preview-images {
+  display: flex;
+  gap: 0.75rem;
+  align-items: flex-start;
+  flex-wrap: wrap;
+}
+
+/* If preview has very long single-line tokens, allow scroll inside the preview area rather than breaking layout */
+.composer-grid .preview-inner-scroll {
+  max-height: 360px;
+  overflow: auto;
 }
 
 .composer-grid .preview-heading {
@@ -540,6 +596,19 @@ nav a.active::after {
   padding: 0.9rem 1.1rem;
   background: rgba(7, 16, 32, 0.75);
   box-sizing: border-box;
+}
+
+/* Force composer inputs to be visible and usable (fix accidental layout overrides) */
+.composer-grid form input,
+.composer-grid form textarea,
+.composer-grid form input::placeholder,
+.composer-grid form textarea::placeholder {
+  display: block !important;
+  width: 100% !important;
+  min-height: 44px !important;
+  padding: 0.6rem 0.9rem !important;
+  background: rgba(7, 16, 32, 0.85) !important;
+  box-sizing: border-box !important;
 }
 
 .composer-locked .locked-editor {
@@ -862,19 +931,75 @@ nav a.active::after {
 }
 
 .post-body {
-  line-height: 0.5;
+  line-height: 1.6;
   font-size: 1rem;
 }
 
 .post-body img,
 .preview-content img {
-  max-width: 100%;
+  /* Smaller images inside post content (like preview) */
+  max-width: 240px;
+  max-height: 160px;
+  width: auto;
   height: auto;
-  display: block;
-  margin: 1.25rem auto;
+  display: block !important;
+  margin: 1rem 0;
   border-radius: 12px;
   cursor: zoom-in;
   transition: transform 0.2s ease;
+}
+
+/* Force images visible in case other rules/JS toggle visibility */
+.post-body img {
+  visibility: visible !important;
+  opacity: 1 !important;
+}
+
+/* Images should occupy their own line and not interfere with inline notices/comments */
+.post-body p:has(img), .inline-line:has(img) {
+  padding-right: 0 !important;
+}
+
+.post-body p:has(img) .inline-btn,
+.post-body p:has(img) .line-annotation,
+.inline-line:has(img) .inline-btn,
+.inline-line:has(img) .line-annotation {
+  display: none !important;
+}
+
+/* Ensure an image-only paragraph stretches full width so inline lines don't overlap */
+.post-body p:has(img) > img {
+  display: block;
+  margin-left: 0;
+  margin-right: 0;
+  max-width: 240px; /* image width inside post content */
+  max-height: 160px;
+  height: auto;
+}
+
+/* Card wrapper for images inside post content */
+.post-image-card {
+  display: block;
+  margin: 1rem 0;
+  padding: 6px;
+  border-radius: 10px;
+  border: 1px solid rgba(148, 163, 184, 0.12);
+  background: rgba(7, 12, 20, 0.3);
+  width: fit-content;
+}
+.post-image-card img {
+  display: block;
+  max-width: 240px;
+  max-height: 160px;
+  height: auto;
+  width: auto;
+  border-radius: 6px;
+}
+
+/* mark a paragraph/figure that contains an image so inline-notices are hidden */
+.image-line .inline-btn,
+.image-line .line-annotation {
+  display: none !important;
 }
 
 .post-body img:hover,
@@ -987,7 +1112,7 @@ body.lightbox-open {
 .form-card input[type="email"],
 .form-card input[type="password"],
 .form-card textarea {
-  width: 100%;
+  width: 00%;
   margin-top: 0.35rem;
 }
 
@@ -1057,6 +1182,17 @@ button:hover {
 .image-upload-zone.dragover {
   border-color: #38bdf8;
   background: rgba(56, 189, 248, 0.1);
+}
+
+/* Hide native file input UI inside the upload zone — we use a custom button/hint
+   so prevent the browser's default "Choose file / No file chosen" display. */
+.image-upload-zone input[type="file"] {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+  opacity: 0 !important;
+  position: absolute !important;
+  left: -9999px !important;
 }
 
 .upload-hint {
