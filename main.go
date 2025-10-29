@@ -22,6 +22,11 @@ func main() {
 	database.Init()
 
 	engine := html.New("./views", ".html")
+	markdownPolicy := bluemonday.UGCPolicy()
+	markdownPolicy.AllowRelativeURLs(true)
+	markdownPolicy.AllowURLSchemes("http", "https", "data")
+	markdownPolicy.AllowImages()
+	markdownPolicy.AllowAttrs("src", "alt", "title", "loading").OnElements("img")
 	engine.AddFunc("now", func() time.Time {
 		return time.Now()
 	})
@@ -36,7 +41,7 @@ func main() {
 			return template.HTML("")
 		}
 		rendered := blackfriday.Run([]byte(text), blackfriday.WithExtensions(blackfriday.CommonExtensions|blackfriday.AutoHeadingIDs|blackfriday.HardLineBreak))
-		sanitized := bluemonday.UGCPolicy().SanitizeBytes(rendered)
+		sanitized := markdownPolicy.SanitizeBytes(rendered)
 		return template.HTML(sanitized)
 	})
 	engine.AddFunc("json", func(v interface{}) (template.JS, error) {

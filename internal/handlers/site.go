@@ -332,9 +332,6 @@ func PostDetailPage() fiber.Handler {
 			lineAnnotations[ann.LineNumber] = ann.Content
 		}
 
-		// Debug log
-		fmt.Printf("Post ID: %d, Found %d annotations: %+v\n", post.ID, len(annotations), lineAnnotations)
-
 		// Check if current user is author
 		userID, _ := currentUserID(c)
 		isAuthor := userID == post.AuthorID
@@ -1113,11 +1110,8 @@ func UploadImage() fiber.Handler {
 // CreateAnnotation tạo chú thích cho dòng trong bài viết (chỉ tác giả)
 func CreateAnnotation() fiber.Handler {
 	return func(c *fiber.Ctx) error {
-		fmt.Println("=== CreateAnnotation called ===")
-
 		userID, err := currentUserID(c)
 		if err != nil {
-			fmt.Println("Auth error:", err)
 			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
 				"error": "Bạn cần đăng nhập",
 			})
@@ -1125,7 +1119,6 @@ func CreateAnnotation() fiber.Handler {
 
 		postID, err := strconv.Atoi(c.Params("id"))
 		if err != nil {
-			fmt.Println("PostID parse error:", err)
 			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 				"error": "ID bài viết không hợp lệ",
 			})
@@ -1137,13 +1130,10 @@ func CreateAnnotation() fiber.Handler {
 		}
 
 		if err := c.BodyParser(&body); err != nil {
-			fmt.Println("Body parse error:", err)
 			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 				"error": "Dữ liệu không hợp lệ",
 			})
 		}
-
-		fmt.Printf("Received: PostID=%d, UserID=%d, LineNumber=%d, Content='%s'\n", postID, userID, body.LineNumber, body.Content)
 
 		db := database.Get()
 
@@ -1171,16 +1161,11 @@ func CreateAnnotation() fiber.Handler {
 			LineNumber: body.LineNumber,
 		}
 
-		fmt.Printf("Creating annotation: %+v\n", annotation)
-
 		if err := db.Create(&annotation).Error; err != nil {
-			fmt.Println("DB Create error:", err)
 			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 				"error": "Không thể lưu chú thích",
 			})
 		}
-
-		fmt.Printf("Annotation created successfully with ID: %d\n", annotation.ID)
 
 		return c.JSON(fiber.Map{
 			"annotation": fiber.Map{

@@ -60,6 +60,13 @@
     <section class="card post-body" id="post-body" data-post-id="{{.Post.ID}}" data-auth="{{if .IsAuthenticated}}true{{else}}false{{end}}">
         {{markdown .Post.Content}}
     </section>
+    <div class="post-image-lightbox" id="post-image-lightbox" aria-hidden="true">
+        <figure class="lightbox-content">
+            <button type="button" class="lightbox-close" aria-label="Đóng" data-action="close-lightbox">×</button>
+            <img src="" alt="Ảnh phóng to" loading="lazy">
+            <figcaption hidden></figcaption>
+        </figure>
+    </div>
 </article>
 {{if .IsAuthor}}
 <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
@@ -109,7 +116,80 @@ document.addEventListener('DOMContentLoaded', () => {
     const lineAnnotations = window.LINE_ANNOTATIONS || {};
     const isAuthor = window.IS_AUTHOR || false;
     
-    console.log('isAuth:', isAuth, 'isAuthor:', isAuthor, 'lineComments:', lineComments, 'lineAnnotations:', lineAnnotations);
+    const lightbox = document.getElementById('post-image-lightbox');
+    const lightboxImg = lightbox?.querySelector('img');
+    const lightboxCaption = lightbox?.querySelector('figcaption');
+    const lightboxCloseBtn = lightbox?.querySelector('[data-action="close-lightbox"]');
+
+    const openLightbox = (img) => {
+        if (!lightbox || !lightboxImg) return;
+        const fullSrc = img.getAttribute('data-full-src') || img.currentSrc || img.src;
+        lightboxImg.src = fullSrc;
+        lightboxImg.alt = img.alt || 'Ảnh phóng to';
+        if (lightboxCaption) {
+            const caption = img.getAttribute('alt') || img.getAttribute('title') || '';
+            if (caption) {
+                lightboxCaption.textContent = caption;
+                lightboxCaption.hidden = false;
+            } else {
+                lightboxCaption.hidden = true;
+                lightboxCaption.textContent = '';
+            }
+        }
+        lightbox.removeAttribute('data-zoomed');
+        lightbox.setAttribute('data-active', 'true');
+        lightbox.setAttribute('aria-hidden', 'false');
+        document.body.classList.add('lightbox-open');
+    };
+
+    const closeLightbox = () => {
+        if (!lightbox || !lightboxImg) return;
+        lightbox.removeAttribute('data-active');
+        lightbox.removeAttribute('data-zoomed');
+        lightbox.setAttribute('aria-hidden', 'true');
+        document.body.classList.remove('lightbox-open');
+        setTimeout(() => {
+            lightboxImg.src = '';
+        }, 200);
+    };
+
+    const toggleZoom = () => {
+        if (!lightbox) return;
+        const isZoomed = lightbox.getAttribute('data-zoomed') === 'true';
+        if (isZoomed) {
+            lightbox.removeAttribute('data-zoomed');
+        } else {
+            lightbox.setAttribute('data-zoomed', 'true');
+        }
+    };
+
+    if (lightbox) {
+        lightbox.addEventListener('click', (event) => {
+            if (event.target === lightbox) {
+                closeLightbox();
+            }
+        });
+    }
+
+    lightboxCloseBtn?.addEventListener('click', closeLightbox);
+    lightboxImg?.addEventListener('click', toggleZoom);
+
+    document.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape' && lightbox?.getAttribute('data-active') === 'true') {
+            closeLightbox();
+        }
+    });
+
+    const attachLightbox = (root) => {
+        if (!root) return;
+        root.querySelectorAll('img').forEach((img) => {
+            if (img.dataset.lightboxBound === 'true') return;
+            img.dataset.lightboxBound = 'true';
+            img.addEventListener('click', () => openLightbox(img));
+        });
+    };
+
+    attachLightbox(postBody);
 
     if (isAuthor) {
         const toggleEditorBtn = document.querySelector('[data-action="toggle-editor"]');
@@ -164,6 +244,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     case 'content': {
                         const html = value ? renderContentPreview(value) : defaultContent;
                         previewElements.content.innerHTML = html;
+                        attachLightbox(previewElements.content);
                         break;
                     }
                     case 'cover':
@@ -341,8 +422,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
     
-    console.log('Found elements to process:', processedElements.length);
-    
     processedElements.forEach(({ element: el, parent }) => {
         const text = el.textContent.trim();
         if (text.length === 0) return;
@@ -448,8 +527,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
     
-    console.log('Total lines wrapped:', lineNumber, 'Blocks with buttons:', blocks.length);
-
     const closeAllCommentPanels = () => {
         blocks.forEach(b => {
             b.panel.hidden = true;
@@ -553,8 +630,6 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!form.classList.contains('inline-form') && !form.classList.contains('annotation-form')) return;
             e.preventDefault();
             
-            console.log('Form submitted:', form.className, 'Line:', form.dataset.line);
-
             const line = parseInt(form.dataset.line);
             const textarea = form.querySelector('textarea');
             const error = form.querySelector('.inline-error');
@@ -627,14 +702,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
             submitBtn.disabled = true;
             try {
-                console.log('Sending annotation:', { content, line_number: line, url: `/posts/${postId}/annotations` });
                 const res = await fetch(`/posts/${postId}/annotations`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ content, line_number: line })
                 });
 
-                console.log('Response status:', res.status);
                 if (!res.ok) {
                     const errorData = await res.json();
                     console.error('Error response:', errorData);
