@@ -1,12 +1,18 @@
 package main
 
 import (
+	"encoding/json"
+	"html/template"
 	"log"
 	"os"
+	"strings"
+	"time"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cors"
 	"github.com/gofiber/template/html/v2"
+	"github.com/microcosm-cc/bluemonday"
+	"github.com/russross/blackfriday/v2"
 
 	"fiber-learning-community/internal/database"
 	"fiber-learning-community/internal/handlers"
@@ -16,6 +22,30 @@ func main() {
 	database.Init()
 
 	engine := html.New("./views", ".html")
+	engine.AddFunc("now", func() time.Time {
+		return time.Now()
+	})
+	engine.AddFunc("date", func(layout string, t time.Time) string {
+		if t.IsZero() {
+			return ""
+		}
+		return t.Format(layout)
+	})
+	engine.AddFunc("markdown", func(text string) template.HTML {
+		if strings.TrimSpace(text) == "" {
+			return template.HTML("")
+		}
+		rendered := blackfriday.Run([]byte(text), blackfriday.WithExtensions(blackfriday.CommonExtensions|blackfriday.AutoHeadingIDs|blackfriday.HardLineBreak))
+		sanitized := bluemonday.UGCPolicy().SanitizeBytes(rendered)
+		return template.HTML(sanitized)
+	})
+	engine.AddFunc("json", func(v interface{}) (template.JS, error) {
+		b, err := json.Marshal(v)
+		if err != nil {
+			return "", err
+		}
+		return template.JS(b), nil
+	})
 
 	app := fiber.New(fiber.Config{
 		Views:       engine,
@@ -44,6 +74,9 @@ func main() {
 	app.Post("/auth/logout", handlers.Logout())
 	app.Post("/posts", handlers.CreatePost())
 	app.Post("/posts/:id/comments", handlers.CreateComment())
+	app.Post("/posts/:id/annotations", handlers.CreateAnnotation())
+	app.Post("/posts/:id/edit", handlers.UpdatePost())
+	app.Post("/upload/image", handlers.UploadImage())
 
 	port := os.Getenv("PORT")
 	if port == "" {

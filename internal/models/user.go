@@ -10,6 +10,6 @@ type User struct {
 	Name         string `gorm:"size:120"`
 	Email        string `gorm:"size:120;uniqueIndex"`
 	PasswordHash string `gorm:"size:255"`
-	Posts        []Post
-	Comments     []Comment
+	Posts        []Post    `gorm:"foreignKey:AuthorID"`
+	Comments     []Comment `gorm:"foreignKey:AuthorID"`
 }

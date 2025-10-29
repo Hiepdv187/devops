@@ -12,6 +12,9 @@
             background-color: #0f172a;
             color: #e2e8f0;
             margin: 0;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
         }
         header, footer {
             background: rgba(15, 23, 42, 0.85);
@@ -56,11 +59,13 @@
         }
         main {
             padding: 3rem 0 4rem;
+            flex: 1 0 auto;
         }
         footer {
             padding: 2rem 0;
             border-top: 1px solid rgba(226, 232, 240, 0.06);
             margin-top: 3rem;
+            flex-shrink: 0;
         }
         footer a {
             color: #38bdf8;
@@ -112,6 +117,186 @@
             color: #cbd5f5;
             line-height: 1.6;
         }
+        .btn {
+            cursor: pointer;
+            border-radius: 999px;
+            padding: 0.65rem 1.5rem;
+            border: none;
+            font-weight: 600;
+            font-family: inherit;
+            transition: transform 0.15s ease, box-shadow 0.15s ease;
+        }
+        .btn.primary {
+            background: linear-gradient(135deg, #38bdf8, #0ea5e9);
+            color: #0f172a;
+            box-shadow: 0 10px 20px rgba(56, 189, 248, 0.25);
+        }
+        .btn.ghost {
+            background: rgba(15, 23, 42, 0.65);
+            color: #38bdf8;
+            border: 1px solid rgba(56, 189, 248, 0.4);
+        }
+        .btn:hover {
+            transform: translateY(-1px);
+        }
+        .nav-actions {
+            display: flex;
+            gap: 0.75rem;
+            align-items: center;
+        }
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(15, 23, 42, 0.8);
+            backdrop-filter: blur(10px);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 1.5rem;
+            z-index: 1000;
+        }
+        .modal-overlay.active {
+            display: flex;
+        }
+        .modal {
+            background: rgba(15, 23, 42, 0.9);
+            border: 1px solid rgba(148, 163, 184, 0.2);
+            border-radius: 18px;
+            padding: 2rem;
+            width: min(420px, 90vw);
+            box-shadow: 0 30px 60px rgba(15, 23, 42, 0.5);
+            position: relative;
+            display: grid;
+            gap: 1.5rem;
+        }
+        .modal header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 1rem;
+        }
+        .modal-close {
+            background: transparent;
+            border: none;
+            font-size: 1.5rem;
+            color: #94a3b8;
+            cursor: pointer;
+        }
+        .modal-close:hover {
+            color: #e2e8f0;
+        }
+        .stack {
+            display: grid;
+            gap: 1rem;
+        }
+        label {
+            display: grid;
+            gap: 0.4rem;
+            font-size: 0.9rem;
+        }
+        input, textarea {
+            padding: 0.75rem 1rem;
+            border-radius: 12px;
+            border: 1px solid rgba(148, 163, 184, 0.3);
+            background: rgba(15, 23, 42, 0.65);
+            color: #e2e8f0;
+            font-family: inherit;
+            font-size: 0.95rem;
+        }
+        textarea {
+            resize: vertical;
+        }
+        .modal-actions {
+            display: flex;
+            gap: 0.75rem;
+            justify-content: flex-end;
+        }
+        .welcome {
+            color: #cbd5f5;
+            font-weight: 500;
+        }
+        .flash {
+            margin-bottom: 1.5rem;
+            padding: 1rem 1.25rem;
+            border-radius: 12px;
+            border: 1px solid transparent;
+            opacity: 1;
+            transition: opacity 0.35s ease;
+        }
+        .flash-success {
+            background: rgba(34, 197, 94, 0.15);
+            border-color: rgba(34, 197, 94, 0.35);
+            color: #4ade80;
+        }
+        .flash-error {
+            background: rgba(248, 113, 113, 0.15);
+            border-color: rgba(248, 113, 113, 0.35);
+            color: #fca5a5;
+        }
+        .flash-hide {
+            opacity: 0;
+            pointer-events: none;
+        }
+        .composer {
+            display: grid;
+            gap: 1.75rem;
+        }
+        .composer.highlight {
+            box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.45), 0 25px 50px -12px rgba(56, 189, 248, 0.25);
+            outline: 2px solid rgba(56, 189, 248, 0.6);
+            outline-offset: 4px;
+            transition: box-shadow 0.3s ease, outline 0.3s ease;
+        }
+        .composer-header {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 1.5rem;
+        }
+        .composer-header .subtitle {
+            margin-top: 0.5rem;
+            color: #94a3b8;
+            max-width: 520px;
+            line-height: 1.6;
+        }
+        .composer-grid {
+            display: grid;
+            gap: 1.75rem;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        }
+        .composer-grid .preview {
+            background: rgba(15, 23, 42, 0.6);
+            border: 1px dashed rgba(56, 189, 248, 0.45);
+            border-radius: 16px;
+            padding: 1.5rem;
+            display: grid;
+            gap: 1rem;
+        }
+        .preview-cover {
+            display: none;
+            border-radius: 14px;
+            overflow: hidden;
+            border: 1px solid rgba(56, 189, 248, 0.25);
+        }
+        .preview-cover[data-visible="true"] {
+            display: block;
+        }
+        .preview-cover img {
+            width: 100%;
+            height: auto;
+            display: block;
+        }
+        .preview-title {
+            margin: 0;
+            font-size: 1.35rem;
+        }
+        .preview-content p {
+            line-height: 1.7;
+        }
+        .form-actions {
+            display: flex;
+            justify-content: flex-end;
+        }
         @media (max-width: 768px) {
             nav ul {
                 gap: 1rem;
@@ -123,12 +308,12 @@
         }
     </style>
 </head>
-<body>
+<body data-current-path="{{.RequestPath}}" data-current-route="{{.RequestRoute}}" data-is-auth="{{.IsAuthenticated}}">
     <header>
         <div class="container">
             <nav>
                 <div class="brand">{{.AppName}} <span>∞</span></div>
-                <ul>
+                <ul data-nav-map='{"/":"Trang chủ","/posts":"Bài viết","/courses":"Lộ trình","/contributors":"Đóng góp","/about":"Về dự án","/contribute":"Tham gia"}'>
                     <li><a href="/">Trang chủ</a></li>
                     <li><a href="/posts">Bài viết</a></li>
                     <li><a href="/courses">Lộ trình</a></li>
@@ -138,14 +323,15 @@
                 </ul>
                 <div class="nav-actions">
                     {{if .IsAuthenticated}}
+                        <a href="/posts#create" class="btn primary" data-compose-button>Viết bài</a>
                         <span class="welcome">Xin chào, {{.CurrentUser.Name}}</span>
                         <form method="post" action="/auth/logout">
                             <input type="hidden" name="next" value="{{.RequestPath}}">
                             <button type="submit" class="btn ghost">Đăng xuất</button>
                         </form>
                     {{else}}
-                        <a href="/auth/login" class="btn ghost">Đăng nhập</a>
-                        <a href="/auth/register" class="btn primary">Đăng ký</a>
+                        <button type="button" class="btn ghost" data-modal-target="login-modal">Đăng nhập</button>
+                        <button type="button" class="btn primary" data-modal-target="register-modal">Đăng ký</button>
                     {{end}}
                 </div>
             </nav>
@@ -161,8 +347,162 @@
     </main>
     <footer>
         <div class="container">
-            <p>&copy; {{.AppName}} {{now | date "2006"}}. Mọi nội dung được cấp phép theo giấy phép mở. Tham gia đóng góp trên <a href="https://github.com/" target="_blank" rel="noopener">GitHub</a>.</p>
+            <p>&copy; {{.AppName}} {{now | date "2006"}}. Mọi nội dung được cấp phép theo giấy phép mở. Tham gia đóng góp trên <a href="https://github.com/" target="_blank" rel="noopener">GitHub</a>. Created by: Đặng Vũ Hiệp.</p>
         </div>
     </footer>
+
+    {{if not .IsAuthenticated}}
+    <div class="modal-overlay" id="login-modal">
+        <div class="modal">
+            <header>
+                <h2>Đăng nhập</h2>
+                <button type="button" class="modal-close" data-close-modal>&times;</button>
+            </header>
+            <form method="post" action="/auth/login" class="stack">
+                <label>Email
+                    <input type="email" name="email" placeholder="you@example.com" required>
+                </label>
+                <label>Mật khẩu
+                    <input type="password" name="password" placeholder="Mật khẩu" required minlength="6">
+                </label>
+                <input type="hidden" name="next" value="">
+                <div class="modal-actions">
+                    <button type="submit" class="btn primary">Đăng nhập</button>
+                    <button type="button" class="btn ghost" data-modal-target="register-modal">Tạo tài khoản</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="register-modal">
+        <div class="modal">
+            <header>
+                <h2>Đăng ký tài khoản</h2>
+                <button type="button" class="modal-close" data-close-modal>&times;</button>
+            </header>
+            <form method="post" action="/auth/register" class="stack">
+                <label>Họ và tên
+                    <input type="text" name="name" placeholder="Ví dụ: Nguyễn Minh" required minlength="3">
+                </label>
+                <label>Email
+                    <input type="email" name="email" placeholder="you@example.com" required>
+                </label>
+                <label>Mật khẩu
+                    <input type="password" name="password" placeholder="Tối thiểu 6 ký tự" required minlength="6">
+                </label>
+                <input type="hidden" name="next" value="/posts">
+                <div class="modal-actions">
+                    <button type="submit" class="btn primary">Đăng ký</button>
+                    <button type="button" class="btn ghost" data-modal-target="login-modal">Đã có tài khoản</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    {{end}}
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const body = document.body;
+            const currentPath = body.getAttribute('data-current-path') || '/';
+            const currentRoute = body.getAttribute('data-current-route') || currentPath;
+
+            const flashMessages = document.querySelectorAll('.flash');
+            if (flashMessages.length > 0) {
+                setTimeout(() => {
+                    flashMessages.forEach((flash) => {
+                        flash.classList.add('flash-hide');
+                        setTimeout(() => flash.remove(), 400);
+                    });
+                }, 3000);
+            }
+
+            function openModal(id) {
+                closeAll();
+                const modal = document.getElementById(id);
+                if (modal) {
+                    modal.classList.add('active');
+                    const nextField = modal.querySelector('input[name="next"]');
+                    if (nextField && !nextField.value) {
+                        nextField.value = currentPath;
+                    }
+                }
+            }
+
+            function closeAll() {
+                document.querySelectorAll('.modal-overlay.active').forEach((element) => {
+                    element.classList.remove('active');
+                });
+            }
+
+            function focusComposer() {
+                const composer = document.getElementById('create');
+                if (!composer) {
+                    return;
+                }
+                composer.classList.add('highlight');
+                composer.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                const titleInput = composer.querySelector('input[name="title"]');
+                if (titleInput) {
+                    setTimeout(() => titleInput.focus(), 350);
+                }
+                setTimeout(() => composer.classList.remove('highlight'), 2000);
+            }
+
+            body.querySelectorAll('[data-compose-button]').forEach((button) => {
+                button.addEventListener('click', (event) => {
+                    if (window.location.pathname === '/posts') {
+                        event.preventDefault();
+                        focusComposer();
+                    }
+                });
+            });
+
+            function handleHashChange() {
+                if (window.location.hash === '#create' && window.location.pathname === '/posts') {
+                    focusComposer();
+                }
+            }
+
+            handleHashChange();
+            window.addEventListener('hashchange', handleHashChange);
+
+            const navList = document.querySelector('ul[data-nav-map]');
+            if (navList) {
+                const navMap = JSON.parse(navList.getAttribute('data-nav-map'));
+                const match = navList.querySelector(`a[href="${currentRoute}"]`)
+                    || navList.querySelector(`a[href="${currentPath}"]`)
+                    || (() => {
+                        if (currentRoute.startsWith('/posts')) {
+                            return navList.querySelector('a[href="/posts"]');
+                        }
+                        return null;
+                    })();
+                if (match) {
+                    match.classList.add('active');
+                }
+            }
+
+            body.querySelectorAll('[data-modal-target]').forEach((trigger) => {
+                trigger.addEventListener('click', () => {
+                    const target = trigger.getAttribute('data-modal-target');
+                    if (target) {
+                        openModal(target);
+                    }
+                });
+            });
+
+            body.querySelectorAll('[data-close-modal]').forEach((btn) => {
+                btn.addEventListener('click', closeAll);
+            });
+
+            document.querySelectorAll('.modal-overlay').forEach((overlay) => {
+                overlay.addEventListener('click', (event) => {
+                    if (event.target === overlay) {
+                        overlay.classList.remove('active');
+                    }
+                });
+            });
+        });
+    </script>
 </body>
 </html>

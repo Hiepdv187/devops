@@ -1,25 +1,82 @@
-{{define "content"}}
 <article class="post-detail">
     <header class="hero hero-basic">
-        <span class="badge">Bài viết cộng đồng</span>
-        <h1>{{.Post.Title}}</h1>
-        <p class="meta">Bởi {{.Post.AuthorName}} · {{.Post.CreatedLabel}}</p>
+        <div class="hero-header">
+            <div class="hero-text">
+                <h1>{{.Post.Title}}</h1>
+                <p class="meta">Bởi {{.Post.AuthorName}} · {{.Post.CreatedLabel}}</p>
+            </div>
+        </div>
         {{if .Post.Summary}}
         <p class="summary">{{.Post.Summary}}</p>
         {{end}}
     </header>
-    <section class="card post-body">
-        <p>{{.Post.Content}}</p>
+    {{if .IsAuthor}}
+    <div class="post-author-actions">
+        <button type="button" class="btn ghost" data-action="toggle-editor">Chỉnh sửa bài viết</button>
+    </div>
+    {{end}}
+    {{if .IsAuthor}}
+    <section class="card post-editor" id="post-editor" hidden>
+        <div class="composer-grid">
+            <form method="post" action="/posts/{{.Post.ID}}/edit" class="stack" id="post-edit-form">
+                <label>Tựa đề
+                    <input type="text" name="title" value="{{.Post.Title}}" placeholder="Tiêu đề bài viết" required minlength="3" data-preview="title">
+                </label>
+                <label>Tóm tắt ngắn
+                    <input type="text" name="summary" value="{{.Post.Summary}}" placeholder="Tóm tắt ngắn gọn" data-preview="summary">
+                </label>
+                <label>Ảnh bìa (URL)
+                    <input type="url" name="cover_url" value="{{.Post.CoverURL}}" placeholder="https://example.com/cover.jpg" data-preview="cover">
+                </label>
+                <label>Nội dung bài viết
+                    <textarea name="content" rows="10" placeholder="Chỉnh sửa nội dung bài viết" required minlength="10" data-preview="content" id="edit-content-textarea">{{.Post.Content}}</textarea>
+                    <div class="image-upload-zone" id="edit-image-upload-zone">
+                        <input type="file" id="edit-image-input" accept="image/*" multiple hidden>
+                        <p class="upload-hint">
+                            <svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
+                            Kéo thả ảnh vào đây hoặc <button type="button" class="upload-btn">chọn file</button>
+                        </p>
+                        <p class="upload-progress" hidden></p>
+                    </div>
+                </label>
+                <div class="form-actions">
+                    <button type="submit" class="btn primary">Lưu thay đổi</button>
+                    <button type="button" class="btn ghost" data-action="close-editor">Hủy</button>
+                </div>
+            </form>
+            <aside class="preview" id="post-edit-preview">
+                <h3 class="preview-heading">Xem trước bài viết</h3>
+                <figure class="preview-cover" data-visible="{{if .Post.CoverURL}}true{{else}}false{{end}}">
+                    <img src="{{.Post.CoverURL}}" alt="Ảnh bìa xem trước" loading="lazy">
+                </figure>
+                <h3 class="preview-title">{{.Post.Title}}</h3>
+                <p class="preview-meta">Bởi {{.Post.AuthorName}} · {{.Post.CreatedLabel}}</p>
+                <p class="preview-summary">{{if .Post.Summary}}{{.Post.Summary}}{{else}}Tóm tắt sẽ giúp người đọc hiểu nhanh nội dung chính của bài viết.{{end}}</p>
+                <div class="preview-content" id="post-edit-preview-content"></div>
+            </aside>
+        </div>
+    </section>
+    {{end}}
+    <section class="card post-body" id="post-body" data-post-id="{{.Post.ID}}" data-auth="{{if .IsAuthenticated}}true{{else}}false{{end}}">
+        {{markdown .Post.Content}}
     </section>
 </article>
+{{if .IsAuthor}}
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+{{end}}
+<script>
+window.LINE_COMMENTS = {{.LineComments | json}};
+window.LINE_ANNOTATIONS = {{.LineAnnotations | json}};
+window.IS_AUTHOR = {{.IsAuthor}};
+</script>
 <section class="comments" id="comments">
     <header class="section-header">
         <h2>Bình luận</h2>
         <p>Thảo luận và đóng góp ý kiến của bạn để cùng cải thiện quy trình DevOps.</p>
     </header>
-    {{if .Comments}}
+    {{if .GeneralComments}}
     <div class="stack comment-list">
-        {{range .Comments}}
+        {{range .GeneralComments}}
         <article class="card comment-card">
             <p>{{.Content}}</p>
             <p class="meta">Bởi {{.AuthorName}} · {{.CreatedAt}}</p>
@@ -27,7 +84,7 @@
         {{end}}
     </div>
     {{else}}
-    <p class="empty">Chưa có bình luận. Hãy là người đầu tiên đặt câu hỏi hoặc chia sẻ kinh nghiệm!</p>
+    <p class="empty">Chưa có bình luận chung. Hãy mở đầu cuộc trò chuyện!</p>
     {{end}}
 </section>
 <section class="comment-form card" id="add-comment">
@@ -41,4 +98,579 @@
     <p>Bạn cần <a href="/auth/login?next=/posts/{{.Post.ID}}#add-comment">đăng nhập</a> để bình luận. Chưa có tài khoản? <a href="/auth/register?next=/posts/{{.Post.ID}}#add-comment">Đăng ký ngay</a>.</p>
     {{end}}
 </section>
-{{end}}
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const postBody = document.getElementById('post-body');
+    if (!postBody) return;
+
+    const postId = postBody.dataset.postId;
+    const isAuth = postBody.dataset.auth === 'true';
+    const lineComments = window.LINE_COMMENTS || {};
+    const lineAnnotations = window.LINE_ANNOTATIONS || {};
+    const isAuthor = window.IS_AUTHOR || false;
+    
+    console.log('isAuth:', isAuth, 'isAuthor:', isAuthor, 'lineComments:', lineComments, 'lineAnnotations:', lineAnnotations);
+
+    if (isAuthor) {
+        const toggleEditorBtn = document.querySelector('[data-action="toggle-editor"]');
+        const editorSection = document.getElementById('post-editor');
+        const postBodySection = document.getElementById('post-body');
+        const closeEditorBtn = document.querySelector('[data-action="close-editor"]');
+        const editForm = document.getElementById('post-edit-form');
+        const preview = document.getElementById('post-edit-preview');
+
+        if (toggleEditorBtn && editorSection && postBodySection && editForm && preview) {
+            const previewElements = {
+                title: preview.querySelector('.preview-title'),
+                summary: preview.querySelector('.preview-summary'),
+                content: preview.querySelector('.preview-content'),
+                coverWrapper: preview.querySelector('.preview-cover'),
+                coverImg: preview.querySelector('.preview-cover img'),
+            };
+
+            const textarea = editForm.querySelector('#edit-content-textarea');
+            const uploadZone = document.getElementById('edit-image-upload-zone');
+            const imageInput = document.getElementById('edit-image-input');
+            const uploadProgress = uploadZone ? uploadZone.querySelector('.upload-progress') : null;
+
+            const defaultSummary = 'Tóm tắt sẽ giúp người đọc hiểu nhanh nội dung chính của bài viết.';
+            const defaultContent = '<p>Nội dung bài viết hiển thị theo từng đoạn, bạn có thể nhập Markdown cơ bản như xuống dòng bằng cách nhấn Enter.</p>';
+
+            const renderContentPreview = (value) => {
+                const trimmed = value.trim();
+                if (!trimmed) return '';
+                if (window.marked && typeof window.marked.parse === 'function') {
+                    try {
+                        return window.marked.parse(trimmed);
+                    } catch (err) {
+                        console.warn('Markdown render error:', err);
+                    }
+                }
+                const safeValue = trimmed.replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                return safeValue
+                    .split(/\n{2,}/)
+                    .map(paragraph => `<p>${paragraph.replace(/\n/g, '<br>')}</p>`)
+                    .join('');
+            };
+
+            const updatePreview = (target, value) => {
+                switch (target) {
+                    case 'title':
+                        previewElements.title.textContent = value || 'Tiêu đề bài viết sẽ hiển thị tại đây';
+                        break;
+                    case 'summary':
+                        previewElements.summary.textContent = value || defaultSummary;
+                        break;
+                    case 'content': {
+                        const html = value ? renderContentPreview(value) : defaultContent;
+                        previewElements.content.innerHTML = html;
+                        break;
+                    }
+                    case 'cover':
+                        if (!previewElements.coverWrapper || !previewElements.coverImg) return;
+                        if (value) {
+                            previewElements.coverImg.src = value;
+                            previewElements.coverWrapper.setAttribute('data-visible', 'true');
+                        } else {
+                            previewElements.coverImg.src = '';
+                            previewElements.coverWrapper.setAttribute('data-visible', 'false');
+                        }
+                        break;
+                    default:
+                        break;
+                }
+            };
+
+            const syncPreviewFromForm = () => {
+                editForm.querySelectorAll('[data-preview]').forEach((input) => {
+                    const target = input.getAttribute('data-preview');
+                    updatePreview(target, input.value.trim());
+                });
+            };
+
+            const openEditor = () => {
+                editorSection.hidden = false;
+                postBodySection.hidden = true;
+                if (toggleEditorBtn) toggleEditorBtn.disabled = true;
+                syncPreviewFromForm();
+                textarea?.focus();
+            };
+
+            const closeEditor = () => {
+                editorSection.hidden = true;
+                postBodySection.hidden = false;
+                if (toggleEditorBtn) toggleEditorBtn.disabled = false;
+            };
+
+            editForm.querySelectorAll('[data-preview]').forEach((input) => {
+                const target = input.getAttribute('data-preview');
+                if (!target) return;
+                input.addEventListener('input', () => {
+                    updatePreview(target, input.value.trim());
+                });
+            });
+
+            if (textarea) {
+                textarea.addEventListener('input', () => {
+                    updatePreview('content', textarea.value);
+                });
+            }
+
+            if (uploadZone && imageInput && textarea && uploadProgress) {
+                const handleFiles = async (files) => {
+                    if (!files || files.length === 0) return;
+                    for (const file of files) {
+                        await uploadImage(file);
+                    }
+                };
+
+                const uploadImage = async (file) => {
+                    const formData = new FormData();
+                    formData.append('image', file);
+
+                    uploadProgress.textContent = `Đang upload ${file.name}...`;
+                    uploadProgress.hidden = false;
+
+                    try {
+                        const response = await fetch('/upload/image', {
+                            method: 'POST',
+                            body: formData,
+                        });
+
+                        if (!response.ok) {
+                            const error = await response.json();
+                            throw new Error(error.error || 'Upload thất bại');
+                        }
+
+                        const data = await response.json();
+                        const start = textarea.selectionStart;
+                        const end = textarea.selectionEnd;
+                        const text = textarea.value;
+                        const before = text.substring(0, start);
+                        const after = text.substring(end);
+
+                        textarea.value = `${before}${data.markdown}\n${after}`;
+                        textarea.selectionStart = textarea.selectionEnd = start + data.markdown.length + 1;
+                        textarea.dispatchEvent(new Event('input'));
+
+                        uploadProgress.textContent = `✓ ${file.name} đã upload thành công`;
+                        setTimeout(() => {
+                            uploadProgress.hidden = true;
+                        }, 2000);
+                    } catch (error) {
+                        uploadProgress.textContent = `✗ Lỗi: ${error.message}`;
+                        setTimeout(() => {
+                            uploadProgress.hidden = true;
+                        }, 3000);
+                    }
+                };
+
+                uploadZone.querySelector('.upload-btn')?.addEventListener('click', () => {
+                    imageInput.click();
+                });
+
+                imageInput.addEventListener('change', (e) => {
+                    handleFiles(e.target.files);
+                });
+
+                uploadZone.addEventListener('dragover', (e) => {
+                    e.preventDefault();
+                    uploadZone.classList.add('dragover');
+                });
+
+                uploadZone.addEventListener('dragleave', () => {
+                    uploadZone.classList.remove('dragover');
+                });
+
+                uploadZone.addEventListener('drop', (e) => {
+                    e.preventDefault();
+                    uploadZone.classList.remove('dragover');
+                    const files = Array.from(e.dataTransfer.files).filter((f) => f.type.startsWith('image/'));
+                    handleFiles(files);
+                });
+            }
+
+            toggleEditorBtn?.addEventListener('click', () => {
+                openEditor();
+            });
+
+            closeEditorBtn?.addEventListener('click', () => {
+                closeEditor();
+            });
+
+            // Initialize preview with current values
+            syncPreviewFromForm();
+            updatePreview('content', textarea?.value || '');
+        }
+    }
+
+    let lineNumber = 0;
+    const blocks = [];
+    const annotationBlocks = [];
+
+    const processedElements = [];
+    
+    postBody.querySelectorAll('p, pre, blockquote, h1, h2, h3, h4, h5, h6, li').forEach(el => {
+        if (el.querySelector('br')) {
+            const parts = [];
+            let currentPart = document.createElement('span');
+            
+            Array.from(el.childNodes).forEach(node => {
+                if (node.nodeName === 'BR') {
+                    if (currentPart.textContent.trim()) {
+                        parts.push(currentPart);
+                    }
+                    currentPart = document.createElement('span');
+                } else {
+                    currentPart.appendChild(node.cloneNode(true));
+                }
+            });
+            
+            if (currentPart.textContent.trim()) {
+                parts.push(currentPart);
+            }
+            
+            el.innerHTML = '';
+            parts.forEach((part, idx) => {
+                if (idx > 0) el.appendChild(document.createElement('br'));
+                el.appendChild(part);
+                processedElements.push({ element: part, parent: el });
+            });
+        } else {
+            processedElements.push({ element: el, parent: null });
+        }
+    });
+    
+    console.log('Found elements to process:', processedElements.length);
+    
+    processedElements.forEach(({ element: el, parent }) => {
+        const text = el.textContent.trim();
+        if (text.length === 0) return;
+        
+        lineNumber++;
+        const currentLine = lineNumber;
+        
+        const wrapper = document.createElement('span');
+        wrapper.className = 'inline-line';
+        wrapper.dataset.line = currentLine;
+        wrapper.style.display = 'block';
+        
+        el.parentNode.insertBefore(wrapper, el);
+        wrapper.appendChild(el);
+        
+        const comments = lineComments[currentLine] || [];
+        const annotation = lineAnnotations[currentLine] || '';
+
+        // Add annotation display if exists
+        if (annotation) {
+            const annotationSpan = document.createElement('span');
+            annotationSpan.className = 'line-annotation';
+            annotationSpan.textContent = `# ${annotation}`;
+            annotationSpan.title = annotation;
+            wrapper.appendChild(annotationSpan);
+        }
+
+        if (isAuthor) {
+            const annotateBtn = document.createElement('button');
+            annotateBtn.type = 'button';
+            annotateBtn.className = 'inline-btn annotate-btn';
+            annotateBtn.innerHTML = `📝`;
+            annotateBtn.title = 'Chú thích';
+            annotateBtn.dataset.line = currentLine;
+            wrapper.appendChild(annotateBtn);
+
+            const lineText = text.length > 50 ? text.substring(0, 50) + '...' : text;
+            const annotationPanel = document.createElement('div');
+            annotationPanel.className = 'inline-panel annotation-panel';
+            annotationPanel.hidden = true;
+            annotationPanel.dataset.line = currentLine;
+            annotationPanel.innerHTML = `
+                <div class="inline-panel-header">
+                    <span title="${text}">${lineText}</span>
+                    <button type="button" class="inline-close">×</button>
+                </div>
+                <form class="annotation-form" data-line="${currentLine}">
+                    <textarea placeholder="Nhập chú thích cho dòng này" minlength="1"></textarea>
+                    <div class="annotation-actions">
+                        <button type="submit" class="btn primary small">Lưu</button>
+                        <button type="button" class="btn ghost small annotation-cancel">Hủy</button>
+                    </div>
+                    <p class="inline-error" hidden></p>
+                </form>
+            `;
+            const annotationTextarea = annotationPanel.querySelector('textarea');
+            annotationTextarea.value = annotation;
+            document.body.appendChild(annotationPanel);
+            annotationBlocks.push({
+                wrapper,
+                button: annotateBtn,
+                panel: annotationPanel,
+                textarea: annotationTextarea,
+                lineNumber: currentLine
+            });
+        }
+
+        if (true) {
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'inline-btn';
+            btn.innerHTML = `💬${comments.length > 0 ? ` <span>${comments.length}</span>` : ''}`;
+            btn.dataset.line = currentLine;
+            wrapper.appendChild(btn);
+
+            const lineText = text.length > 50 ? text.substring(0, 50) + '...' : text;
+            const panel = document.createElement('div');
+            panel.className = 'inline-panel';
+            panel.hidden = true;
+            panel.innerHTML = `
+                <div class="inline-panel-header">
+                    <span title="${text}">${lineText}</span>
+                    <button type="button" class="inline-close">×</button>
+                </div>
+                <div class="inline-comments">
+                    ${comments.length > 0 ? comments.map(c => `
+                        <div class="inline-comment">
+                            <p>${c.Content}</p>
+                            <small>${c.AuthorName} · ${c.CreatedAt}</small>
+                        </div>
+                    `).join('') : '<p class="inline-empty">Chưa có bình luận.</p>'}
+                </div>
+                ${isAuth ? `
+                <form class="inline-form" data-line="${currentLine}">
+                    <textarea placeholder="Thêm bình luận..." required minlength="3"></textarea>
+                    <button type="submit" class="btn primary small">Gửi</button>
+                    <p class="inline-error" hidden></p>
+                </form>
+                ` : ''}
+            `;
+            document.body.appendChild(panel);
+            blocks.push({ wrapper, btn, panel, lineNumber: currentLine });
+        }
+    });
+    
+    console.log('Total lines wrapped:', lineNumber, 'Blocks with buttons:', blocks.length);
+
+    const closeAllCommentPanels = () => {
+        blocks.forEach(b => {
+            b.panel.hidden = true;
+            b.wrapper.classList.remove('active');
+        });
+    };
+
+    const closeAllAnnotationPanels = () => {
+        annotationBlocks.forEach(b => {
+            b.panel.hidden = true;
+            b.wrapper.classList.remove('annotation-active');
+        });
+    };
+
+    document.addEventListener('click', async (e) => {
+        const annotateBtn = e.target.closest('.annotate-btn');
+        const btn = e.target.closest('.inline-btn:not(.annotate-btn)');
+        const close = e.target.closest('.inline-close');
+        const cancelAnnotate = e.target.closest('.annotation-cancel');
+
+        if (close) {
+            e.preventDefault();
+            e.stopPropagation();
+            const panel = close.closest('.inline-panel');
+            if (panel) {
+                panel.hidden = true;
+                const commentBlock = blocks.find(b => b.panel === panel);
+                if (commentBlock) {
+                    commentBlock.wrapper.classList.remove('active');
+                }
+                const annotationBlock = annotationBlocks.find(b => b.panel === panel);
+                if (annotationBlock) {
+                    annotationBlock.wrapper.classList.remove('annotation-active');
+                }
+            }
+            return;
+        }
+
+        if (cancelAnnotate) {
+            e.preventDefault();
+            const panel = cancelAnnotate.closest('.inline-panel');
+            if (panel) {
+                panel.hidden = true;
+                const annotationBlock = annotationBlocks.find(b => b.panel === panel);
+                if (annotationBlock) {
+                    annotationBlock.wrapper.classList.remove('annotation-active');
+                    annotationBlock.textarea.value = lineAnnotations[annotationBlock.lineNumber] || '';
+                }
+            }
+            return;
+        }
+
+        if (annotateBtn) {
+            e.preventDefault();
+            e.stopPropagation();
+            const line = parseInt(annotateBtn.dataset.line);
+            const block = annotationBlocks.find(b => b.lineNumber === line);
+            if (block) {
+                const wasHidden = block.panel.hidden;
+                closeAllCommentPanels();
+                closeAllAnnotationPanels();
+                if (wasHidden) {
+                    block.panel.hidden = false;
+                    block.wrapper.classList.add('annotation-active');
+                    block.textarea.value = lineAnnotations[line] || '';
+                    setTimeout(() => block.textarea.focus(), 0);
+                }
+            }
+            return;
+        }
+
+        if (btn) {
+            e.preventDefault();
+            e.stopPropagation();
+            const line = parseInt(btn.dataset.line);
+            const block = blocks.find(b => b.lineNumber === line);
+            if (block) {
+                const wasHidden = block.panel.hidden;
+                closeAllAnnotationPanels();
+                blocks.forEach(b => {
+                    b.panel.hidden = true;
+                    b.wrapper.classList.remove('active');
+                });
+                if (wasHidden) {
+                    block.panel.hidden = false;
+                    block.wrapper.classList.add('active');
+                }
+            }
+            return;
+        }
+
+        if (!e.target.closest('.inline-panel')) {
+            closeAllCommentPanels();
+            closeAllAnnotationPanels();
+        }
+    });
+
+    if (isAuth || isAuthor) {
+        document.addEventListener('submit', async (e) => {
+            const form = e.target;
+            if (!form.classList.contains('inline-form') && !form.classList.contains('annotation-form')) return;
+            e.preventDefault();
+            
+            console.log('Form submitted:', form.className, 'Line:', form.dataset.line);
+
+            const line = parseInt(form.dataset.line);
+            const textarea = form.querySelector('textarea');
+            const error = form.querySelector('.inline-error');
+            const submitBtn = form.querySelector('button[type="submit"]');
+
+            error.hidden = true;
+            const content = textarea.value.trim();
+
+            if (form.classList.contains('inline-form')) {
+                if (content.length < 3) {
+                    error.textContent = 'Bình luận phải từ 3 ký tự.';
+                    error.hidden = false;
+                    return;
+                }
+
+                submitBtn.disabled = true;
+                try {
+                    const res = await fetch(`/posts/${postId}/comments`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ content, line_number: parseInt(line) })
+                    });
+
+                    if (!res.ok) throw new Error('Không thể gửi bình luận');
+                    
+                    const data = await res.json();
+                    const commentsDiv = form.previousElementSibling;
+                    const empty = commentsDiv.querySelector('.inline-empty');
+                    if (empty) empty.remove();
+
+                    const newComment = document.createElement('div');
+                    newComment.className = 'inline-comment new';
+                    newComment.innerHTML = `
+                        <p>${data.comment.content}</p>
+                        <small>${data.comment.author_name} · ${data.comment.created_at}</small>
+                    `;
+                    commentsDiv.appendChild(newComment);
+                    textarea.value = '';
+
+                    const block = blocks.find(b => b.lineNumber === line);
+                    if (block) {
+                        block.wrapper.classList.add('highlight');
+                        setTimeout(() => block.wrapper.classList.remove('highlight'), 2000);
+                        const countSpan = block.btn.querySelector('span');
+                        if (countSpan) {
+                            countSpan.textContent = parseInt(countSpan.textContent) + 1;
+                        } else {
+                            block.btn.innerHTML += ` <span>1</span>`;
+                        }
+                    }
+                } catch (err) {
+                    error.textContent = err.message;
+                    error.hidden = false;
+                } finally {
+                    submitBtn.disabled = false;
+                }
+                return;
+            }
+
+            // Annotation form handling
+            const currentAnnotation = lineAnnotations[line] || '';
+            if (content === currentAnnotation) {
+                const block = annotationBlocks.find(b => b.lineNumber === line);
+                if (block) {
+                    block.panel.hidden = true;
+                    block.wrapper.classList.remove('annotation-active');
+                }
+                return;
+            }
+
+            submitBtn.disabled = true;
+            try {
+                console.log('Sending annotation:', { content, line_number: line, url: `/posts/${postId}/annotations` });
+                const res = await fetch(`/posts/${postId}/annotations`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ content, line_number: line })
+                });
+
+                console.log('Response status:', res.status);
+                if (!res.ok) {
+                    const errorData = await res.json();
+                    console.error('Error response:', errorData);
+                    throw new Error(errorData.error || 'Không thể lưu chú thích');
+                }
+
+                lineAnnotations[line] = content;
+
+                const block = annotationBlocks.find(b => b.lineNumber === line);
+                if (block) {
+                    block.panel.hidden = true;
+                    block.wrapper.classList.remove('annotation-active');
+                }
+
+                const wrapper = document.querySelector(`.inline-line[data-line="${line}"]`);
+                if (wrapper) {
+                    let annotationSpan = wrapper.querySelector('.line-annotation');
+                    if (content) {
+                        if (!annotationSpan) {
+                            annotationSpan = document.createElement('span');
+                            annotationSpan.className = 'line-annotation';
+                            wrapper.insertBefore(annotationSpan, wrapper.querySelector('.annotate-btn'));
+                        }
+                        annotationSpan.textContent = `# ${content}`;
+                        annotationSpan.title = content;
+                    } else if (annotationSpan) {
+                        annotationSpan.remove();
+                    }
+                }
+            } catch (err) {
+                error.textContent = err.message;
+                error.hidden = false;
+            } finally {
+                submitBtn.disabled = false;
+            }
+        });
+    }
+});
+</script>

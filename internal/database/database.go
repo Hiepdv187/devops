@@ -24,7 +24,7 @@ var (
 // Init khởi tạo kết nối GORM.
 func Init() *gorm.DB {
 	once.Do(func() {
-		defaultDSN := "root@tcp(127.0.0.1:3308)/fiber_learning?charset=utf8mb4&parseTime=True&loc=Local"
+		defaultDSN := "root:rootpass@tcp(127.0.0.1:3308)/fiber_learning?charset=utf8mb4&parseTime=True&loc=Local"
 		dsn := strings.TrimSpace(getEnv("DATABASE_DSN", defaultDSN))
 		if dsn == "" {
 			dsn = defaultDSN
@@ -49,7 +49,7 @@ func Init() *gorm.DB {
 		sqlDB.SetMaxIdleConns(10)
 		sqlDB.SetConnMaxLifetime(15 * time.Minute)
 
-		if err = db.AutoMigrate(&models.User{}, &models.Post{}, &models.Comment{}); err != nil {
+		if err = db.AutoMigrate(&models.User{}, &models.Post{}, &models.Comment{}, &models.Annotation{}); err != nil {
 			log.Fatalf("failed to migrate database: %v", err)
 		}
 

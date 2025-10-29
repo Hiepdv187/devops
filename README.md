@@ -1,6 +1,6 @@
 # Cộng đồng Học DevOps
 
-Website được xây dựng bằng [Fiber](https://github.com/gofiber/fiber) giúp cộng đồng chia sẻ và đóng góp bài học DevOps. Ứng dụng sử dụng GORM với SQLite để lưu trữ tài khoản demo.
+Website được xây dựng bằng [Fiber](https://github.com/gofiber/fiber) giúp cộng đồng chia sẻ và đóng góp bài học DevOps. Ứng dụng sử dụng GORM với MySQL để lưu trữ tài khoản demo.
 
 ## Yêu cầu
 
@@ -17,6 +17,22 @@ go run .
 ```
 
 Server mặc định chạy tại `http://localhost:3000`.
+
+### Chạy MySQL bằng Docker Compose
+
+1. Khởi động cơ sở dữ liệu:
+
+   ```bash
+   docker compose up -d
+   ```
+
+2. MySQL sẽ lắng nghe tại `localhost:3308` (user: `devuser`, password: `devpass`).
+
+3. Dừng cơ sở dữ liệu khi hoàn tất:
+
+   ```bash
+   docker compose down
+   ```
 
 Ứng dụng sử dụng MySQL thông qua GORM. Cấu hình chuỗi kết nối qua biến môi trường `DATABASE_DSN`, ví dụ:
 

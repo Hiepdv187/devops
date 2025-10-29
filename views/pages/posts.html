@@ -1,7 +1,5 @@
-{{define "content"}}
-<header class="hero hero-split">
+<header class="hero hero-split posts-hero">
     <div>
-        <span class="badge">Bài viết</span>
         <h1>{{.Title}}</h1>
         <p>Cập nhật kiến thức DevOps từ các thành viên cộng đồng. Đóng góp kinh nghiệm thực chiến của bạn để lan tỏa giá trị.</p>
     </div>
@@ -13,22 +11,39 @@
         {{end}}
     </div>
 </header>
-<section class="posts-list">
+
+<section id="posts" class="posts-list">
+    <header class="posts-toolbar">
+        <div>
+            <h2>Bài viết mới nhất</h2>
+            <p>Tìm kiếm kiến thức DevOps từ cộng đồng. Có {{len .Posts}} bài viết trong trang này.</p>
+        </div>
+        <form method="get" class="post-search">
+            <label class="sr-only" for="post-search">Tìm bài viết</label>
+            <input id="post-search" type="search" name="q" placeholder="Tìm theo tiêu đề hoặc tóm tắt" value="{{.Query}}">
+            <button type="submit" class="btn ghost">Tìm kiếm</button>
+        </form>
+    </header>
     {{if .Posts}}
-    <div class="grid">
+    <div class="post-grid">
         {{range .Posts}}
         <article class="card post-card">
-            <header>
-                <h2><a href="/posts/{{.ID}}">{{.Title}}</a></h2>
-                <p class="meta">Bởi {{.AuthorName}} · {{.CreatedLabel}}</p>
-            </header>
-            {{if .Summary}}
-            <p>{{.Summary}}</p>
+            {{if .CoverURL}}
+            <figure class="post-card-cover" data-visible="true">
+                <img src="{{.CoverURL}}" alt="Ảnh bìa bài viết {{.Title}}" loading="lazy">
+            </figure>
             {{else}}
-            <p>Đọc bài viết để khám phá chi tiết nội dung.</p>
+            <figure class="post-card-cover" data-visible="true">
+                <img src="/static/images/post-default-cover.gif" alt="Ảnh bìa mặc định cho bài viết {{.Title}}" loading="lazy">
+            </figure>
             {{end}}
+            <div class="post-card-body">
+                <h3><a href="/posts/{{.ID}}">{{.Title}}</a></h3>
+                <p class="meta">{{.AuthorName}} · {{.CreatedLabel}}</p>
+                <p class="excerpt">{{if .Summary}}{{.Summary}}{{else}}Đọc bài viết để khám phá chi tiết nội dung.{{end}}</p>
+            </div>
             <footer>
-                <a href="/posts/{{.ID}}" class="btn ghost">Đọc chi tiết</a>
+                <a href="/posts/{{.ID}}" class="btn ghost">Đọc bài viết →</a>
             </footer>
         </article>
         {{end}}
@@ -36,26 +51,266 @@
     {{else}}
     <p class="empty">Chưa có bài viết nào. Hãy là người đầu tiên chia sẻ!</p>
     {{end}}
+
+    {{if gt .TotalPages 1}}
+    <nav class="posts-pagination" aria-label="Điều hướng trang bài viết">
+        {{if .HasPrev}}
+        <a class="btn ghost" href="?page={{.PrevPage}}{{if .Query}}&q={{urlquery .Query}}{{end}}">← Trang trước</a>
+        {{else}}
+        <span class="btn ghost disabled">← Trang trước</span>
+        {{end}}
+        <ul class="page-list">
+            {{range .Pages}}
+            {{if eq $.Page .}}
+            <li><span class="page current">{{.}}</span></li>
+            {{else}}
+            <li><a class="page" href="?page={{.}}{{if $.Query}}&q={{urlquery $.Query}}{{end}}">{{.}}</a></li>
+            {{end}}
+            {{end}}
+        </ul>
+        {{if .HasNext}}
+        <a class="btn ghost" href="?page={{.NextPage}}{{if .Query}}&q={{urlquery .Query}}{{end}}">Trang sau →</a>
+        {{else}}
+        <span class="btn ghost disabled">Trang sau →</span>
+        {{end}}
+    </nav>
+    {{end}}
 </section>
-<section id="create" class="card form-card">
-    <h2>Chia sẻ bài viết mới</h2>
+<section id="create" class="card form-card composer">
+    <div class="composer-header">
+        <div>
+            <h2>Tạo bài viết trực tiếp</h2>
+            <p class="subtitle">Nhập nội dung và xem trước ngay lập tức. Bạn có thể sử dụng ảnh bìa để bài viết thêm nổi bật.</p>
+        </div>
+        {{if .IsAuthenticated}}
+        <a class="btn ghost" href="#posts">Xem danh sách bài viết</a>
+        {{end}}
+    </div>
     {{if .IsAuthenticated}}
-    <form method="post" action="/posts" class="stack">
-        <label>Tựa đề
-            <input type="text" name="title" placeholder="Ví dụ: Thiết lập GitOps trên Kubernetes" required minlength="3">
-        </label>
-        <label>Tóm tắt ngắn
-            <input type="text" name="summary" placeholder="Tóm tắt ngắn gọn (tùy chọn)">
-        </label>
-        <label>Nội dung chi tiết
-            <textarea name="content" rows="6" placeholder="Chia sẻ kiến trúc, công cụ, quy trình và bài học kinh nghiệm" required minlength="10"></textarea>
-        </label>
-        <button type="submit" class="btn primary">Đăng bài</button>
-    </form>
+    <div class="composer-grid">
+        <form method="post" action="/posts" class="stack" id="post-composer">
+            <label>Tựa đề
+                <input type="text" name="title" placeholder="Ví dụ: Thiết lập GitOps trên Kubernetes" required minlength="3" data-preview="title">
+            </label>
+            <label>Tóm tắt ngắn
+                <input type="text" name="summary" placeholder="Tóm tắt ngắn gọn (tùy chọn)" data-preview="summary">
+            </label>
+            <label>Ảnh bìa (URL)
+                <input type="url" name="cover_url" placeholder="https://example.com/cover.jpg" data-preview="cover">
+            </label>
+            <label>Nội dung chi tiết
+                <textarea name="content" rows="8" placeholder="Chia sẻ kiến trúc, công cụ, quy trình và bài học kinh nghiệm" required minlength="10" data-preview="content" id="content-textarea"></textarea>
+                <div class="image-upload-zone" id="image-upload-zone">
+                    <input type="file" id="image-input" accept="image/*" multiple hidden>
+                    <p class="upload-hint">
+                        <svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
+                        Kéo thả ảnh vào đây hoặc <button type="button" class="upload-btn">chọn file</button>
+                    </p>
+                    <p class="upload-progress" hidden></p>
+                </div>
+            </label>
+            <div class="form-actions">
+                <button type="submit" class="btn primary">Đăng bài</button>
+            </div>
+        </form>
+        <aside class="preview" id="post-preview">
+            <h3 class="preview-heading">Xem trước bài viết</h3>
+            <figure class="preview-cover" data-visible="false">
+                <img src="" alt="Ảnh bìa xem trước" loading="lazy">
+            </figure>
+            <h3 class="preview-title">Tiêu đề bài viết sẽ hiển thị tại đây</h3>
+            <p class="preview-meta">Bởi bạn · {{now | date "02/01/2006 15:04"}}</p>
+            <p class="preview-summary">Tóm tắt sẽ giúp người đọc hiểu nhanh nội dung chính của bài viết.</p>
+            <div class="preview-content">
+                <p>Nội dung bài viết hiển thị theo từng đoạn, bạn có thể nhập Markdown cơ bản như xuống dòng bằng cách nhấn Enter.</p>
+            </div>
+            <div class="preview-images" data-visible="false"></div>
+        </aside>
+    </div>
     {{else}}
-    <div class="empty">
-        <p>Bạn cần <a href="/auth/login?next=/posts#create">đăng nhập</a> trước khi tạo bài viết.</p>
+    <div class="composer-grid composer-locked">
+        <div class="locked-editor">
+            <h3>Đăng nhập để bắt đầu viết bài</h3>
+            <p>Bạn sẽ mở khóa trình soạn thảo tương tác, lưu nháp và xuất bản bài viết của riêng mình.</p>
+            <ul class="locked-benefits">
+                <li>Viết trực tiếp trong trình soạn thảo nhiều cột.</li>
+                <li>Xem trước nội dung và ảnh bìa ngay lập tức.</li>
+                <li>Kết nối với cộng đồng kỹ sư DevOps đang đóng góp mỗi ngày.</li>
+            </ul>
+            <div class="cta-group">
+                <button type="button" class="btn primary" data-modal-target="login-modal">Đăng nhập</button>
+                <button type="button" class="btn ghost" data-modal-target="register-modal">Tạo tài khoản miễn phí</button>
+            </div>
+        </div>
+        <aside class="preview locked">
+            <h3 class="preview-heading">Xem trước bài viết</h3>
+            <figure class="preview-cover" data-visible="true">
+                <img src="https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=1200&q=80" alt="Ảnh bìa minh hoạ" loading="lazy">
+            </figure>
+            <h3 class="preview-title">Theo dõi pipeline GitOps nhiều môi trường</h3>
+            <p class="preview-meta">Bởi thành viên cộng đồng · {{now | date "02/01/2006 15:04"}}</p>
+            <p class="preview-summary">Một cái nhìn sâu hơn về cách xây dựng pipeline GitOps với Argo CD, bảo vệ branch và tự động hoá rollback.</p>
+            <div class="preview-content">
+                <p>Bạn có thể viết các ghi chú triển khai, hướng dẫn từng bước, hoặc chia sẻ case study thực tế từ dự án của mình.</p>
+                <p>Đăng nhập để khám phá đầy đủ trình soạn thảo và chia sẻ bài viết đầu tiên với cộng đồng DevOps Việt Nam.</p>
+            </div>
+            <div class="preview-images" data-visible="false"></div>
+        </aside>
     </div>
     {{end}}
 </section>
+{{if .IsAuthenticated}}
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const composer = document.getElementById('post-composer');
+    const preview = document.getElementById('post-preview');
+    if (!composer || !preview) return;
+
+    if (window.marked && window.marked.setOptions) {
+        window.marked.setOptions({ breaks: true, gfm: true });
+    }
+
+    const elements = {
+        title: preview.querySelector('.preview-title'),
+        summary: preview.querySelector('.preview-summary'),
+        content: preview.querySelector('.preview-content'),
+        cover: preview.querySelector('.preview-cover'),
+        coverImg: preview.querySelector('.preview-cover img'),
+        gallery: preview.querySelector('.preview-images')
+    };
+
+    function renderContent(value) {
+        const trimmed = value.trim();
+        if (!trimmed) return '';
+        if (window.marked) {
+            return window.marked.parse(trimmed);
+        }
+        const safeValue = trimmed.replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        return safeValue
+            .split(/\n{2,}/)
+            .map(paragraph => `<p>${paragraph.replace(/\n/g, '<br>')}</p>`)
+            .join('');
+    }
+
+    composer.querySelectorAll('[data-preview]').forEach((input) => {
+        const target = input.getAttribute('data-preview');
+        input.addEventListener('input', () => {
+            const value = input.value.trim();
+            if (target === 'cover') {
+                if (value) {
+                    elements.coverImg.src = value;
+                    elements.cover.setAttribute('data-visible', 'true');
+                } else {
+                    elements.coverImg.src = '';
+                    elements.cover.setAttribute('data-visible', 'false');
+                }
+                return;
+            }
+
+            if (target === 'content') {
+                const html = value ? renderContent(value) : '<p>Nội dung bài viết hiển thị theo từng đoạn, bạn có thể nhập Markdown cơ bản như xuống dòng bằng cách nhấn Enter.</p>';
+                elements.content.innerHTML = html;
+                // Gallery is now handled by markdown rendering in content, no need for separate gallery
+                if (elements.gallery) {
+                    elements.gallery.setAttribute('data-visible', 'false');
+                }
+                return;
+            }
+
+            if (target === 'title') {
+                elements.title.textContent = value || 'Tiêu đề bài viết sẽ hiển thị tại đây';
+                return;
+            }
+
+            if (target === 'summary') {
+                elements.summary.textContent = value || 'Tóm tắt sẽ giúp người đọc hiểu nhanh nội dung chính của bài viết.';
+            }
+        });
+    });
+
+    // Image upload functionality
+    const uploadZone = document.getElementById('image-upload-zone');
+    const imageInput = document.getElementById('image-input');
+    const textarea = document.getElementById('content-textarea');
+    const uploadProgress = uploadZone.querySelector('.upload-progress');
+
+    uploadZone.querySelector('.upload-btn').addEventListener('click', () => {
+        imageInput.click();
+    });
+
+    imageInput.addEventListener('change', (e) => {
+        handleFiles(e.target.files);
+    });
+
+    uploadZone.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        uploadZone.classList.add('dragover');
+    });
+
+    uploadZone.addEventListener('dragleave', () => {
+        uploadZone.classList.remove('dragover');
+    });
+
+    uploadZone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        uploadZone.classList.remove('dragover');
+        const files = Array.from(e.dataTransfer.files).filter(f => f.type.startsWith('image/'));
+        handleFiles(files);
+    });
+
+    async function handleFiles(files) {
+        if (!files || files.length === 0) return;
+
+        for (const file of files) {
+            await uploadImage(file);
+        }
+    }
+
+    async function uploadImage(file) {
+        const formData = new FormData();
+        formData.append('image', file);
+
+        uploadProgress.textContent = `Đang upload ${file.name}...`;
+        uploadProgress.hidden = false;
+
+        try {
+            const response = await fetch('/upload/image', {
+                method: 'POST',
+                body: formData
+            });
+
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.error || 'Upload thất bại');
+            }
+
+            const data = await response.json();
+            
+            // Insert markdown at cursor position
+            const start = textarea.selectionStart;
+            const end = textarea.selectionEnd;
+            const text = textarea.value;
+            const before = text.substring(0, start);
+            const after = text.substring(end);
+            
+            textarea.value = before + data.markdown + '\n' + after;
+            textarea.selectionStart = textarea.selectionEnd = start + data.markdown.length + 1;
+            
+            // Trigger preview update
+            textarea.dispatchEvent(new Event('input'));
+            
+            uploadProgress.textContent = `✓ ${file.name} đã upload thành công`;
+            setTimeout(() => {
+                uploadProgress.hidden = true;
+            }, 2000);
+        } catch (error) {
+            uploadProgress.textContent = `✗ Lỗi: ${error.message}`;
+            setTimeout(() => {
+                uploadProgress.hidden = true;
+            }, 3000);
+        }
+    }
+});
+</script>
 {{end}}

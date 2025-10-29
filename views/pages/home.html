@@ -1,18 +1,18 @@
-{{define "content"}}
-<section class="hero">
-    <span class="badge">Cộng đồng DevOps Việt Nam</span>
+
+<section class="hero home-hero">
     <h1>{{.HeroHeading}}</h1>
     <p>{{.HeroSub}}</p>
     <div class="cta-group">
         <a href="/posts" class="btn primary">Khám phá bài viết</a>
         {{if .IsAuthenticated}}
-        <a href="/posts#create" class="btn ghost">Chia sẻ kinh nghiệm</a>
+        <a href="/posts#create" class="btn ghost">Viết chia sẻ đầu tiên</a>
         {{else}}
         <a href="/auth/register" class="btn ghost">Tham gia cộng đồng</a>
         {{end}}
     </div>
 </section>
-<section class="grid grid-3">
+
+<section class="grid grid-3 home-highlights">
     {{range .Highlights}}
     <article class="card">
         <h3>{{.Title}}</h3>
@@ -20,21 +20,55 @@
     </article>
     {{end}}
 </section>
+
 <section class="latest-posts">
-    <h2>Bài viết mới nhất</h2>
+    <header class="section-header">
+        <h2>Bài viết mới</h2>
+        <a href="/posts" class="link">Xem toàn bộ</a>
+    </header>
     {{if .LatestPosts}}
-    <div class="grid">
+    <div class="grid grid-3">
         {{range .LatestPosts}}
         <article class="card">
-            <h3><a href="/posts/{{.ID}}">{{.Title}}</a></h3>
-            <p class="meta">Bởi {{.AuthorName}} · {{.CreatedLabel}}</p>
+            <header>
+                <h3><a href="/posts/{{.ID}}">{{.Title}}</a></h3>
+                <p class="meta">Bởi {{.AuthorName}} · {{.CreatedLabel}}</p>
+            </header>
             <p>{{.Summary}}</p>
-            <a href="/posts/{{.ID}}" class="btn ghost">Đọc tiếp</a>
+            <footer>
+                <a href="/posts/{{.ID}}" class="btn ghost">Đọc tiếp</a>
+            </footer>
         </article>
         {{end}}
     </div>
     {{else}}
-    <p>Chưa có bài viết nào. Hãy là người đầu tiên chia sẻ kinh nghiệm DevOps!</p>
+    <p class="empty">Chưa có bài viết nào. Tham gia và chia sẻ kinh nghiệm DevOps của bạn!</p>
     {{end}}
 </section>
-{{end}}
+
+<section class="grid grid-3 tech-insights">
+    {{range .TechInsights}}
+    <article class="card insight-card">
+        <span class="badge">Công nghệ</span>
+        <h3>{{.Title}}</h3>
+        <p>{{.Description}}</p>
+    </article>
+    {{end}}
+</section>
+
+<section class="community-updates">
+    <header class="section-header">
+        <h2>Hoạt động cộng đồng</h2>
+        <a href="/contribute" class="link">Tham gia &amp; Đóng góp</a>
+    </header>
+    <div class="updates-list">
+        {{range .CommunityUpdates}}
+        <article class="card update-card">
+            <span class="meta">{{.Date}}</span>
+            <h3>{{.Title}}</h3>
+            <p>{{.Summary}}</p>
+        </article>
+        {{end}}
+    </div>
+</section>
+

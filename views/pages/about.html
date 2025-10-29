@@ -1,9 +1,17 @@
-{{define "content"}}
+
 <header class="hero">
-    <span class="badge">Về chúng tôi</span>
     <h1>{{.Title}}</h1>
     <p>{{.Description}}</p>
 </header>
+<section class="grid grid-3 stats">
+    {{range .Stats}}
+    <article class="card stat-card">
+        <h2>{{.Value}}</h2>
+        <p>{{.Label}}</p>
+    </article>
+    {{end}}
+</section>
+
 <section class="grid">
     {{range .Sections}}
     <article class="card">
@@ -12,4 +20,29 @@
     </article>
     {{end}}
 </section>
+
+{{if .Milestones}}
+<section class="timeline">
+    <h2>Cột mốc nổi bật</h2>
+    <div class="timeline-items">
+        {{range .Milestones}}
+        <article class="card timeline-item">
+            <span class="period">{{.Period}}</span>
+            <h3>{{.Title}}</h3>
+            <p>{{.Description}}</p>
+        </article>
+        {{end}}
+    </div>
+</section>
 {{end}}
+
+{{if .CTA}}
+<section class="cta-card card">
+    <div>
+        <h2>{{.CTA.Heading}}</h2>
+        <p>{{.CTA.Text}}</p>
+    </div>
+    <a href="{{.CTA.ActionLink}}" class="btn primary">{{.CTA.ActionLabel}}</a>
+</section>
+{{end}}
+

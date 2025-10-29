@@ -3,16 +3,21 @@ package handlers
 import (
 	"errors"
 	"fmt"
+	"math"
 	"net/mail"
+	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/session"
+	"github.com/google/uuid"
 
 	"fiber-learning-community/internal/database"
 	"fiber-learning-community/internal/models"
+
 	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
 )
@@ -108,12 +113,13 @@ func respondError(c *fiber.Ctx, status int, message, redirect string) error {
 	return c.Status(fiber.StatusSeeOther).Redirect(redirect)
 }
 
-func render(c *fiber.Ctx, view string, data fiber.Map) error {
+func render(c *fiber.Ctx, view string, data fiber.Map, layout string) error {
 	base := fiber.Map{
 		"AppName":         "Cộng đồng Học DevOps",
 		"Year":            time.Now().Year(),
 		"IsAuthenticated": false,
 		"RequestPath":     c.OriginalURL(),
+		"RequestRoute":    c.Path(),
 	}
 
 	sess, err := sessionStore.Get(c)
@@ -169,8 +175,39 @@ func Home() fiber.Handler {
 					"Description": "Cập nhật thực tiễn mới nhất về cloud, observability, bảo mật và công cụ DevOps.",
 				},
 			},
+			"TechInsights": []fiber.Map{
+				{
+					"Title":       "Quan sát hệ thống",
+					"Description": "Best practice triển khai observability stack với OpenTelemetry, Prometheus và Grafana.",
+				},
+				{
+					"Title":       "Bảo mật chuỗi CI/CD",
+					"Description": "Các bước harden pipeline, ký container và quét lỗ hổng tự động trước khi phát hành.",
+				},
+				{
+					"Title":       "Hạ tầng đa đám mây",
+					"Description": "Terraform module tái sử dụng để quản lý multi-cloud và tối ưu chi phí vận hành.",
+				},
+			},
+			"CommunityUpdates": []fiber.Map{
+				{
+					"Title":   "Workshop: GitOps nâng cao",
+					"Date":    "05/11/2025",
+					"Summary": "Trải nghiệm triển khai Argo CD với policy guardrail và progressive delivery.",
+				},
+				{
+					"Title":   "Live stream: Observability trong Kubernetes",
+					"Date":    "12/11/2025",
+					"Summary": "Giải đáp trực tiếp các tình huống troubleshooting thực tế trong cluster production.",
+				},
+				{
+					"Title":   "Blog mới: IaC Testing",
+					"Date":    "Tuần này",
+					"Summary": "Checklist kiểm thử Terraform và cách tích hợp Terratest vào pipeline CI.",
+				},
+			},
 			"LatestPosts": latestPosts,
-		})
+		}, "main")
 	}
 }
 
@@ -178,19 +215,40 @@ type createPostRequest struct {
 	Title    string `json:"title"`
 	Summary  string `json:"summary"`
 	Content  string `json:"content"`
+	CoverURL string `json:"cover_url"`
 	AuthorID uint   `json:"author_id"`
 }
 
 type createCommentRequest struct {
-	Content  string `json:"content"`
-	AuthorID uint   `json:"author_id"`
+	Content    string `json:"content"`
+	AuthorID   uint   `json:"author_id"`
+	LineNumber *int   `json:"line_number"`
 }
 
 func PostsPage() fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		db := database.Get()
+		query := strings.TrimSpace(c.Query("q"))
+		page, _ := strconv.Atoi(c.Query("page", "1"))
+		if page < 1 {
+			page = 1
+		}
+		const pageSize = 10
+		offset := (page - 1) * pageSize
+
+		builder := db.Model(&models.Post{}).Preload("Author").Order("created_at DESC")
+		if query != "" {
+			like := fmt.Sprintf("%%%s%%", query)
+			builder = builder.Where("title LIKE ? OR summary LIKE ?", like, like)
+		}
+
+		var total int64
+		if err := builder.Count(&total).Error; err != nil {
+			return respondError(c, fiber.StatusInternalServerError, "Không thể đếm bài viết", "/")
+		}
+
 		var posts []models.Post
-		if err := db.Preload("Author").Order("created_at DESC").Find(&posts).Error; err != nil {
+		if err := builder.Offset(offset).Limit(pageSize).Find(&posts).Error; err != nil {
 			return respondError(c, fiber.StatusInternalServerError, "Không thể tải danh sách bài viết", "/")
 		}
 		items := make([]fiber.Map, 0, len(posts))
@@ -200,14 +258,33 @@ func PostsPage() fiber.Handler {
 				"Title":        p.Title,
 				"Summary":      p.Summary,
 				"Content":      p.Content,
+				"CoverURL":     p.CoverURL,
 				"AuthorName":   p.Author.Name,
 				"CreatedLabel": p.CreatedAt.Format("02/01/2006 15:04"),
 			})
 		}
+
+		totalPages := int(math.Ceil(float64(total) / float64(pageSize)))
+		if totalPages == 0 {
+			totalPages = 1
+		}
+		pages := make([]int, totalPages)
+		for i := range pages {
+			pages[i] = i + 1
+		}
+
 		return render(c, "pages/posts", fiber.Map{
-			"Title": "Bài viết cộng đồng",
-			"Posts": items,
-		})
+			"Title":      "Bài viết cộng đồng",
+			"Posts":      items,
+			"Query":      query,
+			"Page":       page,
+			"TotalPages": totalPages,
+			"HasPrev":    page > 1,
+			"HasNext":    page < totalPages,
+			"PrevPage":   page - 1,
+			"NextPage":   page + 1,
+			"Pages":      pages,
+		}, "main")
 	}
 }
 
@@ -229,15 +306,38 @@ func PostDetailPage() fiber.Handler {
 			return respondError(c, fiber.StatusInternalServerError, "Không thể tải bài viết", "/posts")
 		}
 
-		comments := make([]fiber.Map, 0, len(post.Comments))
+		lineComments := make(map[int][]fiber.Map)
+		generalComments := make([]fiber.Map, 0)
+
 		for _, cm := range post.Comments {
-			comments = append(comments, fiber.Map{
+			comment := fiber.Map{
 				"ID":         cm.ID,
 				"Content":    cm.Content,
 				"AuthorName": cm.Author.Name,
 				"CreatedAt":  cm.CreatedAt.Format("02/01/2006 15:04"),
-			})
+			}
+			if cm.LineNumber != nil {
+				lineComments[*cm.LineNumber] = append(lineComments[*cm.LineNumber], comment)
+			} else {
+				generalComments = append(generalComments, comment)
+			}
 		}
+
+		// Load annotations
+		var annotations []models.Annotation
+		db.Where("post_id = ?", post.ID).Find(&annotations)
+
+		lineAnnotations := make(map[int]string)
+		for _, ann := range annotations {
+			lineAnnotations[ann.LineNumber] = ann.Content
+		}
+
+		// Debug log
+		fmt.Printf("Post ID: %d, Found %d annotations: %+v\n", post.ID, len(annotations), lineAnnotations)
+
+		// Check if current user is author
+		userID, _ := currentUserID(c)
+		isAuthor := userID == post.AuthorID
 
 		return render(c, "pages/post_detail", fiber.Map{
 			"Title": "Chi tiết bài viết",
@@ -246,11 +346,16 @@ func PostDetailPage() fiber.Handler {
 				"Title":        post.Title,
 				"Summary":      post.Summary,
 				"Content":      post.Content,
+				"CoverURL":     post.CoverURL,
 				"AuthorName":   post.Author.Name,
+				"AuthorID":     post.AuthorID,
 				"CreatedLabel": post.CreatedAt.Format("02/01/2006 15:04"),
 			},
-			"Comments": comments,
-		})
+			"LineComments":    lineComments,
+			"GeneralComments": generalComments,
+			"LineAnnotations": lineAnnotations,
+			"IsAuthor":        isAuthor,
+		}, "main")
 	}
 }
 
@@ -258,7 +363,7 @@ func RegisterPage() fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		return render(c, "pages/auth_register", fiber.Map{
 			"Title": "Đăng ký tài khoản",
-		})
+		}, "main")
 	}
 }
 
@@ -267,7 +372,7 @@ func LoginPage() fiber.Handler {
 		return render(c, "pages/auth_login", fiber.Map{
 			"Title": "Đăng nhập",
 			"Next":  c.Query("next"),
-		})
+		}, "main")
 	}
 }
 
@@ -300,11 +405,13 @@ func CreatePost() fiber.Handler {
 			body.Title = c.FormValue("title")
 			body.Summary = c.FormValue("summary")
 			body.Content = c.FormValue("content")
+			body.CoverURL = c.FormValue("cover_url")
 		}
 
 		body.Title = strings.TrimSpace(body.Title)
 		body.Summary = strings.TrimSpace(body.Summary)
 		body.Content = strings.TrimSpace(body.Content)
+		body.CoverURL = strings.TrimSpace(body.CoverURL)
 
 		if !isJSON {
 			authorID, err := currentUserID(c)
@@ -359,6 +466,7 @@ func CreatePost() fiber.Handler {
 			Title:    body.Title,
 			Summary:  body.Summary,
 			Content:  body.Content,
+			CoverURL: body.CoverURL,
 			AuthorID: body.AuthorID,
 		}
 
@@ -388,6 +496,113 @@ func CreatePost() fiber.Handler {
 	}
 }
 
+// UpdatePost cho phép tác giả chỉnh sửa bài viết của mình.
+func UpdatePost() fiber.Handler {
+	return func(c *fiber.Ctx) error {
+		postID, err := strconv.Atoi(c.Params("id"))
+		if err != nil {
+			return respondError(c, fiber.StatusBadRequest, "ID bài viết không hợp lệ", "/posts")
+		}
+
+		userID, err := currentUserID(c)
+		if err != nil {
+			if isJSONRequest(c) {
+				return fiber.NewError(fiber.StatusUnauthorized, "bạn cần đăng nhập")
+			}
+			return respondError(c, fiber.StatusUnauthorized, "Bạn cần đăng nhập để chỉnh sửa bài viết", "/auth/login")
+		}
+
+		var req struct {
+			Title    string `json:"title"`
+			Summary  string `json:"summary"`
+			Content  string `json:"content"`
+			CoverURL string `json:"cover_url"`
+		}
+
+		isJSON := isJSONRequest(c)
+		if isJSON {
+			if err := c.BodyParser(&req); err != nil {
+				return fiber.NewError(fiber.StatusBadRequest, "payload không hợp lệ")
+			}
+		} else {
+			req.Title = c.FormValue("title")
+			req.Summary = c.FormValue("summary")
+			req.Content = c.FormValue("content")
+			req.CoverURL = c.FormValue("cover_url")
+		}
+
+		req.Title = strings.TrimSpace(req.Title)
+		req.Summary = strings.TrimSpace(req.Summary)
+		req.Content = strings.TrimSpace(req.Content)
+		req.CoverURL = strings.TrimSpace(req.CoverURL)
+
+		if len(req.Title) < 3 {
+			if isJSON {
+				return fiber.NewError(fiber.StatusBadRequest, "tiêu đề phải từ 3 ký tự")
+			}
+			return respondError(c, fiber.StatusBadRequest, "Tiêu đề phải từ 3 ký tự", fmt.Sprintf("/posts/%d", postID))
+		}
+
+		if len(req.Content) < 10 {
+			if isJSON {
+				return fiber.NewError(fiber.StatusBadRequest, "nội dung phải từ 10 ký tự")
+			}
+			return respondError(c, fiber.StatusBadRequest, "Nội dung phải từ 10 ký tự", fmt.Sprintf("/posts/%d", postID))
+		}
+
+		db := database.Get()
+
+		var post models.Post
+		if err := db.First(&post, postID).Error; err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				if isJSON {
+					return fiber.NewError(fiber.StatusNotFound, "bài viết không tồn tại")
+				}
+				return respondError(c, fiber.StatusNotFound, "Bài viết không tồn tại", "/posts")
+			}
+			if isJSON {
+				return fiber.NewError(fiber.StatusInternalServerError, "không thể tải bài viết")
+			}
+			return respondError(c, fiber.StatusInternalServerError, "Không thể tải bài viết", "/posts")
+		}
+
+		if post.AuthorID != userID {
+			if isJSON {
+				return fiber.NewError(fiber.StatusForbidden, "chỉ tác giả mới được chỉnh sửa")
+			}
+			return respondError(c, fiber.StatusForbidden, "Chỉ tác giả mới có thể chỉnh sửa bài viết", fmt.Sprintf("/posts/%d", postID))
+		}
+
+		post.Title = req.Title
+		post.Summary = req.Summary
+		post.Content = req.Content
+		post.CoverURL = req.CoverURL
+
+		if err := db.Save(&post).Error; err != nil {
+			if isJSON {
+				return fiber.NewError(fiber.StatusInternalServerError, "không thể cập nhật bài viết")
+			}
+			return respondError(c, fiber.StatusInternalServerError, "Không thể cập nhật bài viết", fmt.Sprintf("/posts/%d", postID))
+		}
+
+		if isJSON {
+			return c.JSON(fiber.Map{
+				"message": "Cập nhật bài viết thành công",
+				"post": fiber.Map{
+					"id":       post.ID,
+					"title":    post.Title,
+					"summary":  post.Summary,
+					"content":  post.Content,
+					"cover_url": post.CoverURL,
+				},
+			})
+		}
+
+		setFlash(c, "success", "Bài viết đã được cập nhật")
+		return c.Status(fiber.StatusSeeOther).Redirect(fmt.Sprintf("/posts/%d", post.ID))
+	}
+}
+
 // CreateComment cho phép người dùng bình luận vào bài viết xác định.
 func CreateComment() fiber.Handler {
 	return func(c *fiber.Ctx) error {
@@ -405,6 +620,11 @@ func CreateComment() fiber.Handler {
 			}
 		} else {
 			body.Content = c.FormValue("content")
+			if ln := c.FormValue("line_number"); ln != "" {
+				if val, err := strconv.Atoi(ln); err == nil && val > 0 {
+					body.LineNumber = &val
+				}
+			}
 		}
 
 		body.Content = strings.TrimSpace(body.Content)
@@ -453,9 +673,10 @@ func CreateComment() fiber.Handler {
 		}
 
 		comment := models.Comment{
-			Content:  body.Content,
-			PostID:   uint(postID),
-			AuthorID: body.AuthorID,
+			Content:    body.Content,
+			PostID:     uint(postID),
+			AuthorID:   body.AuthorID,
+			LineNumber: body.LineNumber,
 		}
 
 		if err := db.Create(&comment).Error; err != nil {
@@ -466,14 +687,18 @@ func CreateComment() fiber.Handler {
 		}
 
 		if isJSON {
+			var authorName string
+			if err := db.Model(&models.User{}).Where("id = ?", comment.AuthorID).Pluck("name", &authorName).Error; err == nil {
+				// got name
+			}
 			return c.Status(fiber.StatusCreated).JSON(fiber.Map{
 				"message": "Thêm bình luận thành công",
 				"comment": fiber.Map{
-					"id":         comment.ID,
-					"content":    comment.Content,
-					"post_id":    comment.PostID,
-					"author_id":  comment.AuthorID,
-					"created_at": comment.CreatedAt,
+					"id":          comment.ID,
+					"content":     comment.Content,
+					"author_name": authorName,
+					"line_number": body.LineNumber,
+					"created_at":  comment.CreatedAt.Format("02/01/2006 15:04"),
 				},
 			})
 		}
@@ -697,7 +922,7 @@ func Courses() fiber.Handler {
 					"Contributor": "Hoàng Lê",
 				},
 			},
-		})
+		}, "main")
 	}
 }
 
@@ -726,7 +951,7 @@ func Contributors() fiber.Handler {
 					"Contributions": 11,
 				},
 			},
-		})
+		}, "main")
 	}
 }
 
@@ -734,22 +959,59 @@ func About() fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		return render(c, "pages/about", fiber.Map{
 			"Title":       "Về dự án",
-			"Description": "Sứ mệnh của cộng đồng học DevOps và cách chúng tôi vận hành.",
+			"Description": "Cộng đồng Học DevOps được xây dựng bởi các kỹ sư đam mê tự động hóa, quan sát hệ thống và văn hóa DevOps tại Việt Nam.",
 			"Sections": []fiber.Map{
 				{
-					"Heading": "Tầm nhìn",
-					"Content": "Tạo ra nền tảng học DevOps thực tế, cập nhật liên tục, giúp đội ngũ kỹ thuật vận hành hệ thống ổn định.",
+					"Heading": "Sứ mệnh",
+					"Content": "Mang đến tài nguyên DevOps tiếng Việt chất lượng cao, giúp đội ngũ kỹ thuật áp dụng nhanh vào công việc thực tế.",
 				},
 				{
 					"Heading": "Giá trị cốt lõi",
-					"Content": "Chia sẻ kinh nghiệm thực chiến, học hỏi không ngừng và vận hành minh bạch.",
+					"Content": "Minh bạch, chia sẻ kinh nghiệm thực chiến, ưu tiên học qua làm và lan tỏa tinh thần cộng đồng.",
 				},
 				{
-					"Heading": "Bạn có thể làm gì?",
-					"Content": "Viết nội dung, chia sẻ scripts, template infrastructure, review tài liệu và tổ chức workshop.",
+					"Heading": "Hướng phát triển",
+					"Content": "Hoàn thiện các lộ trình DevOps theo cấp độ, xây dựng thư viện bài viết chuyên sâu và kho tài nguyên mã nguồn mở.",
 				},
 			},
-		})
+			"Stats": []fiber.Map{
+				{
+					"Value": "+1.200",
+					"Label": "Thành viên đăng ký",
+				},
+				{
+					"Value": "85+",
+					"Label": "Bài viết & hướng dẫn",
+				},
+				{
+					"Value": "12",
+					"Label": "Workshop & webinar",
+				},
+			},
+			"Milestones": []fiber.Map{
+				{
+					"Period":      "Q1 2024",
+					"Title":       "Ra mắt lộ trình DevOps căn bản",
+					"Description": "Hoàn thiện bộ tài liệu học tập 8 tuần với bài tập thực hành và checklist đánh giá kỹ năng.",
+				},
+				{
+					"Period":      "Q3 2024",
+					"Title":       "Tổ chức chuỗi workshop Cloud Native",
+					"Description": "Hơn 300 kỹ sư tham gia học cùng chuyên gia về Kubernetes, GitOps, Observability.",
+				},
+				{
+					"Period":      "2025",
+					"Title":       "Xây dựng thư viện template mở",
+					"Description": "Cung cấp Terraform, Ansible, và pipeline mẫu giúp doanh nghiệp khởi động DevOps nhanh chóng.",
+				},
+			},
+			"CTA": fiber.Map{
+				"Heading":     "Cùng đóng góp để DevOps Việt Nam lớn mạnh",
+				"Text":        "Chia sẻ kinh nghiệm thực tế, mentoring cho thành viên mới, hoặc mở một workshop tại cộng đồng.",
+				"ActionLabel": "Bắt đầu đóng góp",
+				"ActionLink":  "/contribute",
+			},
+		}, "main")
 	}
 }
 
@@ -775,7 +1037,156 @@ func Contribute() fiber.Handler {
 					"Text":    "Tạo pull request trên GitHub của dự án hoặc tham gia phiên review nội dung định kỳ.",
 				},
 			},
-			"ContactEmail": "hello@hocdevops.community",
+			"ContactEmail": "devops@example.com",
+		}, "main")
+	}
+}
+
+// UploadImage xử lý upload ảnh cho bài viết
+func UploadImage() fiber.Handler {
+	return func(c *fiber.Ctx) error {
+		// Kiểm tra đăng nhập
+		if _, err := currentUserID(c); err != nil {
+			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+				"error": "Bạn cần đăng nhập để upload ảnh",
+			})
+		}
+
+		// Lấy file từ form
+		file, err := c.FormFile("image")
+		if err != nil {
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"error": "Không tìm thấy file ảnh",
+			})
+		}
+
+		// Kiểm tra loại file
+		ext := filepath.Ext(file.Filename)
+		allowedExts := map[string]bool{
+			".jpg":  true,
+			".jpeg": true,
+			".png":  true,
+			".gif":  true,
+			".webp": true,
+		}
+		if !allowedExts[strings.ToLower(ext)] {
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"error": "Chỉ hỗ trợ file ảnh: jpg, jpeg, png, gif, webp",
+			})
+		}
+
+		// Kiểm tra kích thước (max 5MB)
+		if file.Size > 5*1024*1024 {
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"error": "Kích thước ảnh không được vượt quá 5MB",
+			})
+		}
+
+		// Tạo tên file unique
+		filename := fmt.Sprintf("%s%s", uuid.New().String(), ext)
+		uploadDir := "./public/uploads"
+
+		// Tạo thư mục nếu chưa tồn tại
+		if err := os.MkdirAll(uploadDir, 0755); err != nil {
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+				"error": "Không thể tạo thư mục upload",
+			})
+		}
+
+		// Lưu file
+		filepath := filepath.Join(uploadDir, filename)
+		if err := c.SaveFile(file, filepath); err != nil {
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+				"error": "Không thể lưu file",
+			})
+		}
+
+		// Trả về URL
+		imageURL := fmt.Sprintf("/static/uploads/%s", filename)
+		return c.JSON(fiber.Map{
+			"url":      imageURL,
+			"markdown": fmt.Sprintf("![image](%s)", imageURL),
+		})
+	}
+}
+
+// CreateAnnotation tạo chú thích cho dòng trong bài viết (chỉ tác giả)
+func CreateAnnotation() fiber.Handler {
+	return func(c *fiber.Ctx) error {
+		fmt.Println("=== CreateAnnotation called ===")
+
+		userID, err := currentUserID(c)
+		if err != nil {
+			fmt.Println("Auth error:", err)
+			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+				"error": "Bạn cần đăng nhập",
+			})
+		}
+
+		postID, err := strconv.Atoi(c.Params("id"))
+		if err != nil {
+			fmt.Println("PostID parse error:", err)
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"error": "ID bài viết không hợp lệ",
+			})
+		}
+
+		var body struct {
+			Content    string `json:"content"`
+			LineNumber int    `json:"line_number"`
+		}
+
+		if err := c.BodyParser(&body); err != nil {
+			fmt.Println("Body parse error:", err)
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"error": "Dữ liệu không hợp lệ",
+			})
+		}
+
+		fmt.Printf("Received: PostID=%d, UserID=%d, LineNumber=%d, Content='%s'\n", postID, userID, body.LineNumber, body.Content)
+
+		db := database.Get()
+
+		// Kiểm tra quyền tác giả
+		var post models.Post
+		if err := db.First(&post, postID).Error; err != nil {
+			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
+				"error": "Không tìm thấy bài viết",
+			})
+		}
+
+		if post.AuthorID != userID {
+			return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
+				"error": "Chỉ tác giả mới có thể thêm chú thích",
+			})
+		}
+
+		// Xóa annotation cũ nếu có
+		db.Where("post_id = ? AND line_number = ?", postID, body.LineNumber).Delete(&models.Annotation{})
+
+		// Tạo mới
+		annotation := models.Annotation{
+			Content:    strings.TrimSpace(body.Content),
+			PostID:     uint(postID),
+			LineNumber: body.LineNumber,
+		}
+
+		fmt.Printf("Creating annotation: %+v\n", annotation)
+
+		if err := db.Create(&annotation).Error; err != nil {
+			fmt.Println("DB Create error:", err)
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+				"error": "Không thể lưu chú thích",
+			})
+		}
+
+		fmt.Printf("Annotation created successfully with ID: %d\n", annotation.ID)
+
+		return c.JSON(fiber.Map{
+			"annotation": fiber.Map{
+				"content":     annotation.Content,
+				"line_number": annotation.LineNumber,
+			},
 		})
 	}
 }

@@ -1,0 +1,19 @@
+# VCS
+.git
+
+# Binaries
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Build artifacts
+bin/
+dist/
+
+# Dev environment
+.env
+.env.*
+.vscode/
+.idea/
