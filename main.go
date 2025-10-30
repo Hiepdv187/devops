@@ -3,9 +3,7 @@ package main
 import (
 	"bytes"
 	"encoding/json"
-	"fmt"
 	"html/template"
-	"io"
 	"log"
 	"os"
 	"strconv"
@@ -15,7 +13,6 @@ import (
 	"github.com/gofiber/fiber/v2/middleware/cors"
 	"github.com/gofiber/template/html/v2"
 	"github.com/gomarkdown/markdown"
-	"github.com/gomarkdown/markdown/ast"
 	mdhtml "github.com/gomarkdown/markdown/html"
 	"github.com/gomarkdown/markdown/parser"
 	"github.com/microcosm-cc/bluemonday"
@@ -30,31 +27,11 @@ var (
 )
 
 func Markdown(input string) template.HTML {
-	extensions := parser.CommonExtensions |
-		parser.AutoHeadingIDs |
-		parser.HardLineBreak |
-		parser.NoEmptyLineBeforeBlock
-
+	extensions := parser.CommonExtensions | parser.AutoHeadingIDs | parser.HardLineBreak
 	p := parser.NewWithExtensions(extensions)
 	doc := p.Parse([]byte(input))
 
-	htmlFlags := mdhtml.CommonFlags | mdhtml.HrefTargetBlank
-	opts := mdhtml.RendererOptions{
-		Flags: htmlFlags,
-		RenderNodeHook: func(w io.Writer, node ast.Node, entering bool) (ast.WalkStatus, bool) {
-			if img, ok := node.(*ast.Image); ok && entering {
-				title := string(img.Title)
-				if title != "" {
-					// Wrap image in figure with caption
-					fmt.Fprintf(w, "<figure><img src=%q alt=%q/>", img.Destination, img.Title)
-					fmt.Fprintf(w, "<figcaption>%s</figcaption></figure>", title)
-					return ast.GoToNext, true
-				}
-			}
-			return ast.GoToNext, false
-		},
-	}
-	renderer := mdhtml.NewRenderer(opts)
+	renderer := mdhtml.NewRenderer(mdhtml.RendererOptions{Flags: mdhtml.CommonFlags})
 	rendered := markdown.Render(doc, renderer)
 
 	flattened := flattenLists(rendered)
