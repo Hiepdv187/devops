@@ -389,6 +389,31 @@ document.addEventListener('DOMContentLoaded', () => {
     const blocks = [];
     const annotationBlocks = [];
 
+    const ensureControlBox = (wrapper) => {
+        let box = wrapper.querySelector(':scope > .inline-controls');
+        if (!box) {
+            box = document.createElement('div');
+            box.className = 'inline-controls';
+            wrapper.appendChild(box);
+        }
+        return box;
+    };
+
+    const panelPortalRoot = document.createElement('div');
+    panelPortalRoot.className = 'inline-portal-root';
+    postBody.appendChild(panelPortalRoot);
+
+    const ensurePanelContainer = (wrapper) => {
+        let container = panelPortalRoot.querySelector(`.inline-panel-container[data-line="${wrapper.dataset.line}"]`);
+        if (!container) {
+            container = document.createElement('div');
+            container.className = 'inline-panel-container';
+            container.dataset.line = wrapper.dataset.line;
+            panelPortalRoot.appendChild(container);
+        }
+        return container;
+    };
+
     const processedElements = [];
     
     postBody.querySelectorAll('p, pre, blockquote, h1, h2, h3, h4, h5, h6, li').forEach(el => {
@@ -422,23 +447,64 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
     
-    processedElements.forEach(({ element: el, parent }) => {
+    processedElements.forEach(({ element: el }) => {
+        if (el.dataset.lineProcessed === 'true') return;
+
         const text = el.textContent.trim();
-        if (text.length === 0) return;
-        
+        const hasMedia = !!el.querySelector('img, figure, video, iframe');
+        const tagName = el.tagName ? el.tagName.toLowerCase() : '';
+        const isListItem = tagName === 'li';
+
+        if (text.length === 0 && !hasMedia) return;
+
         lineNumber++;
         const currentLine = lineNumber;
-        
-        const wrapper = document.createElement('span');
-        wrapper.className = 'inline-line';
-        wrapper.dataset.line = currentLine;
-        wrapper.style.display = 'block';
-        
-        el.parentNode.insertBefore(wrapper, el);
-        wrapper.appendChild(el);
-        
+
+        if (hasMedia && !isListItem) {
+            el.dataset.line = currentLine;
+            el.dataset.lineProcessed = 'true';
+            el.classList.add('image-line');
+            return;
+        }
+
+        let wrapper;
+
+        if (isListItem) {
+            el.dataset.line = currentLine;
+            el.dataset.lineProcessed = 'true';
+            el.classList.add('inline-list-item');
+
+            if (el.querySelector(':scope > .inline-line')) {
+                wrapper = el.querySelector(':scope > .inline-line');
+            } else {
+                wrapper = document.createElement('div');
+                wrapper.className = 'inline-line';
+                wrapper.dataset.line = currentLine;
+
+                const contentHolder = document.createElement('span');
+                contentHolder.className = 'inline-line-content';
+
+                while (el.firstChild) {
+                    contentHolder.appendChild(el.firstChild);
+                }
+
+                wrapper.appendChild(contentHolder);
+                el.appendChild(wrapper);
+            }
+        } else {
+            wrapper = document.createElement('span');
+            wrapper.className = 'inline-line';
+            wrapper.dataset.line = currentLine;
+            wrapper.style.display = 'block';
+
+            el.dataset.lineProcessed = 'true';
+            el.parentNode.insertBefore(wrapper, el);
+            wrapper.appendChild(el);
+        }
+
         const comments = lineComments[currentLine] || [];
         const annotation = lineAnnotations[currentLine] || '';
+        const controlBox = ensureControlBox(wrapper);
 
         // Add annotation display if exists
         if (annotation) {
@@ -446,7 +512,7 @@ document.addEventListener('DOMContentLoaded', () => {
             annotationSpan.className = 'line-annotation';
             annotationSpan.textContent = `# ${annotation}`;
             annotationSpan.title = annotation;
-            wrapper.appendChild(annotationSpan);
+            wrapper.insertBefore(annotationSpan, controlBox);
         }
 
         if (isAuthor) {
@@ -456,7 +522,7 @@ document.addEventListener('DOMContentLoaded', () => {
             annotateBtn.innerHTML = `📝`;
             annotateBtn.title = 'Chú thích';
             annotateBtn.dataset.line = currentLine;
-            wrapper.appendChild(annotateBtn);
+            controlBox.appendChild(annotateBtn);
 
             const lineText = text.length > 50 ? text.substring(0, 50) + '...' : text;
             const annotationPanel = document.createElement('div');
@@ -479,7 +545,7 @@ document.addEventListener('DOMContentLoaded', () => {
             `;
             const annotationTextarea = annotationPanel.querySelector('textarea');
             annotationTextarea.value = annotation;
-            document.body.appendChild(annotationPanel);
+            ensurePanelContainer(wrapper).appendChild(annotationPanel);
             annotationBlocks.push({
                 wrapper,
                 button: annotateBtn,
@@ -495,7 +561,7 @@ document.addEventListener('DOMContentLoaded', () => {
             btn.className = 'inline-btn';
             btn.innerHTML = `💬${comments.length > 0 ? ` <span>${comments.length}</span>` : ''}`;
             btn.dataset.line = currentLine;
-            wrapper.appendChild(btn);
+            controlBox.appendChild(btn);
 
             const lineText = text.length > 50 ? text.substring(0, 50) + '...' : text;
             const panel = document.createElement('div');
@@ -522,7 +588,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 </form>
                 ` : ''}
             `;
-            document.body.appendChild(panel);
+            ensurePanelContainer(wrapper).appendChild(panel);
             blocks.push({ wrapper, btn, panel, lineNumber: currentLine });
         }
     });

@@ -62,7 +62,7 @@ body {
   transition: background 0.2s ease;
   padding: 0.1rem 160px 0.1rem 0; /* Tăng padding bên phải lên để chừa chỗ cho notice và icons */
   margin: 0;
-  line-height: 1.5;
+  line-height: 0.8;
   max-width: 100%;
   box-sizing: border-box;
   /* Aggressive wrapping for very long unbroken strings */
@@ -256,7 +256,7 @@ body {
 }
 
 .inline-form textarea {
-  width: 100%;
+  width: 95%;
   min-height: 60px;
   padding: 0.5rem;
   border: 1px solid rgba(148, 163, 184, 0.3);
@@ -1112,7 +1112,7 @@ body.lightbox-open {
 .form-card input[type="email"],
 .form-card input[type="password"],
 .form-card textarea {
-  width: 00%;
+  width: 96.5%;
   margin-top: 0.35rem;
 }
 
