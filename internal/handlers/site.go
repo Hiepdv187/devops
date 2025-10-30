@@ -146,12 +146,13 @@ func Home() fiber.Handler {
 		db := database.Get()
 		var posts []models.Post
 		latestPosts := []fiber.Map{}
-		if err := db.Preload("Author").Order("created_at DESC").Limit(3).Find(&posts).Error; err == nil {
+		if err := db.Preload("Author").Order("created_at DESC").Limit(6).Find(&posts).Error; err == nil {
 			for _, p := range posts {
 				latestPosts = append(latestPosts, fiber.Map{
 					"ID":           p.ID,
 					"Title":        p.Title,
 					"Summary":      p.Summary,
+					"CoverURL":     p.CoverURL,
 					"AuthorName":   p.Author.Name,
 					"CreatedLabel": p.CreatedAt.Format("02/01/2006 15:04"),
 				})
@@ -216,6 +217,7 @@ type createPostRequest struct {
 	Summary  string `json:"summary"`
 	Content  string `json:"content"`
 	CoverURL string `json:"cover_url"`
+	Tags     string `json:"tags"`
 	AuthorID uint   `json:"author_id"`
 }
 
@@ -229,6 +231,7 @@ func PostsPage() fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		db := database.Get()
 		query := strings.TrimSpace(c.Query("q"))
+		selectedTag := strings.TrimSpace(c.Query("tag"))
 		page, _ := strconv.Atoi(c.Query("page", "1"))
 		if page < 1 {
 			page = 1
@@ -240,6 +243,10 @@ func PostsPage() fiber.Handler {
 		if query != "" {
 			like := fmt.Sprintf("%%%s%%", query)
 			builder = builder.Where("title LIKE ? OR summary LIKE ?", like, like)
+		}
+		if selectedTag != "" {
+			tagLike := fmt.Sprintf("%%%s%%", selectedTag)
+			builder = builder.Where("tags LIKE ?", tagLike)
 		}
 
 		var total int64
@@ -273,17 +280,39 @@ func PostsPage() fiber.Handler {
 			pages[i] = i + 1
 		}
 
+		// Get all unique tags
+		var allPosts []models.Post
+		db.Select("tags").Find(&allPosts)
+		tagSet := make(map[string]bool)
+		for _, p := range allPosts {
+			if p.Tags != "" {
+				tags := strings.Split(p.Tags, ",")
+				for _, tag := range tags {
+					tag = strings.TrimSpace(tag)
+					if tag != "" {
+						tagSet[tag] = true
+					}
+				}
+			}
+		}
+		allTags := make([]string, 0, len(tagSet))
+		for tag := range tagSet {
+			allTags = append(allTags, tag)
+		}
+
 		return render(c, "pages/posts", fiber.Map{
-			"Title":      "Bài viết cộng đồng",
-			"Posts":      items,
-			"Query":      query,
-			"Page":       page,
-			"TotalPages": totalPages,
-			"HasPrev":    page > 1,
-			"HasNext":    page < totalPages,
-			"PrevPage":   page - 1,
-			"NextPage":   page + 1,
-			"Pages":      pages,
+			"Title":       "Bài viết cộng đồng",
+			"Posts":       items,
+			"Query":       query,
+			"SelectedTag": selectedTag,
+			"AllTags":     allTags,
+			"Page":        page,
+			"TotalPages":  totalPages,
+			"HasPrev":     page > 1,
+			"HasNext":     page < totalPages,
+			"PrevPage":    page - 1,
+			"NextPage":    page + 1,
+			"Pages":       pages,
 		}, "main")
 	}
 }
@@ -336,6 +365,18 @@ func PostDetailPage() fiber.Handler {
 		userID, _ := currentUserID(c)
 		isAuthor := userID == post.AuthorID
 
+		// Parse tags
+		postTags := []string{}
+		if post.Tags != "" {
+			tags := strings.Split(post.Tags, ",")
+			for _, tag := range tags {
+				tag = strings.TrimSpace(tag)
+				if tag != "" {
+					postTags = append(postTags, tag)
+				}
+			}
+		}
+
 		return render(c, "pages/post_detail", fiber.Map{
 			"Title": "Chi tiết bài viết",
 			"Post": fiber.Map{
@@ -344,10 +385,12 @@ func PostDetailPage() fiber.Handler {
 				"Summary":      post.Summary,
 				"Content":      post.Content,
 				"CoverURL":     post.CoverURL,
+				"Tags":         post.Tags,
 				"AuthorName":   post.Author.Name,
 				"AuthorID":     post.AuthorID,
 				"CreatedLabel": post.CreatedAt.Format("02/01/2006 15:04"),
 			},
+			"PostTags":        postTags,
 			"LineComments":    lineComments,
 			"GeneralComments": generalComments,
 			"LineAnnotations": lineAnnotations,
@@ -360,6 +403,7 @@ func RegisterPage() fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		return render(c, "pages/auth_register", fiber.Map{
 			"Title": "Đăng ký tài khoản",
+			"Next":  c.Query("next"),
 		}, "main")
 	}
 }
@@ -403,12 +447,14 @@ func CreatePost() fiber.Handler {
 			body.Summary = c.FormValue("summary")
 			body.Content = c.FormValue("content")
 			body.CoverURL = c.FormValue("cover_url")
+			body.Tags = c.FormValue("tags")
 		}
 
 		body.Title = strings.TrimSpace(body.Title)
 		body.Summary = strings.TrimSpace(body.Summary)
 		body.Content = strings.TrimSpace(body.Content)
 		body.CoverURL = strings.TrimSpace(body.CoverURL)
+		body.Tags = strings.TrimSpace(body.Tags)
 
 		if !isJSON {
 			authorID, err := currentUserID(c)
@@ -464,6 +510,7 @@ func CreatePost() fiber.Handler {
 			Summary:  body.Summary,
 			Content:  body.Content,
 			CoverURL: body.CoverURL,
+			Tags:     body.Tags,
 			AuthorID: body.AuthorID,
 		}
 
@@ -514,6 +561,7 @@ func UpdatePost() fiber.Handler {
 			Summary  string `json:"summary"`
 			Content  string `json:"content"`
 			CoverURL string `json:"cover_url"`
+			Tags     string `json:"tags"`
 		}
 
 		isJSON := isJSONRequest(c)
@@ -526,12 +574,14 @@ func UpdatePost() fiber.Handler {
 			req.Summary = c.FormValue("summary")
 			req.Content = c.FormValue("content")
 			req.CoverURL = c.FormValue("cover_url")
+			req.Tags = c.FormValue("tags")
 		}
 
 		req.Title = strings.TrimSpace(req.Title)
 		req.Summary = strings.TrimSpace(req.Summary)
 		req.Content = strings.TrimSpace(req.Content)
 		req.CoverURL = strings.TrimSpace(req.CoverURL)
+		req.Tags = strings.TrimSpace(req.Tags)
 
 		if len(req.Title) < 3 {
 			if isJSON {
@@ -574,6 +624,7 @@ func UpdatePost() fiber.Handler {
 		post.Summary = req.Summary
 		post.Content = req.Content
 		post.CoverURL = req.CoverURL
+		post.Tags = req.Tags
 
 		if err := db.Save(&post).Error; err != nil {
 			if isJSON {
@@ -807,8 +858,8 @@ func Register() fiber.Handler {
 
 		setFlash(c, "success", "Chào mừng bạn đến với cộng đồng!")
 		redirect := c.FormValue("next")
-		if redirect == "" {
-			redirect = "/posts"
+		if redirect == "" || redirect == "/auth/login" || redirect == "/auth/register" {
+			redirect = "/"
 		}
 		return c.Status(fiber.StatusSeeOther).Redirect(redirect)
 	}
@@ -884,8 +935,8 @@ func Login() fiber.Handler {
 
 		setFlash(c, "success", fmt.Sprintf("Chào mừng trở lại, %s!", user.Name))
 		redirect := c.FormValue("next")
-		if redirect == "" {
-			redirect = "/posts"
+		if redirect == "" || redirect == "/auth/login" || redirect == "/auth/register" {
+			redirect = "/"
 		}
 		return c.Status(fiber.StatusSeeOther).Redirect(redirect)
 	}

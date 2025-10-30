@@ -12,7 +12,7 @@
             <label>Mật khẩu
                 <input type="password" name="password" placeholder="Mật khẩu" required minlength="6">
             </label>
-            <input type="hidden" name="next" value="{{or .Next "/posts"}}">
+            <input type="hidden" name="next" value="{{if .Next}}{{.Next}}{{else}}/auth/login{{end}}">
             <button type="submit" class="btn primary">Đăng nhập</button>
         </form>
         <p class="note">Chưa có tài khoản? <a href="/auth/register">Đăng ký ngay</a>.</p>

@@ -203,7 +203,9 @@ func main() {
 		}
 		return template.JS(b), nil
 	})
-
+	engine.AddFunc("safeHTML", func(s string) template.HTML {
+		return template.HTML(s)
+	})
 	app := fiber.New(fiber.Config{
 		Views:       engine,
 		ViewsLayout: "layouts/main",

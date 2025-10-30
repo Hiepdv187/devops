@@ -365,7 +365,7 @@
                 <label>Mật khẩu
                     <input type="password" name="password" placeholder="Mật khẩu" required minlength="6">
                 </label>
-                <input type="hidden" name="next" value="">
+                <input type="hidden" name="next" id="login-modal-next" value="">
                 <div class="modal-actions">
                     <button type="submit" class="btn primary">Đăng nhập</button>
                     <button type="button" class="btn ghost" data-modal-target="register-modal">Tạo tài khoản</button>
@@ -390,7 +390,7 @@
                 <label>Mật khẩu
                     <input type="password" name="password" placeholder="Tối thiểu 6 ký tự" required minlength="6">
                 </label>
-                <input type="hidden" name="next" value="/posts">
+                <input type="hidden" name="next" id="register-modal-next" value="">
                 <div class="modal-actions">
                     <button type="submit" class="btn primary">Đăng ký</button>
                     <button type="button" class="btn ghost" data-modal-target="login-modal">Đã có tài khoản</button>
@@ -422,8 +422,9 @@
                 if (modal) {
                     modal.classList.add('active');
                     const nextField = modal.querySelector('input[name="next"]');
-                    if (nextField && !nextField.value) {
-                        nextField.value = currentPath;
+                    if (nextField) {
+                        // Always set to current path
+                        nextField.value = window.location.pathname;
                     }
                 }
             }

@@ -27,16 +27,25 @@
         <a href="/posts" class="link">Xem toàn bộ</a>
     </header>
     {{if .LatestPosts}}
-    <div class="grid grid-3">
+    <div class="post-grid">
         {{range .LatestPosts}}
-        <article class="card">
-            <header>
+        <article class="card post-card">
+            {{if .CoverURL}}
+            <figure class="post-card-cover" data-visible="true">
+                <img src="{{.CoverURL}}" alt="Ảnh bìa bài viết {{.Title}}" loading="lazy">
+            </figure>
+            {{else}}
+            <figure class="post-card-cover" data-visible="true">
+                <img src="/static/images/post-default-cover.gif" alt="Ảnh bìa mặc định cho bài viết {{.Title}}" loading="lazy">
+            </figure>
+            {{end}}
+            <div class="post-card-body">
                 <h3><a href="/posts/{{.ID}}">{{.Title}}</a></h3>
-                <p class="meta">Bởi {{.AuthorName}} · {{.CreatedLabel}}</p>
-            </header>
-            <p>{{.Summary}}</p>
+                <p class="meta">{{.AuthorName}} · {{.CreatedLabel}}</p>
+                <p class="excerpt">{{if .Summary}}{{.Summary}}{{else}}Đọc bài viết để khám phá chi tiết nội dung.{{end}}</p>
+            </div>
             <footer>
-                <a href="/posts/{{.ID}}" class="btn ghost">Đọc tiếp</a>
+                <a href="/posts/{{.ID}}" class="btn ghost">Đọc bài viết →</a>
             </footer>
         </article>
         {{end}}

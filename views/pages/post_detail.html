@@ -9,6 +9,13 @@
         {{if .Post.Summary}}
         <p class="summary">{{.Post.Summary}}</p>
         {{end}}
+        {{if .Post.Tags}}
+        <div class="post-tags">
+            {{range .PostTags}}
+            <a href="/posts?tag={{.}}" class="tag-badge">{{.}}</a>
+            {{end}}
+        </div>
+        {{end}}
     </header>
     {{if .IsAuthor}}
     <div class="post-author-actions">
@@ -28,16 +35,13 @@
                 <label>Ảnh bìa (URL)
                     <input type="url" name="cover_url" value="{{.Post.CoverURL}}" placeholder="https://example.com/cover.jpg" data-preview="cover">
                 </label>
+                <label>Tags (phân loại)
+                    <input type="text" name="tags" value="{{.Post.Tags}}" placeholder="docker, kubernetes, ci-cd" data-preview="tags">
+                    <small style="color: #94a3b8; font-size: 0.85rem;">Nhập các tags cách nhau bằng dấu phẩy</small>
+                </label>
                 <label>Nội dung bài viết
-                    <textarea name="content" rows="10" placeholder="Chỉnh sửa nội dung bài viết" required minlength="10" data-preview="content" id="edit-content-textarea">{{.Post.Content}}</textarea>
-                    <div class="image-upload-zone" id="edit-image-upload-zone">
-                        <input type="file" id="edit-image-input" accept="image/*" multiple hidden>
-                        <p class="upload-hint">
-                            <svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
-                            Kéo thả ảnh vào đây hoặc <button type="button" class="upload-btn">chọn file</button>
-                        </p>
-                        <p class="upload-progress" hidden></p>
-                    </div>
+                    <div id="edit-editor-container" style="min-height: 300px; background: rgba(15, 23, 42, 0.65); border: 1px solid rgba(148, 163, 184, 0.3); border-radius: 8px;"></div>
+                    <textarea name="content" id="edit-content-textarea" hidden required minlength="10">{{.Post.Content}}</textarea>
                 </label>
                 <div class="form-actions">
                     <button type="submit" class="btn primary">Lưu thay đổi</button>
@@ -58,7 +62,7 @@
     </section>
     {{end}}
     <section class="card post-body" id="post-body" data-post-id="{{.Post.ID}}" data-auth="{{if .IsAuthenticated}}true{{else}}false{{end}}">
-        {{markdown .Post.Content}}
+        {{.Post.Content | safeHTML}}
     </section>
     <div class="post-image-lightbox" id="post-image-lightbox" aria-hidden="true">
         <figure class="lightbox-content">
@@ -69,7 +73,35 @@
     </div>
 </article>
 {{if .IsAuthor}}
-<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<link href="https://cdn.quilljs.com/1.3.7/quill.snow.css" rel="stylesheet">
+<script src="https://cdn.quilljs.com/1.3.7/quill.min.js"></script>
+<style>
+.ql-snow .ql-picker.ql-expanded .ql-picker-label {
+    border-color: rgba(148, 163, 184, 0.5);
+}
+.ql-snow .ql-picker.ql-expanded .ql-picker-options {
+    display: block;
+    background: rgba(15, 23, 42, 0.98);
+    border: 1px solid rgba(148, 163, 184, 0.3);
+    border-radius: 8px;
+    margin-top: 2px;
+}
+.ql-snow .ql-color-picker .ql-picker-item {
+    border: 1px solid rgba(148, 163, 184, 0.2);
+}
+.ql-snow .ql-picker-options {
+    z-index: 100;
+}
+.ql-snow .ql-picker-label:active,
+.ql-snow .ql-picker-label:focus {
+    outline: none;
+}
+.ql-toolbar.ql-snow .ql-picker.ql-expanded .ql-picker-options {
+    display: block !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+}
+</style>
 {{end}}
 <script>
 window.LINE_COMMENTS = {{.LineComments | json}};
@@ -209,29 +241,157 @@ document.addEventListener('DOMContentLoaded', () => {
             };
 
             const textarea = editForm.querySelector('#edit-content-textarea');
-            const uploadZone = document.getElementById('edit-image-upload-zone');
-            const imageInput = document.getElementById('edit-image-input');
-            const uploadProgress = uploadZone ? uploadZone.querySelector('.upload-progress') : null;
-
             const defaultSummary = 'Tóm tắt sẽ giúp người đọc hiểu nhanh nội dung chính của bài viết.';
-            const defaultContent = '<p>Nội dung bài viết hiển thị theo từng đoạn, bạn có thể nhập Markdown cơ bản như xuống dòng bằng cách nhấn Enter.</p>';
+            const defaultContent = '<p>Nội dung bài viết hiển thị theo từng đoạn...</p>';
 
-            const renderContentPreview = (value) => {
-                const trimmed = value.trim();
-                if (!trimmed) return '';
-                if (window.marked && typeof window.marked.parse === 'function') {
-                    try {
-                        return window.marked.parse(trimmed);
-                    } catch (err) {
-                        console.warn('Markdown render error:', err);
+            // Initialize Quill editor for edit mode
+            let editQuill = null;
+            if (window.Quill && document.getElementById('edit-editor-container')) {
+                editQuill = new Quill('#edit-editor-container', {
+                    theme: 'snow',
+                    placeholder: 'Chỉnh sửa nội dung bài viết...',
+                    modules: {
+                        toolbar: [
+                            [{ 'header': [1, 2, 3, false] }],
+                            ['bold', 'italic', 'underline', 'strike'],
+                            [{ 'color': [] }, { 'background': [] }],
+                            [{ 'list': 'ordered'}, { 'list': 'bullet' }],
+                            [{ 'indent': '-1'}, { 'indent': '+1' }],
+                            ['link', 'image'],
+                            ['clean']
+                        ],
+                        keyboard: {
+                            bindings: {
+                                linebreak: {
+                                    key: 13,
+                                    shiftKey: true,
+                                    handler: function(range) {
+                                        this.quill.insertText(range.index, '\n', 'user');
+                                        this.quill.setSelection(range.index + 1);
+                                        return false;
+                                    }
+                                }
+                            }
+                        }
                     }
+                });
+
+                // Load existing content - use clipboard to preserve formatting including <br>
+                if (textarea && textarea.value) {
+                    const delta = editQuill.clipboard.convert(textarea.value);
+                    editQuill.setContents(delta, 'silent');
                 }
-                const safeValue = trimmed.replace(/</g, '&lt;').replace(/>/g, '&gt;');
-                return safeValue
-                    .split(/\n{2,}/)
-                    .map(paragraph => `<p>${paragraph.replace(/\n/g, '<br>')}</p>`)
-                    .join('');
-            };
+
+                // Fix picker dropdowns by stopping Quill's default toggle behavior
+                setTimeout(() => {
+                    const toolbar = document.querySelector('#edit-editor-container')?.previousElementSibling;
+                    if (!toolbar) return;
+                    
+                    const pickers = toolbar.querySelectorAll('.ql-picker');
+                    pickers.forEach(picker => {
+                        const label = picker.querySelector('.ql-picker-label');
+                        if (!label) return;
+                        
+                        // Stop all events on the label to prevent Quill's handler
+                        label.addEventListener('click', function(e) {
+                            e.stopImmediatePropagation();
+                            
+                            // Manually toggle
+                            const isExpanded = picker.classList.contains('ql-expanded');
+                            
+                            // Close all pickers first
+                            pickers.forEach(p => p.classList.remove('ql-expanded'));
+                            
+                            // Open this one if it wasn't open
+                            if (!isExpanded) {
+                                picker.classList.add('ql-expanded');
+                            }
+                        }, true);
+                        
+                        // Prevent mousedown from bubbling
+                        label.addEventListener('mousedown', function(e) {
+                            e.preventDefault();
+                            e.stopImmediatePropagation();
+                        }, true);
+                    });
+                    
+                    // Close when clicking outside
+                    document.addEventListener('click', function(e) {
+                        if (!e.target.closest('.ql-picker')) {
+                            pickers.forEach(p => p.classList.remove('ql-expanded'));
+                        }
+                    });
+                }, 300);
+
+                // Sync Quill to textarea and preview
+                editQuill.on('text-change', function() {
+                    let html = editQuill.root.innerHTML;
+                    // Replace text nodes containing \n with <br> tags
+                    const tempDiv = document.createElement('div');
+                    tempDiv.innerHTML = html;
+                    
+                    // Walk through all text nodes and replace \n with <br>
+                    const walker = document.createTreeWalker(tempDiv, NodeFilter.SHOW_TEXT, null, false);
+                    const nodesToReplace = [];
+                    while (walker.nextNode()) {
+                        const node = walker.currentNode;
+                        if (node.nodeValue && node.nodeValue.includes('\n')) {
+                            nodesToReplace.push(node);
+                        }
+                    }
+                    
+                    nodesToReplace.forEach(node => {
+                        const parts = node.nodeValue.split('\n');
+                        const fragment = document.createDocumentFragment();
+                        parts.forEach((part, i) => {
+                            fragment.appendChild(document.createTextNode(part));
+                            if (i < parts.length - 1) {
+                                fragment.appendChild(document.createElement('br'));
+                            }
+                        });
+                        node.parentNode.replaceChild(fragment, node);
+                    });
+                    
+                    html = tempDiv.innerHTML;
+                    textarea.value = html;
+                    previewElements.content.innerHTML = html || defaultContent;
+                    attachLightbox(previewElements.content);
+                });
+
+                // Image upload handler
+                editQuill.getModule('toolbar').addHandler('image', function() {
+                    const input = document.createElement('input');
+                    input.setAttribute('type', 'file');
+                    input.setAttribute('accept', 'image/*');
+                    input.click();
+
+                    input.onchange = async function() {
+                        const file = input.files[0];
+                        if (!file) return;
+
+                        const formData = new FormData();
+                        formData.append('image', file);
+
+                        try {
+                            const response = await fetch('/upload/image', {
+                                method: 'POST',
+                                body: formData
+                            });
+
+                            if (!response.ok) {
+                                throw new Error('Upload thất bại');
+                            }
+
+                            const data = await response.json();
+                            const range = editQuill.getSelection(true);
+                            editQuill.insertEmbed(range.index, 'image', data.url);
+                            editQuill.setSelection(range.index + 1);
+                        } catch (error) {
+                            alert('Lỗi upload ảnh: ' + error.message);
+                        }
+                    };
+                });
+            }
 
             const updatePreview = (target, value) => {
                 switch (target) {
@@ -242,9 +402,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         previewElements.summary.textContent = value || defaultSummary;
                         break;
                     case 'content': {
-                        const html = value ? renderContentPreview(value) : defaultContent;
-                        previewElements.content.innerHTML = html;
-                        attachLightbox(previewElements.content);
+                        // Content preview is now handled by Quill editor
                         break;
                     }
                     case 'cover':
@@ -274,7 +432,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 postBodySection.hidden = true;
                 if (toggleEditorBtn) toggleEditorBtn.disabled = true;
                 syncPreviewFromForm();
-                textarea?.focus();
+                if (editQuill) {
+                    editQuill.focus();
+                }
             };
 
             const closeEditor = () => {
@@ -291,85 +451,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 });
             });
 
-            if (textarea) {
-                textarea.addEventListener('input', () => {
-                    updatePreview('content', textarea.value);
-                });
-            }
-
-            if (uploadZone && imageInput && textarea && uploadProgress) {
-                const handleFiles = async (files) => {
-                    if (!files || files.length === 0) return;
-                    for (const file of files) {
-                        await uploadImage(file);
-                    }
-                };
-
-                const uploadImage = async (file) => {
-                    const formData = new FormData();
-                    formData.append('image', file);
-
-                    uploadProgress.textContent = `Đang upload ${file.name}...`;
-                    uploadProgress.hidden = false;
-
-                    try {
-                        const response = await fetch('/upload/image', {
-                            method: 'POST',
-                            body: formData,
-                        });
-
-                        if (!response.ok) {
-                            const error = await response.json();
-                            throw new Error(error.error || 'Upload thất bại');
-                        }
-
-                        const data = await response.json();
-                        const start = textarea.selectionStart;
-                        const end = textarea.selectionEnd;
-                        const text = textarea.value;
-                        const before = text.substring(0, start);
-                        const after = text.substring(end);
-
-                        textarea.value = `${before}${data.markdown}\n${after}`;
-                        textarea.selectionStart = textarea.selectionEnd = start + data.markdown.length + 1;
-                        textarea.dispatchEvent(new Event('input'));
-
-                        uploadProgress.textContent = `✓ ${file.name} đã upload thành công`;
-                        setTimeout(() => {
-                            uploadProgress.hidden = true;
-                        }, 2000);
-                    } catch (error) {
-                        uploadProgress.textContent = `✗ Lỗi: ${error.message}`;
-                        setTimeout(() => {
-                            uploadProgress.hidden = true;
-                        }, 3000);
-                    }
-                };
-
-                uploadZone.querySelector('.upload-btn')?.addEventListener('click', () => {
-                    imageInput.click();
-                });
-
-                imageInput.addEventListener('change', (e) => {
-                    handleFiles(e.target.files);
-                });
-
-                uploadZone.addEventListener('dragover', (e) => {
-                    e.preventDefault();
-                    uploadZone.classList.add('dragover');
-                });
-
-                uploadZone.addEventListener('dragleave', () => {
-                    uploadZone.classList.remove('dragover');
-                });
-
-                uploadZone.addEventListener('drop', (e) => {
-                    e.preventDefault();
-                    uploadZone.classList.remove('dragover');
-                    const files = Array.from(e.dataTransfer.files).filter((f) => f.type.startsWith('image/'));
-                    handleFiles(files);
-                });
-            }
+            // Old textarea and upload zone handlers removed - now handled by Quill
 
             toggleEditorBtn?.addEventListener('click', () => {
                 openEditor();
@@ -381,7 +463,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
             // Initialize preview with current values
             syncPreviewFromForm();
-            updatePreview('content', textarea?.value || '');
+            if (editQuill && textarea?.value) {
+                previewElements.content.innerHTML = textarea.value;
+            }
         }
     }
 
@@ -390,11 +474,25 @@ document.addEventListener('DOMContentLoaded', () => {
     const annotationBlocks = [];
 
     const ensureControlBox = (wrapper) => {
-        let box = wrapper.querySelector(':scope > .inline-controls');
+        let box = wrapper.querySelector('.inline-actions-box');
         if (!box) {
-            box = document.createElement('div');
-            box.className = 'inline-controls';
-            wrapper.appendChild(box);
+            box = document.createElement('span');
+            box.className = 'inline-actions-box';
+            
+            // Insert right after text content
+            const contentHolder = wrapper.querySelector('.inline-line-content');
+            if (contentHolder) {
+                // Append to content holder so it appears inline after text
+                contentHolder.appendChild(box);
+            } else {
+                // Fallback: find the text element and insert after it
+                const textEl = wrapper.querySelector('p, h1, h2, h3, h4, h5, h6, span');
+                if (textEl && textEl.parentNode === wrapper) {
+                    textEl.appendChild(box);
+                } else {
+                    wrapper.appendChild(box);
+                }
+            }
         }
         return box;
     };
@@ -416,7 +514,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const processedElements = [];
     
-    postBody.querySelectorAll('p, pre, blockquote, h1, h2, h3, h4, h5, h6, li').forEach(el => {
+    // Also include div elements from Quill editor
+    postBody.querySelectorAll('p, pre, blockquote, h1, h2, h3, h4, h5, h6, li, div.ql-editor > *').forEach(el => {
         if (el.querySelector('br')) {
             const parts = [];
             let currentPart = document.createElement('span');
@@ -497,14 +596,24 @@ document.addEventListener('DOMContentLoaded', () => {
             wrapper.dataset.line = currentLine;
             wrapper.style.display = 'block';
 
+            const contentHolder = document.createElement('span');
+            contentHolder.className = 'inline-line-content';
+
             el.dataset.lineProcessed = 'true';
             el.parentNode.insertBefore(wrapper, el);
-            wrapper.appendChild(el);
+            contentHolder.appendChild(el);
+            wrapper.appendChild(contentHolder);
         }
 
         const comments = lineComments[currentLine] || [];
         const annotation = lineAnnotations[currentLine] || '';
         const controlBox = ensureControlBox(wrapper);
+        
+        // Debug: ensure box is created
+        if (!controlBox) {
+            console.error('Failed to create control box for line', currentLine);
+            return;
+        }
 
         // Add annotation display if exists
         if (annotation) {
@@ -512,7 +621,8 @@ document.addEventListener('DOMContentLoaded', () => {
             annotationSpan.className = 'line-annotation';
             annotationSpan.textContent = `# ${annotation}`;
             annotationSpan.title = annotation;
-            wrapper.insertBefore(annotationSpan, controlBox);
+            // Insert into wrapper (not before controlBox which is in content holder)
+            wrapper.appendChild(annotationSpan);
         }
 
         if (isAuthor) {
@@ -655,6 +765,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 closeAllCommentPanels();
                 closeAllAnnotationPanels();
                 if (wasHidden) {
+                    // Position panel at click location
+                    const rect = annotateBtn.getBoundingClientRect();
+                    block.panel.style.left = `${rect.left}px`;
+                    block.panel.style.top = `${rect.bottom + 5}px`;
+                    
                     block.panel.hidden = false;
                     block.wrapper.classList.add('annotation-active');
                     block.textarea.value = lineAnnotations[line] || '';
@@ -677,6 +792,11 @@ document.addEventListener('DOMContentLoaded', () => {
                     b.wrapper.classList.remove('active');
                 });
                 if (wasHidden) {
+                    // Position panel at click location
+                    const rect = btn.getBoundingClientRect();
+                    block.panel.style.left = `${rect.left}px`;
+                    block.panel.style.top = `${rect.bottom + 5}px`;
+                    
                     block.panel.hidden = false;
                     block.wrapper.classList.add('active');
                 }

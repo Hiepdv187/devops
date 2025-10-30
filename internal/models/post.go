@@ -9,6 +9,7 @@ type Post struct {
 	Summary  string    `gorm:"size:255"`
 	Content  string    `gorm:"type:text"`
 	CoverURL string    `gorm:"size:512"`
+	Tags     string    `gorm:"size:255"` // Comma-separated tags: "docker,kubernetes,ci-cd"
 	AuthorID uint      `gorm:"index"`
 	Author   User      `gorm:"constraint:OnUpdate:CASCADE,OnDelete:SET NULL;"`
 	Comments []Comment `gorm:"constraint:OnDelete:CASCADE;"`
