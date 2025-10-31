@@ -91,3 +91,16 @@ Trả về thông tin người dùng sau khi xác thực thành công. Với gia
 3. Mở pull request mô tả rõ thay đổi.
 
 Liên hệ quản trị viên: `hello@hocdevops.community`.
+
+
+## Backup MySQL
+
+```bash
+docker exec fiber-learning-db mysqldump --default-character-set=utf8mb4 -u root -prootpass fiber_learning > backup.sql
+```
+
+## Restore MySQL
+
+```bash
+./mysql-restore.ps1 -File "backup.sql" -Container "fiber-learning-db" -User "root" -Password "rootpass" -Database "fiber_learning" -Port 3308
+```

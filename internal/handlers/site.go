@@ -148,6 +148,16 @@ func Home() fiber.Handler {
 		latestPosts := []fiber.Map{}
 		if err := db.Preload("Author").Order("created_at DESC").Limit(6).Find(&posts).Error; err == nil {
 			for _, p := range posts {
+				postTags := []string{}
+				if strings.TrimSpace(p.Tags) != "" {
+					tags := strings.Split(p.Tags, ",")
+					for _, tag := range tags {
+						tag = strings.TrimSpace(tag)
+						if tag != "" {
+							postTags = append(postTags, tag)
+						}
+					}
+				}
 				latestPosts = append(latestPosts, fiber.Map{
 					"ID":           p.ID,
 					"Title":        p.Title,
@@ -155,6 +165,7 @@ func Home() fiber.Handler {
 					"CoverURL":     p.CoverURL,
 					"AuthorName":   p.Author.Name,
 					"CreatedLabel": p.CreatedAt.Format("02/01/2006 15:04"),
+					"PostTags":     postTags,
 				})
 			}
 		}
@@ -260,6 +271,17 @@ func PostsPage() fiber.Handler {
 		}
 		items := make([]fiber.Map, 0, len(posts))
 		for _, p := range posts {
+			postTags := []string{}
+			if strings.TrimSpace(p.Tags) != "" {
+				tags := strings.Split(p.Tags, ",")
+				for _, tag := range tags {
+					tag = strings.TrimSpace(tag)
+					if tag != "" {
+						postTags = append(postTags, tag)
+					}
+				}
+			}
+
 			items = append(items, fiber.Map{
 				"ID":           p.ID,
 				"Title":        p.Title,
@@ -268,6 +290,7 @@ func PostsPage() fiber.Handler {
 				"CoverURL":     p.CoverURL,
 				"AuthorName":   p.Author.Name,
 				"CreatedLabel": p.CreatedAt.Format("02/01/2006 15:04"),
+				"PostTags":     postTags,
 			})
 		}
 

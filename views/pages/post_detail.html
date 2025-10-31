@@ -9,19 +9,8 @@
         {{if .Post.Summary}}
         <p class="summary">{{.Post.Summary}}</p>
         {{end}}
-        {{if .Post.Tags}}
-        <div class="post-tags">
-            {{range .PostTags}}
-            <a href="/posts?tag={{.}}" class="tag-badge">{{.}}</a>
-            {{end}}
-        </div>
-        {{end}}
+        
     </header>
-    {{if .IsAuthor}}
-    <div class="post-author-actions">
-        <button type="button" class="btn ghost" data-action="toggle-editor">Chỉnh sửa bài viết</button>
-    </div>
-    {{end}}
     {{if .IsAuthor}}
     <section class="card post-editor" id="post-editor" hidden>
         <div class="composer-grid">
@@ -61,6 +50,22 @@
         </div>
     </section>
     {{end}}
+    
+    <div class="post-meta-actions">
+        {{if .Post.Tags}}
+        <div class="post-tags">
+            {{range .PostTags}}
+            <a href="/posts?tag={{.}}" class="tag-badge">{{.}}</a>
+            {{end}}
+        </div>
+        {{end}}
+        {{if .IsAuthor}}
+        <div class="post-author-actions">
+            <button type="button" class="btn ghost" data-action="toggle-editor">Chỉnh sửa bài viết</button>
+        </div>
+        {{end}}
+    </div>
+    
     <section class="card post-body" id="post-body" data-post-id="{{.Post.ID}}" data-auth="{{if .IsAuthenticated}}true{{else}}false{{end}}">
         {{.Post.Content | safeHTML}}
     </section>
@@ -74,6 +79,7 @@
 </article>
 {{if .IsAuthor}}
 <link href="https://cdn.quilljs.com/1.3.7/quill.snow.css" rel="stylesheet">
+<link href="https://cdn.quilljs.com/1.3.7/quill.bubble.css" rel="stylesheet">
 <script src="https://cdn.quilljs.com/1.3.7/quill.min.js"></script>
 <style>
 .ql-snow .ql-picker.ql-expanded .ql-picker-label {
@@ -273,6 +279,87 @@ document.addEventListener('DOMContentLoaded', () => {
                                 }
                             }
                         }
+                    }
+                });
+
+                // Create custom bubble toolbar for text selection
+                const bubbleToolbar = document.createElement('div');
+                bubbleToolbar.className = 'custom-bubble-toolbar';
+                bubbleToolbar.style.cssText = 'position: absolute; display: none; z-index: 1000; background: rgba(15, 23, 42, 0.98); border: 1px solid rgba(148, 163, 184, 0.3); border-radius: 8px; padding: 4px; box-shadow: 0 4px 12px rgba(0,0,0,0.3);';
+                bubbleToolbar.innerHTML = `
+                    <select class="ql-size" title="Font Size" style="width: 70px; height: 28px; border: 1px solid rgba(148, 163, 184, 0.3); background: rgba(30, 41, 59, 0.8); color: #94a3b8; border-radius: 4px; cursor: pointer; font-size: 0.85rem;">
+                        <option value="small">Nhỏ</option>
+                        <option selected>Bình thường</option>
+                        <option value="large">Lớn</option>
+                        <option value="huge">Rất lớn</option>
+                    </select>
+                    <button type="button" class="ql-bold" title="Bold" style="width: 28px; height: 28px; border: none; background: transparent; color: #94a3b8; cursor: pointer; border-radius: 4px;"><b>B</b></button>
+                    <button type="button" class="ql-italic" title="Italic" style="width: 28px; height: 28px; border: none; background: transparent; color: #94a3b8; cursor: pointer; border-radius: 4px;"><i>I</i></button>
+                    <button type="button" class="ql-underline" title="Underline" style="width: 28px; height: 28px; border: none; background: transparent; color: #94a3b8; cursor: pointer; border-radius: 4px;"><u>U</u></button>
+                    <button type="button" class="ql-strike" title="Strike" style="width: 28px; height: 28px; border: none; background: transparent; color: #94a3b8; cursor: pointer; border-radius: 4px;"><s>S</s></button>
+                    <button type="button" class="ql-link" title="Link" style="width: 28px; height: 28px; border: none; background: transparent; color: #94a3b8; cursor: pointer; border-radius: 4px;">🔗</button>
+                    <select class="ql-color" title="Text Color" style="width: 60px; height: 28px; border: 1px solid rgba(148, 163, 184, 0.3); background: rgba(30, 41, 59, 0.8); color: #94a3b8; border-radius: 4px; cursor: pointer;">
+                        <option value="#e2e8f0" selected>Default</option>
+                        <option value="#38bdf8">Blue</option>
+                        <option value="#22c55e">Green</option>
+                        <option value="#ef4444">Red</option>
+                        <option value="#f59e0b">Orange</option>
+                    </select>
+                `;
+                document.body.appendChild(bubbleToolbar);
+
+                // Handle bubble toolbar button clicks
+                bubbleToolbar.querySelectorAll('button').forEach(btn => {
+                    btn.addEventListener('mousedown', (e) => {
+                        e.preventDefault();
+                        const format = btn.className.replace('ql-', '');
+                        const currentFormat = editQuill.getFormat();
+                        if (format === 'link') {
+                            const url = prompt('Enter URL:');
+                            if (url) {
+                                editQuill.format('link', url);
+                            }
+                        } else {
+                            editQuill.format(format, !currentFormat[format]);
+                        }
+                    });
+                    btn.addEventListener('mouseenter', () => {
+                        btn.style.background = 'rgba(56, 189, 248, 0.2)';
+                    });
+                    btn.addEventListener('mouseleave', () => {
+                        btn.style.background = 'transparent';
+                    });
+                });
+
+                // Handle font size select
+                bubbleToolbar.querySelector('.ql-size').addEventListener('change', (e) => {
+                    editQuill.format('size', e.target.value || false);
+                });
+
+                // Handle color select
+                bubbleToolbar.querySelector('.ql-color').addEventListener('change', (e) => {
+                    editQuill.format('color', e.target.value);
+                });
+
+                // Show/hide bubble toolbar on text selection
+                editQuill.on('selection-change', (range) => {
+                    if (range && range.length > 0) {
+                        const bounds = editQuill.getBounds(range.index, range.length);
+                        const editorRect = document.getElementById('edit-editor-container').getBoundingClientRect();
+                        
+                        bubbleToolbar.style.display = 'flex';
+                        bubbleToolbar.style.gap = '2px';
+                        bubbleToolbar.style.left = (editorRect.left + bounds.left + (bounds.width / 2) - (bubbleToolbar.offsetWidth / 2)) + 'px';
+                        bubbleToolbar.style.top = (editorRect.top + bounds.top - bubbleToolbar.offsetHeight - 8 + window.scrollY) + 'px';
+                    } else {
+                        bubbleToolbar.style.display = 'none';
+                    }
+                });
+
+                // Hide bubble toolbar when clicking outside
+                document.addEventListener('click', (e) => {
+                    if (!bubbleToolbar.contains(e.target) && !document.getElementById('edit-editor-container').contains(e.target)) {
+                        bubbleToolbar.style.display = 'none';
                     }
                 });
 
@@ -915,12 +1002,22 @@ document.addEventListener('DOMContentLoaded', () => {
                         if (!annotationSpan) {
                             annotationSpan = document.createElement('span');
                             annotationSpan.className = 'line-annotation';
-                            wrapper.insertBefore(annotationSpan, wrapper.querySelector('.annotate-btn'));
+                            wrapper.appendChild(annotationSpan);
                         }
                         annotationSpan.textContent = `# ${content}`;
                         annotationSpan.title = content;
+                        
+                        // Add highlight effect for live update
+                        wrapper.classList.add('annotation-highlight');
+                        setTimeout(() => wrapper.classList.remove('annotation-highlight'), 2000);
                     } else if (annotationSpan) {
                         annotationSpan.remove();
+                    }
+                    
+                    // Update textarea value in the panel
+                    const block = annotationBlocks.find(b => b.lineNumber === line);
+                    if (block && block.textarea) {
+                        block.textarea.value = content;
                     }
                 }
             } catch (err) {

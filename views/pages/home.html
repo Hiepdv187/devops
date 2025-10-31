@@ -44,7 +44,14 @@
                 <p class="meta">{{.AuthorName}} · {{.CreatedLabel}}</p>
                 <p class="excerpt">{{if .Summary}}{{.Summary}}{{else}}Đọc bài viết để khám phá chi tiết nội dung.{{end}}</p>
             </div>
-            <footer>
+            <footer class="post-card-footer">
+                {{if .PostTags}}
+                <div class="post-card-tags">
+                    {{range .PostTags}}
+                    <a href="/posts?tag={{.}}" class="tag-badge">{{.}}</a>
+                    {{end}}
+                </div>
+                {{end}}
                 <a href="/posts/{{.ID}}" class="btn ghost">Đọc bài viết →</a>
             </footer>
         </article>

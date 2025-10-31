@@ -20,7 +20,7 @@
         </div>
         <form method="get" class="post-search">
             <label class="sr-only" for="post-search">Tìm bài viết</label>
-            <input id="post-search" type="search" name="q" placeholder="Tìm theo tiêu đề hoặc tóm tắt" value="{{.Query}}">
+            <input id="post-search" type="search" name="q" placeholder="Tìm kiếm bài viết" value="{{.Query}}">
             <button type="submit" class="btn ghost">Tìm kiếm</button>
         </form>
     </header>
@@ -35,6 +35,24 @@
         </button>
         {{end}}
     </div>
+    <script>
+    document.addEventListener('DOMContentLoaded', function () {
+        document.querySelectorAll('.category-btn').forEach(btn => {
+            btn.addEventListener('click', (event) => {
+                event.preventDefault();
+                const tag = btn.dataset.tag || '';
+                const url = new URL(window.location.href);
+                if (tag) {
+                    url.searchParams.set('tag', tag);
+                } else {
+                    url.searchParams.delete('tag');
+                }
+                url.searchParams.delete('page');
+                window.location.href = url.toString();
+            });
+        });
+    });
+    </script>
     {{if .Posts}}
     <div class="post-grid">
         {{range .Posts}}
@@ -53,7 +71,14 @@
                 <p class="meta">{{.AuthorName}} · {{.CreatedLabel}}</p>
                 <p class="excerpt">{{if .Summary}}{{.Summary}}{{else}}Đọc bài viết để khám phá chi tiết nội dung.{{end}}</p>
             </div>
-            <footer>
+            <footer class="post-card-footer">
+                {{if .PostTags}}
+                <div class="post-card-tags">
+                    {{range .PostTags}}
+                    <a href="/posts?tag={{.}}" class="tag-badge">{{.}}</a>
+                    {{end}}
+                </div>
+                {{end}}
                 <a href="/posts/{{.ID}}" class="btn ghost">Đọc bài viết →</a>
             </footer>
         </article>
@@ -169,6 +194,7 @@
 </section>
 {{if .IsAuthenticated}}
 <link href="https://cdn.quilljs.com/1.3.7/quill.snow.css" rel="stylesheet">
+<link href="https://cdn.quilljs.com/1.3.7/quill.bubble.css" rel="stylesheet">
 <script src="https://cdn.quilljs.com/1.3.7/quill.min.js"></script>
 <style>
 .ql-toolbar.ql-snow {
@@ -232,6 +258,7 @@ document.addEventListener('DOMContentLoaded', function () {
     const composer = document.getElementById('post-composer');
     const preview = document.getElementById('post-preview');
     const textarea = document.getElementById('content-textarea');
+
     if (!composer || !preview || !textarea) return;
 
     const elements = {
@@ -283,6 +310,87 @@ document.addEventListener('DOMContentLoaded', function () {
                     }
                 }
             }
+        }
+    });
+
+    // Create custom bubble toolbar for text selection
+    const bubbleToolbar = document.createElement('div');
+    bubbleToolbar.className = 'custom-bubble-toolbar';
+    bubbleToolbar.style.cssText = 'position: absolute; display: none; z-index: 1000; background: rgba(15, 23, 42, 0.98); border: 1px solid rgba(148, 163, 184, 0.3); border-radius: 8px; padding: 4px; box-shadow: 0 4px 12px rgba(0,0,0,0.3);';
+    bubbleToolbar.innerHTML = `
+        <select class="ql-size" title="Font Size" style="width: 70px; height: 28px; border: 1px solid rgba(148, 163, 184, 0.3); background: rgba(30, 41, 59, 0.8); color: #94a3b8; border-radius: 4px; cursor: pointer; font-size: 0.85rem;">
+            <option value="small">Nhỏ</option>
+            <option selected>Bình thường</option>
+            <option value="large">Lớn</option>
+            <option value="huge">Rất lớn</option>
+        </select>
+        <button type="button" class="ql-bold" title="Bold" style="width: 28px; height: 28px; border: none; background: transparent; color: #94a3b8; cursor: pointer; border-radius: 4px;"><b>B</b></button>
+        <button type="button" class="ql-italic" title="Italic" style="width: 28px; height: 28px; border: none; background: transparent; color: #94a3b8; cursor: pointer; border-radius: 4px;"><i>I</i></button>
+        <button type="button" class="ql-underline" title="Underline" style="width: 28px; height: 28px; border: none; background: transparent; color: #94a3b8; cursor: pointer; border-radius: 4px;"><u>U</u></button>
+        <button type="button" class="ql-strike" title="Strike" style="width: 28px; height: 28px; border: none; background: transparent; color: #94a3b8; cursor: pointer; border-radius: 4px;"><s>S</s></button>
+        <button type="button" class="ql-link" title="Link" style="width: 28px; height: 28px; border: none; background: transparent; color: #94a3b8; cursor: pointer; border-radius: 4px;">🔗</button>
+        <select class="ql-color" title="Text Color" style="width: 60px; height: 28px; border: 1px solid rgba(148, 163, 184, 0.3); background: rgba(30, 41, 59, 0.8); color: #94a3b8; border-radius: 4px; cursor: pointer;">
+            <option value="#e2e8f0" selected>Default</option>
+            <option value="#38bdf8">Blue</option>
+            <option value="#22c55e">Green</option>
+            <option value="#ef4444">Red</option>
+            <option value="#f59e0b">Orange</option>
+        </select>
+    `;
+    document.body.appendChild(bubbleToolbar);
+
+    // Handle bubble toolbar button clicks
+    bubbleToolbar.querySelectorAll('button').forEach(btn => {
+        btn.addEventListener('mousedown', (e) => {
+            e.preventDefault();
+            const format = btn.className.replace('ql-', '');
+            const currentFormat = quill.getFormat();
+            if (format === 'link') {
+                const url = prompt('Nhập URL:');
+                if (url) {
+                    quill.format('link', url);
+                }
+            } else {
+                quill.format(format, !currentFormat[format]);
+            }
+        });
+        btn.addEventListener('mouseenter', () => {
+            btn.style.background = 'rgba(56, 189, 248, 0.2)';
+        });
+        btn.addEventListener('mouseleave', () => {
+            btn.style.background = 'transparent';
+        });
+    });
+
+    // Handle font size select
+    bubbleToolbar.querySelector('.ql-size').addEventListener('change', (e) => {
+        quill.format('size', e.target.value || false);
+    });
+
+    // Handle color select
+    bubbleToolbar.querySelector('.ql-color').addEventListener('change', (e) => {
+        quill.format('color', e.target.value);
+    });
+
+    // Show/hide bubble toolbar on text selection
+    quill.on('selection-change', (range) => {
+        if (range && range.length > 0) {
+            const bounds = quill.getBounds(range.index, range.length);
+            const editorRect = document.getElementById('editor-container').getBoundingClientRect();
+            
+            bubbleToolbar.style.display = 'flex';
+            bubbleToolbar.style.gap = '2px';
+            bubbleToolbar.style.left = (editorRect.left + bounds.left + (bounds.width / 2) - (bubbleToolbar.offsetWidth / 2)) + 'px';
+            bubbleToolbar.style.top = (editorRect.top + bounds.top - bubbleToolbar.offsetHeight - 8 + window.scrollY) + 'px';
+        } else {
+            bubbleToolbar.style.display = 'none';
+        }
+    });
+
+    // Hide bubble toolbar when clicking outside
+    document.addEventListener('click', (e) => {
+        if (!bubbleToolbar.contains(e.target) && !document.getElementById('editor-container').contains(e.target)) {
+            bubbleToolbar.style.display = 'none';
         }
     });
 

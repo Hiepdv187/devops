@@ -169,6 +169,24 @@ body {
   opacity: 1;
 }
 
+/* Highlight effect for live annotation updates */
+.inline-line.annotation-highlight .line-annotation {
+  opacity: 1;
+  animation: annotationPulse 2s ease;
+}
+
+@keyframes annotationPulse {
+  0%, 100% {
+    background: rgba(76, 29, 149, 0.15);
+    border-color: rgba(168, 85, 247, 0.2);
+  }
+  50% {
+    background: rgba(168, 85, 247, 0.3);
+    border-color: rgba(168, 85, 247, 0.5);
+    box-shadow: 0 0 12px rgba(168, 85, 247, 0.4);
+  }
+}
+
 .inline-panel {
   position: fixed;
   width: 360px;
@@ -438,6 +456,27 @@ nav a.active::after {
   max-width: 720px;
   line-height: 1.6;
   margin: 0 auto;
+}
+
+.post-meta-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: min(100%, 960px);
+  padding: 0 1.5rem;
+  margin: 1rem auto 0.01rem;
+  gap: 1rem;
+}
+
+.post-meta-actions .post-tags {
+  margin: 0;
+  flex: 1;
+}
+
+.post-meta-actions .post-author-actions {
+  margin: 0;
+  padding: 0;
+  width: auto;
 }
 
 .post-author-actions {
@@ -856,7 +895,6 @@ nav a.active::after {
   display: flex;
   flex-wrap: wrap;
   gap: 0.5rem;
-  margin-top: 1rem;
 }
 
 .tag-badge {
@@ -948,13 +986,21 @@ nav a.active::after {
 
 .post-card footer {
   display: flex;
-  justify-content: flex-end;
-  margin-top: 0.5rem;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 0.75rem;
+  gap: 0.75rem;
+  flex-wrap: wrap;
 }
 
-.post-card footer .link {
-  color: #38bdf8;
-  text-decoration: none;
+.post-card-footer .btn {
+  margin-left: auto;
+}
+
+.post-card-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
 }
 
 .posts-pagination {
@@ -1007,7 +1053,7 @@ nav a.active::after {
 }
 
 .post-body {
-  line-height: 0.8 !important;
+  line-height: 1.6;
   font-size: 1rem;
 }
 
@@ -1020,10 +1066,24 @@ nav a.active::after {
 .post-body h6,
 .post-body li,
 .post-body div {
-  line-height: 0.8 !important;
-  margin: 0 !important;
-  padding-top: 0 !important;
-  padding-bottom: 0 !important;
+  line-height: 1.6;
+  margin: 0.5em 0;
+}
+
+/* Quill font size classes */
+.post-body .ql-size-small,
+.preview-content .ql-size-small {
+  font-size: 0.75em;
+}
+
+.post-body .ql-size-large,
+.preview-content .ql-size-large {
+  font-size: 1.5em;
+}
+
+.post-body .ql-size-huge,
+.preview-content .ql-size-huge {
+  font-size: 2.5em;
 }
 
 .post-body img,
