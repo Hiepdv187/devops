@@ -229,6 +229,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     attachLightbox(postBody);
 
+    // Global reference to Quill editor for live updates
+    let editQuill = null;
+
     if (isAuthor) {
         const toggleEditorBtn = document.querySelector('[data-action="toggle-editor"]');
         const editorSection = document.getElementById('post-editor');
@@ -251,7 +254,6 @@ document.addEventListener('DOMContentLoaded', () => {
             const defaultContent = '<p>Nội dung bài viết hiển thị theo từng đoạn...</p>';
 
             // Initialize Quill editor for edit mode
-            let editQuill = null;
             if (window.Quill && document.getElementById('edit-editor-container')) {
                 editQuill = new Quill('#edit-editor-container', {
                     theme: 'snow',
@@ -560,6 +562,47 @@ document.addEventListener('DOMContentLoaded', () => {
     const blocks = [];
     const annotationBlocks = [];
 
+    const extractInlineAnnotationFromContent = (wrapper) => {
+        const contentHolder = wrapper.querySelector('.inline-line-content');
+        if (!contentHolder) return '';
+
+        const walker = document.createTreeWalker(contentHolder, NodeFilter.SHOW_TEXT, null);
+        const textNodes = [];
+        while (walker.nextNode()) {
+            textNodes.push(walker.currentNode);
+        }
+
+        for (let i = textNodes.length - 1; i >= 0; i--) {
+            const node = textNodes[i];
+            if (!node.textContent) continue;
+            const match = node.textContent.match(/[\s\u00a0]*#([^#]+)$/);
+            if (match) {
+                const annotationText = match[1].trim();
+                node.textContent = node.textContent.slice(0, node.textContent.length - match[0].length).replace(/[\s\u00a0]+$/, '');
+                if (node.textContent.length === 0) {
+                    const parent = node.parentNode;
+                    parent.removeChild(node);
+                    if (parent.childNodes.length === 0 && parent !== contentHolder) {
+                        parent.remove();
+                    }
+                }
+                return annotationText;
+            }
+        }
+
+        // Handle case where entire line starts with '#'
+        if (textNodes.length === 1) {
+            const text = textNodes[0].textContent.trim();
+            const leadingMatch = text.match(/^#([^#]+)$/);
+            if (leadingMatch) {
+                textNodes[0].textContent = '';
+                return leadingMatch[1].trim();
+            }
+        }
+
+        return '';
+    };
+
     const ensureControlBox = (wrapper) => {
         let box = wrapper.querySelector('.inline-actions-box');
         if (!box) {
@@ -693,7 +736,16 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         const comments = lineComments[currentLine] || [];
-        const annotation = lineAnnotations[currentLine] || '';
+        
+        // Extract and remove inline annotation from content
+        const inlineAnnotation = extractInlineAnnotationFromContent(wrapper);
+        
+        // Use stored annotation from backend, or fallback to inline annotation
+        const annotation = lineAnnotations[currentLine] || inlineAnnotation || '';
+        
+        // Get clean text after removing #annotation
+        const cleanText = wrapper.textContent.trim();
+        
         const controlBox = ensureControlBox(wrapper);
         
         // Debug: ensure box is created
@@ -721,14 +773,14 @@ document.addEventListener('DOMContentLoaded', () => {
             annotateBtn.dataset.line = currentLine;
             controlBox.appendChild(annotateBtn);
 
-            const lineText = text.length > 50 ? text.substring(0, 50) + '...' : text;
+            const lineText = cleanText.length > 50 ? cleanText.substring(0, 50) + '...' : cleanText;
             const annotationPanel = document.createElement('div');
             annotationPanel.className = 'inline-panel annotation-panel';
             annotationPanel.hidden = true;
             annotationPanel.dataset.line = currentLine;
             annotationPanel.innerHTML = `
                 <div class="inline-panel-header">
-                    <span title="${text}">${lineText}</span>
+                    <span title="${cleanText}">${lineText}</span>
                     <button type="button" class="inline-close">×</button>
                 </div>
                 <form class="annotation-form" data-line="${currentLine}">
@@ -760,13 +812,13 @@ document.addEventListener('DOMContentLoaded', () => {
             btn.dataset.line = currentLine;
             controlBox.appendChild(btn);
 
-            const lineText = text.length > 50 ? text.substring(0, 50) + '...' : text;
+            const commentLineText = cleanText.length > 50 ? cleanText.substring(0, 50) + '...' : cleanText;
             const panel = document.createElement('div');
             panel.className = 'inline-panel';
             panel.hidden = true;
             panel.innerHTML = `
                 <div class="inline-panel-header">
-                    <span title="${text}">${lineText}</span>
+                    <span title="${cleanText}">${commentLineText}</span>
                     <button type="button" class="inline-close">×</button>
                 </div>
                 <div class="inline-comments">
@@ -997,6 +1049,39 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 const wrapper = document.querySelector(`.inline-line[data-line="${line}"]`);
                 if (wrapper) {
+                    // Live update: Cập nhật nội dung #... trong DOM
+                    const contentHolder = wrapper.querySelector('.inline-line-content');
+                    if (contentHolder) {
+                        // Tìm và xóa #... cũ
+                        const textNodes = [];
+                        const walker = document.createTreeWalker(contentHolder, NodeFilter.SHOW_TEXT, null);
+                        while (walker.nextNode()) textNodes.push(walker.currentNode);
+                        
+                        let found = false;
+                        for (let i = textNodes.length - 1; i >= 0; i--) {
+                            const node = textNodes[i];
+                            if (node.textContent.match(/#[^#]*$/)) {
+                                const newText = content 
+                                    ? node.textContent.replace(/#[^#]*$/, '').trim() + ' #' + content
+                                    : node.textContent.replace(/\s*#[^#]*$/, '').trim();
+                                node.textContent = newText;
+                                found = true;
+                                break;
+                            }
+                        }
+                        
+                        // Nếu không tìm thấy #... cũ và có nội dung mới, thêm vào cuối
+                        if (!found && content) {
+                            const lastTextNode = textNodes[textNodes.length - 1];
+                            if (lastTextNode) {
+                                lastTextNode.textContent = lastTextNode.textContent.trim() + ' #' + content;
+                            } else if (contentHolder.lastChild) {
+                                contentHolder.appendChild(document.createTextNode(' #' + content));
+                            }
+                        }
+                    }
+
+                    // Cập nhật hiển thị annotation span
                     let annotationSpan = wrapper.querySelector('.line-annotation');
                     if (content) {
                         if (!annotationSpan) {
@@ -1018,6 +1103,19 @@ document.addEventListener('DOMContentLoaded', () => {
                     const block = annotationBlocks.find(b => b.lineNumber === line);
                     if (block && block.textarea) {
                         block.textarea.value = content;
+                    }
+                    
+                    // Update postBody HTML for edit form
+                    // Cập nhật nội dung trong postBody để khi mở editor sẽ có giá trị mới
+                    const editTextarea = document.getElementById('edit-content-textarea');
+                    if (editTextarea) {
+                        editTextarea.value = postBody.innerHTML;
+                    }
+                    
+                    // Live update Quill editor if it's already initialized
+                    if (editQuill) {
+                        const delta = editQuill.clipboard.convert(postBody.innerHTML);
+                        editQuill.setContents(delta, 'silent');
                     }
                 }
             } catch (err) {

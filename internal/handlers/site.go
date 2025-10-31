@@ -7,6 +7,7 @@ import (
 	"net/mail"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -47,6 +48,110 @@ func popFlash(sess *session.Session) fiber.Map {
 	sess.Delete("flashMessage")
 	sess.Delete("flashType")
 	return fiber.Map{"Type": typ, "Message": msg}
+}
+
+// parseInlineAnnotations extracts inline annotations from HTML content
+// Returns map of line_number -> annotation_text
+func parseInlineAnnotations(htmlContent string) map[int]string {
+	annotations := make(map[int]string)
+	if htmlContent == "" {
+		return annotations
+	}
+
+	// Split content by common block elements
+	linePattern := regexp.MustCompile(`<(?:p|h[1-6]|li|div)[^>]*>.*?</(?:p|h[1-6]|li|div)>|[^<]+`)
+	matches := linePattern.FindAllString(htmlContent, -1)
+
+	lineNumber := 0
+	for _, match := range matches {
+		// Skip empty matches
+		if strings.TrimSpace(match) == "" {
+			continue
+		}
+
+		// Check if this is a block element with content
+		if strings.Contains(match, "<") {
+			lineNumber++
+
+			// Extract text content and look for #annotation pattern
+			// Remove HTML tags to get plain text
+			tagPattern := regexp.MustCompile(`<[^>]+>`)
+			plainText := tagPattern.ReplaceAllString(match, "")
+			plainText = strings.TrimSpace(plainText)
+
+			if plainText == "" {
+				continue
+			}
+
+			// Look for #annotation at the end of the line
+			annotationPattern := regexp.MustCompile(`\s*#([^#]+)$`)
+			if annotationMatch := annotationPattern.FindStringSubmatch(plainText); len(annotationMatch) > 1 {
+				annotationText := strings.TrimSpace(annotationMatch[1])
+				if annotationText != "" {
+					annotations[lineNumber] = annotationText
+				}
+			}
+		}
+	}
+
+	return annotations
+}
+
+// updatePostContentAnnotation updates the #annotation in post content for a specific line
+func updatePostContentAnnotation(db *gorm.DB, post *models.Post, lineNumber int, newAnnotation string) error {
+	if post.Content == "" {
+		return nil
+	}
+
+	// Split content by common block elements
+	linePattern := regexp.MustCompile(`(<(?:p|h[1-6]|li|div)[^>]*>)(.*?)(</(?:p|h[1-6]|li|div)>)`)
+	matches := linePattern.FindAllStringSubmatch(post.Content, -1)
+
+	currentLine := 0
+	updatedContent := post.Content
+
+	for _, match := range matches {
+		if len(match) < 4 {
+			continue
+		}
+
+		openTag := match[1]
+		content := match[2]
+		closeTag := match[3]
+		fullMatch := match[0]
+
+		// Skip empty content
+		tagPattern := regexp.MustCompile(`<[^>]+>`)
+		plainText := tagPattern.ReplaceAllString(content, "")
+		if strings.TrimSpace(plainText) == "" {
+			continue
+		}
+
+		currentLine++
+
+		if currentLine == lineNumber {
+			// Remove existing #annotation if any
+			annotationPattern := regexp.MustCompile(`\s*#[^#]*$`)
+			cleanContent := annotationPattern.ReplaceAllString(content, "")
+
+			// Add new annotation if provided
+			var newContent string
+			if newAnnotation != "" {
+				newContent = cleanContent + " #" + newAnnotation
+			} else {
+				newContent = cleanContent
+			}
+
+			// Replace in full content
+			newFullMatch := openTag + newContent + closeTag
+			updatedContent = strings.Replace(updatedContent, fullMatch, newFullMatch, 1)
+			break
+		}
+	}
+
+	// Save updated content
+	post.Content = updatedContent
+	return db.Save(post).Error
 }
 
 func setUserSession(c *fiber.Ctx, user models.User) error {
@@ -544,6 +649,20 @@ func CreatePost() fiber.Handler {
 			return respondError(c, fiber.StatusInternalServerError, "Không thể tạo bài viết", "/posts")
 		}
 
+		// Parse and create inline annotations from content
+		inlineAnnotations := parseInlineAnnotations(body.Content)
+		for lineNum, annotationText := range inlineAnnotations {
+			annotation := models.Annotation{
+				PostID:     post.ID,
+				LineNumber: lineNum,
+				Content:    annotationText,
+			}
+			if err := db.Create(&annotation).Error; err != nil {
+				// Log error but don't fail the post creation
+				fmt.Printf("Warning: Failed to create annotation for line %d: %v\n", lineNum, err)
+			}
+		}
+
 		if isJSON {
 			return c.Status(fiber.StatusCreated).JSON(fiber.Map{
 				"message": "Tạo bài viết thành công",
@@ -656,14 +775,48 @@ func UpdatePost() fiber.Handler {
 			return respondError(c, fiber.StatusInternalServerError, "Không thể cập nhật bài viết", fmt.Sprintf("/posts/%d", postID))
 		}
 
+		// Parse and sync inline annotations from updated content
+		inlineAnnotations := parseInlineAnnotations(req.Content)
+		
+		// Delete existing annotations that are not in the new content
+		var existingAnnotations []models.Annotation
+		db.Where("post_id = ?", post.ID).Find(&existingAnnotations)
+		
+		for _, existing := range existingAnnotations {
+			if newContent, exists := inlineAnnotations[existing.LineNumber]; exists {
+				// Update if content changed
+				if existing.Content != newContent {
+					existing.Content = newContent
+					db.Save(&existing)
+				}
+				// Remove from map so we don't create duplicate
+				delete(inlineAnnotations, existing.LineNumber)
+			} else {
+				// Delete annotation that no longer exists in content
+				db.Delete(&existing)
+			}
+		}
+		
+		// Create new annotations
+		for lineNum, annotationText := range inlineAnnotations {
+			annotation := models.Annotation{
+				PostID:     post.ID,
+				LineNumber: lineNum,
+				Content:    annotationText,
+			}
+			if err := db.Create(&annotation).Error; err != nil {
+				fmt.Printf("Warning: Failed to create annotation for line %d: %v\n", lineNum, err)
+			}
+		}
+
 		if isJSON {
 			return c.JSON(fiber.Map{
 				"message": "Cập nhật bài viết thành công",
 				"post": fiber.Map{
-					"id":       post.ID,
-					"title":    post.Title,
-					"summary":  post.Summary,
-					"content":  post.Content,
+					"id":        post.ID,
+					"title":     post.Title,
+					"summary":   post.Summary,
+					"content":   post.Content,
 					"cover_url": post.CoverURL,
 				},
 			})
@@ -1239,6 +1392,12 @@ func CreateAnnotation() fiber.Handler {
 			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 				"error": "Không thể lưu chú thích",
 			})
+		}
+
+		// Cập nhật nội dung bài viết để đồng bộ #annotation
+		if err := updatePostContentAnnotation(db, &post, body.LineNumber, strings.TrimSpace(body.Content)); err != nil {
+			// Log warning but don't fail the request
+			fmt.Printf("Warning: Failed to update post content annotation: %v\n", err)
 		}
 
 		return c.JSON(fiber.Map{
