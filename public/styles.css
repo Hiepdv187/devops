@@ -73,10 +73,11 @@ body {
 }
 
 .inline-line-content {
-  display: inline-flex;
-  align-items: baseline;
-  flex-wrap: nowrap;
+  display: block;
   position: relative;
+  max-width: 100%;
+  overflow-wrap: break-word;
+  word-wrap: break-word;
 }
 
 .inline-line-content > p,
@@ -101,7 +102,7 @@ body {
 .inline-actions-box {
   position: absolute;
   top: 0.2rem;
-  right: 0;
+  right: 310px; /* Position before notice inline */
   display: flex;
   gap: 0.25rem;
   opacity: 0;
@@ -179,6 +180,11 @@ body {
 
 .inline-line:hover .line-annotation,
 .inline-line.annotation-active .line-annotation {
+  opacity: 1;
+}
+
+/* Show action box on hover */
+.inline-line:hover .inline-actions-box {
   opacity: 1;
 }
 
