@@ -749,6 +749,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const tagName = el.tagName ? el.tagName.toLowerCase() : '';
         const isListItem = tagName === 'li';
 
+        // Skip only if truly empty (not just "# comment")
         if (text.length === 0 && !hasMedia) return;
 
         lineNumber++;
@@ -811,6 +812,16 @@ document.addEventListener('DOMContentLoaded', () => {
         // Get clean text after removing #annotation
         const cleanText = wrapper.textContent.trim();
         
+        // If content is empty after extraction, add a placeholder or hide content holder
+        const contentHolder = wrapper.querySelector('.inline-line-content');
+        if (cleanText.length === 0 && annotation) {
+            // Content is only annotation, make content holder minimal
+            if (contentHolder) {
+                contentHolder.style.minHeight = '0';
+                contentHolder.innerHTML = '&nbsp;'; // Non-breaking space to maintain structure
+            }
+        }
+        
         const controlBox = ensureControlBox(wrapper);
         
         // Debug: ensure box is created
@@ -821,12 +832,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Add annotation display if exists
         if (annotation) {
-            const annotationSpan = document.createElement('span');
-            annotationSpan.className = 'line-annotation';
+            // Check if annotation span already exists
+            let annotationSpan = wrapper.querySelector('.line-annotation');
+            if (!annotationSpan) {
+                annotationSpan = document.createElement('span');
+                annotationSpan.className = 'line-annotation';
+                wrapper.appendChild(annotationSpan);
+            }
             annotationSpan.textContent = `# ${annotation}`;
             annotationSpan.title = annotation;
-            // Insert into wrapper (not before controlBox which is in content holder)
-            wrapper.appendChild(annotationSpan);
         }
 
         if (isAuthor) {
