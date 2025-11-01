@@ -24,13 +24,12 @@ var (
 // Init khởi tạo kết nối GORM.
 func Init() *gorm.DB {
 	once.Do(func() {
-		// Lấy thông tin kết nối từ biến môi trường
 		host := getEnv("DB_HOST", "znovxl.h.filess.io")
 		port := getEnv("DB_PORT", "3306")
 		user := getEnv("DB_USER", "Wedevops_queenplant")
 		password := getEnv("DB_PASSWORD", "856333f8b461857adb56cfaa544f250bfae28f9c")
-		database := getEnv("DB_NAME", "fiber_learning")
-		
+		database := getEnv("DB_NAME", "Wedevops_queenplant")
+
 		// Tạo DSN từ các biến môi trường hoặc sử dụng DATABASE_DSN trực tiếp
 		defaultDSN := user + ":" + password + "@tcp(" + host + ":" + port + ")/" + database + "?charset=utf8mb4&parseTime=True&loc=Local"
 		dsn := strings.TrimSpace(getEnv("DATABASE_DSN", defaultDSN))
@@ -57,7 +56,7 @@ func Init() *gorm.DB {
 		sqlDB.SetMaxIdleConns(10)
 		sqlDB.SetConnMaxLifetime(15 * time.Minute)
 
-		if err = db.AutoMigrate(&models.User{}, &models.Post{}, &models.Comment{}, &models.Annotation{}, &models.Image{}); err != nil {
+		if err = db.AutoMigrate(&models.User{}, &models.Post{}, &models.Comment{}, &models.Annotation{}); err != nil {
 			log.Fatalf("failed to migrate database: %v", err)
 		}
 
