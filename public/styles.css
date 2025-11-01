@@ -58,26 +58,33 @@ body {
 
 .inline-line {
   position: relative;
-  display: block;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
   padding: 0.4rem 0;
   transition: background-color 0.2s ease;
   min-height: 2rem;
-  padding-right: 350px; /* Space for notice inline */
+  gap: 0.5rem;
 }
 
 @media (max-width: 768px) {
   .inline-line {
-    padding-right: 0;
     padding-left: 60px; /* Space for action box on mobile */
   }
 }
 
 .inline-line-content {
-  display: block;
-  position: relative;
-  max-width: 100%;
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: calc(100% - 380px); /* Reserve space for action box (~80px) + notice inline (~300px) */
   overflow-wrap: break-word;
   word-wrap: break-word;
+}
+
+@media (max-width: 768px) {
+  .inline-line-content {
+    max-width: 100%;
+  }
 }
 
 .inline-line-content > p,
@@ -100,20 +107,20 @@ body {
 
 /* Actions box that appears right after text content */
 .inline-actions-box {
-  position: absolute;
-  top: 0.2rem;
-  right: 310px; /* Position before notice inline */
   display: flex;
   gap: 0.25rem;
   opacity: 0;
   transition: opacity 0.2s ease;
   z-index: 10;
+  flex-shrink: 0;
+  align-self: flex-start;
 }
 
 @media (max-width: 768px) {
   .inline-actions-box {
+    position: absolute;
     left: 0;
-    right: auto;
+    top: 0.2rem;
     flex-direction: column;
   }
 }
@@ -143,16 +150,12 @@ body {
 }
 
 .line-annotation {
-  position: absolute;
-  top: 0;
-  right: 0;
   font-size: 0.75rem;
   color: #a78bfa;
   font-style: italic;
   opacity: 0;
   transition: opacity 0.2s ease;
   pointer-events: none;
-  width: 300px;
   max-width: 300px;
   padding: 0.3rem 0.6rem;
   background: rgba(76, 29, 149, 0.15);
@@ -164,17 +167,14 @@ body {
   z-index: 5;
   user-select: none;
   -webkit-user-select: none;
-  margin-left: 0;
+  flex-shrink: 0;
+  align-self: flex-start;
 }
 
 @media (max-width: 768px) {
   .line-annotation {
-    position: relative;
-    display: block;
-    margin-top: 0.5rem;
-    margin-left: 0;
+    flex-basis: 100%;
     max-width: 100%;
-    width: auto;
   }
 }
 

@@ -539,6 +539,11 @@ document.addEventListener('DOMContentLoaded', function () {
         const noticeOverlay = document.getElementById('notice-overlay');
         if (!noticeOverlay) return;
         
+        // Get toolbar height to offset overlay
+        const toolbar = document.querySelector('#editor-container .ql-toolbar');
+        const toolbarHeight = toolbar ? toolbar.offsetHeight : 42;
+        noticeOverlay.style.paddingTop = `${toolbarHeight}px`;
+        
         // Get all paragraphs/lines from editor
         const lines = quill.root.querySelectorAll('p, h1, h2, h3, h4, h5, h6, li');
         
@@ -560,7 +565,7 @@ document.addEventListener('DOMContentLoaded', function () {
             
             if (!lineText) return; // Skip empty lines
             
-            // Get line position relative to editor
+            // Get line position relative to ql-editor (not including toolbar)
             const lineRect = line.getBoundingClientRect();
             const editorRect = quill.root.getBoundingClientRect();
             const topOffset = lineRect.top - editorRect.top + quill.root.scrollTop;
