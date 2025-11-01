@@ -3,9 +3,9 @@ package handlers
 import (
 	"errors"
 	"fmt"
+	"io"
 	"math"
 	"net/mail"
-	"os"
 	"path/filepath"
 	"regexp"
 	"strconv"
@@ -14,7 +14,6 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/session"
-	"github.com/google/uuid"
 
 	"fiber-learning-community/internal/database"
 	"fiber-learning-community/internal/models"
@@ -1266,18 +1265,19 @@ func Contribute() fiber.Handler {
 	}
 }
 
-// UploadImage xử lý upload ảnh cho bài viết
+// UploadImage xử lý upload ảnh cho bài viết - lưu vào database
 func UploadImage() fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		// Kiểm tra đăng nhập
-		if _, err := currentUserID(c); err != nil {
+		userID, err := currentUserID(c)
+		if err != nil {
 			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
 				"error": "Bạn cần đăng nhập để upload ảnh",
 			})
 		}
 
 		// Lấy file từ form
-		file, err := c.FormFile("image")
+		fileHeader, err := c.FormFile("image")
 		if err != nil {
 			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 				"error": "Không tìm thấy file ảnh",
@@ -1285,7 +1285,7 @@ func UploadImage() fiber.Handler {
 		}
 
 		// Kiểm tra loại file
-		ext := filepath.Ext(file.Filename)
+		ext := filepath.Ext(fileHeader.Filename)
 		allowedExts := map[string]bool{
 			".jpg":  true,
 			".jpeg": true,
@@ -1300,37 +1300,100 @@ func UploadImage() fiber.Handler {
 		}
 
 		// Kiểm tra kích thước (max 5MB)
-		if file.Size > 5*1024*1024 {
+		if fileHeader.Size > 5*1024*1024 {
 			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 				"error": "Kích thước ảnh không được vượt quá 5MB",
 			})
 		}
 
-		// Tạo tên file unique
-		filename := fmt.Sprintf("%s%s", uuid.New().String(), ext)
-		uploadDir := "./public/uploads"
-
-		// Tạo thư mục nếu chưa tồn tại
-		if err := os.MkdirAll(uploadDir, 0755); err != nil {
+		// Đọc nội dung file
+		file, err := fileHeader.Open()
+		if err != nil {
 			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-				"error": "Không thể tạo thư mục upload",
+				"error": "Không thể đọc file",
+			})
+		}
+		defer file.Close()
+
+		// Đọc dữ liệu binary
+		fileData, err := io.ReadAll(file)
+		if err != nil {
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+				"error": "Không thể đọc dữ liệu file",
 			})
 		}
 
-		// Lưu file
-		filepath := filepath.Join(uploadDir, filename)
-		if err := c.SaveFile(file, filepath); err != nil {
+		// Xác định content type
+		contentType := fileHeader.Header.Get("Content-Type")
+		if contentType == "" {
+			// Fallback dựa vào extension
+			switch strings.ToLower(ext) {
+			case ".jpg", ".jpeg":
+				contentType = "image/jpeg"
+			case ".png":
+				contentType = "image/png"
+			case ".gif":
+				contentType = "image/gif"
+			case ".webp":
+				contentType = "image/webp"
+			default:
+				contentType = "application/octet-stream"
+			}
+		}
+
+		// Lưu vào database
+		db := database.Get()
+		image := models.Image{
+			Filename:    fileHeader.Filename,
+			ContentType: contentType,
+			Size:        fileHeader.Size,
+			Data:        fileData,
+			UploaderID:  userID,
+		}
+
+		if err := db.Create(&image).Error; err != nil {
 			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-				"error": "Không thể lưu file",
+				"error": "Không thể lưu ảnh vào database",
 			})
 		}
 
-		// Trả về URL
-		imageURL := fmt.Sprintf("/static/uploads/%s", filename)
+		// Trả về URL với ID của ảnh
+		imageURL := fmt.Sprintf("/images/%d", image.ID)
 		return c.JSON(fiber.Map{
 			"url":      imageURL,
-			"markdown": fmt.Sprintf("![image](%s)", imageURL),
+			"markdown": fmt.Sprintf("![%s](%s)", fileHeader.Filename, imageURL),
 		})
+	}
+}
+
+// GetImage trả về ảnh từ database
+func GetImage() fiber.Handler {
+	return func(c *fiber.Ctx) error {
+		imageID, err := strconv.Atoi(c.Params("id"))
+		if err != nil {
+			return c.Status(fiber.StatusBadRequest).SendString("ID ảnh không hợp lệ")
+		}
+
+		db := database.Get()
+		var image models.Image
+		
+		// Chỉ lấy metadata trước để kiểm tra
+		if err := db.Select("id", "content_type", "filename").First(&image, imageID).Error; err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return c.Status(fiber.StatusNotFound).SendString("Không tìm thấy ảnh")
+			}
+			return c.Status(fiber.StatusInternalServerError).SendString("Lỗi truy vấn database")
+		}
+
+		// Lấy dữ liệu ảnh
+		if err := db.Model(&models.Image{}).Where("id = ?", imageID).Pluck("data", &image.Data).Error; err != nil {
+			return c.Status(fiber.StatusInternalServerError).SendString("Không thể tải ảnh")
+		}
+
+		// Set content type và trả về ảnh
+		c.Set(fiber.HeaderContentType, image.ContentType)
+		c.Set(fiber.HeaderContentDisposition, fmt.Sprintf("inline; filename=\"%s\"", image.Filename))
+		return c.Send(image.Data)
 	}
 }
 

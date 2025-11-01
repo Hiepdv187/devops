@@ -236,6 +236,7 @@ func main() {
 	app.Post("/posts/:id/annotations", handlers.CreateAnnotation())
 	app.Post("/posts/:id/edit", handlers.UpdatePost())
 	app.Post("/upload/image", handlers.UploadImage())
+	app.Get("/images/:id", handlers.GetImage())
 
 	port := os.Getenv("PORT")
 	if port == "" {
