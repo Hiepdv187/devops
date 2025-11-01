@@ -24,7 +24,15 @@ var (
 // Init khởi tạo kết nối GORM.
 func Init() *gorm.DB {
 	once.Do(func() {
-		defaultDSN := "root:rootpass@tcp(127.0.0.1:3308)/fiber_learning?charset=utf8mb4&parseTime=True&loc=Local"
+		// Lấy thông tin kết nối từ biến môi trường
+		host := getEnv("DB_HOST", "znovxl.h.filess.io")
+		port := getEnv("DB_PORT", "3306")
+		user := getEnv("DB_USER", "Wedevops_queenplant")
+		password := getEnv("DB_PASSWORD", "856333f8b461857adb56cfaa544f250bfae28f9c")
+		database := getEnv("DB_NAME", "fiber_learning")
+		
+		// Tạo DSN từ các biến môi trường hoặc sử dụng DATABASE_DSN trực tiếp
+		defaultDSN := user + ":" + password + "@tcp(" + host + ":" + port + ")/" + database + "?charset=utf8mb4&parseTime=True&loc=Local"
 		dsn := strings.TrimSpace(getEnv("DATABASE_DSN", defaultDSN))
 		if dsn == "" {
 			dsn = defaultDSN
