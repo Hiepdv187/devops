@@ -623,51 +623,46 @@ document.addEventListener('DOMContentLoaded', () => {
         const contentHolder = wrapper.querySelector('.inline-line-content');
         if (!contentHolder) return '';
 
-        const walker = document.createTreeWalker(contentHolder, NodeFilter.SHOW_TEXT, null);
-        const textNodes = [];
-        while (walker.nextNode()) {
-            textNodes.push(walker.currentNode);
-        }
-
-        for (let i = textNodes.length - 1; i >= 0; i--) {
-            const node = textNodes[i];
-            if (!node.textContent) continue;
-            
-            const text = node.textContent;
-            // Match: " #comment" - must have at least 1 space before #
-            // This prevents matching "#command" or "text#comment"
-            const match = text.match(/\s#([^#]+)$/);
-            
-            if (match) {
-                const annotationText = match[1].trim();
-                // Remove the matched portion
-                node.textContent = text.slice(0, text.length - match[0].length).replace(/[\s\u00a0]+$/, '');
-                
-                // Clean up empty nodes
-                if (node.textContent.length === 0) {
-                    const parent = node.parentNode;
-                    if (parent && parent !== contentHolder) {
-                        parent.removeChild(node);
-                        if (parent.childNodes.length === 0 && parent.parentNode) {
-                            parent.parentNode.removeChild(parent);
-                        }
-                    }
-                }
-                return annotationText;
-            }
-        }
-        
-        // Check if entire line is just "#comment" (no text before)
+        // First, check the full text content for patterns
         const fullText = contentHolder.textContent.trim();
+        
+        // Pattern 1: Entire line is "# comment"
         if (fullText.match(/^#\s+(.+)$/)) {
             const lineMatch = fullText.match(/^#\s+(.+)$/);
             if (lineMatch) {
                 // Clear all text content
-                textNodes.forEach(n => {
-                    if (n.textContent) n.textContent = '';
-                });
+                const walker = document.createTreeWalker(contentHolder, NodeFilter.SHOW_TEXT, null);
+                while (walker.nextNode()) {
+                    walker.currentNode.textContent = '';
+                }
                 return lineMatch[1].trim();
             }
+        }
+        
+        // Pattern 2: Text ends with " #comment"
+        if (fullText.match(/\s#([^#]+)$/)) {
+            const fullMatch = fullText.match(/\s#([^#]+)$/);
+            const annotationText = fullMatch[1].trim();
+            const cleanText = fullText.slice(0, fullText.length - fullMatch[0].length).trim();
+            
+            // Now update the actual text nodes
+            const walker = document.createTreeWalker(contentHolder, NodeFilter.SHOW_TEXT, null);
+            const textNodes = [];
+            while (walker.nextNode()) {
+                textNodes.push(walker.currentNode);
+            }
+            
+            // Strategy: Replace the full text content with clean text
+            if (textNodes.length > 0) {
+                // Clear all nodes first
+                textNodes.forEach(n => n.textContent = '');
+                // Put clean text in first node
+                if (textNodes[0]) {
+                    textNodes[0].textContent = cleanText;
+                }
+            }
+            
+            return annotationText;
         }
 
         return '';
