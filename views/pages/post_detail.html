@@ -390,26 +390,33 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
                 });
 
-                // Prevent scroll to top on paste
+                // Prevent scroll on paste - maintain cursor position
                 const editEditorContainer = document.getElementById('edit-editor-container');
                 let isPasting = false;
                 let savedScrollPos = 0;
+                let savedSelection = null;
                 
-                // Save scroll position before paste
+                // Save position before paste
                 editEditorContainer.addEventListener('paste', function(e) {
                     isPasting = true;
                     savedScrollPos = window.scrollY;
+                    savedSelection = editQuill.getSelection();
                 });
                 
-                // Restore scroll position after Quill processes the paste
+                // Restore position after Quill processes the paste
                 editQuill.on('text-change', function(delta, oldDelta, source) {
                     if (isPasting) {
-                        // Use requestAnimationFrame for smoother scroll restoration
                         requestAnimationFrame(() => {
+                            // Restore scroll
                             window.scrollTo({
                                 top: savedScrollPos,
                                 behavior: 'instant'
                             });
+                            // Keep cursor at paste location
+                            if (savedSelection) {
+                                const newPos = savedSelection.index + (delta.ops[0]?.insert?.length || 0);
+                                editQuill.setSelection(newPos, 0);
+                            }
                         });
                         isPasting = false;
                     }
@@ -626,46 +633,27 @@ document.addEventListener('DOMContentLoaded', () => {
             const node = textNodes[i];
             if (!node.textContent) continue;
             
-            // Try to match " #comment" pattern (space before #)
-            let match = node.textContent.match(/\s+#([^#]+)$/);
-            
-            // If no match and this is the only/last text node, try matching just "#comment"
-            if (!match && i === textNodes.length - 1) {
-                match = node.textContent.match(/#([^#]+)$/);
-            }
+            const text = node.textContent;
+            // Match: " #comment" - must have at least 1 space before #
+            // This prevents matching "#command" or "text#comment"
+            const match = text.match(/\s#([^#]+)$/);
             
             if (match) {
                 const annotationText = match[1].trim();
-                node.textContent = node.textContent.slice(0, node.textContent.length - match[0].length).replace(/[\s\u00a0]+$/, '');
+                // Remove the matched portion
+                node.textContent = text.slice(0, text.length - match[0].length).replace(/[\s\u00a0]+$/, '');
+                
+                // Clean up empty nodes
                 if (node.textContent.length === 0) {
                     const parent = node.parentNode;
-                    parent.removeChild(node);
-                    if (parent.childNodes.length === 0 && parent !== contentHolder) {
-                        parent.remove();
+                    if (parent && parent !== contentHolder) {
+                        parent.removeChild(node);
+                        if (parent.childNodes.length === 0 && parent.parentNode) {
+                            parent.parentNode.removeChild(parent);
+                        }
                     }
                 }
                 return annotationText;
-            }
-        }
-        
-        // Fallback: check if entire content is just " #comment"
-        const fullText = contentHolder.textContent.trim();
-        if (fullText.match(/^\s*#([^#]+)$/)) {
-            const simpleMatch = fullText.match(/^\s*#([^#]+)$/);
-            if (simpleMatch) {
-                // Clear all text nodes
-                textNodes.forEach(n => n.textContent = '');
-                return simpleMatch[1].trim();
-            }
-        }
-
-        // Handle case where entire line starts with ' #' (space + #)
-        if (textNodes.length === 1) {
-            const text = textNodes[0].textContent.trim();
-            const leadingMatch = text.match(/^#([^#]+)$/);
-            if (leadingMatch) {
-                textNodes[0].textContent = '';
-                return leadingMatch[1].trim();
             }
         }
 

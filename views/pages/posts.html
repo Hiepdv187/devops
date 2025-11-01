@@ -460,27 +460,34 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }, 300);
 
-    // Prevent scroll to top on paste
+    // Prevent scroll on paste - maintain cursor position
     const editorContainer = document.getElementById('editor-container');
     let isPasting = false;
     let savedScrollPos = 0;
+    let savedSelection = null;
     
-    // Save scroll position before paste
+    // Save position before paste
     editorContainer.addEventListener('paste', function(e) {
         isPasting = true;
         savedScrollPos = window.scrollY;
+        savedSelection = quill.getSelection();
     });
     
     // Sync Quill content to hidden textarea and preview + prevent scroll on paste
     quill.on('text-change', function(delta, oldDelta, source) {
-        // Restore scroll position after paste
+        // Restore position after paste
         if (isPasting) {
-            // Use requestAnimationFrame for smoother scroll restoration
             requestAnimationFrame(() => {
+                // Restore scroll
                 window.scrollTo({
                     top: savedScrollPos,
                     behavior: 'instant'
                 });
+                // Keep cursor at paste location
+                if (savedSelection) {
+                    const newPos = savedSelection.index + (delta.ops[0]?.insert?.length || 0);
+                    quill.setSelection(newPos, 0);
+                }
             });
             isPasting = false;
         }
