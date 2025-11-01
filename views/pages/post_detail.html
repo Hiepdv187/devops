@@ -520,13 +520,12 @@ document.addEventListener('DOMContentLoaded', () => {
                     
                     // Wait for next frame to ensure DOM is updated
                     requestAnimationFrame(() => {
-                        // Get toolbar height to offset overlay
-                        const editorContainer = document.getElementById('edit-editor-container');
-                        const toolbar = editorContainer.querySelector('.ql-toolbar');
-                        const toolbarHeight = toolbar ? toolbar.offsetHeight : 0;
+                        // Get the editor content area (ql-editor)
+                        const editorContent = editQuill.root; // This is the .ql-editor element
+                        const editorWrapper = document.getElementById('edit-wrapper');
                         
                         // Get all paragraphs/lines from editor
-                        const lines = editQuill.root.querySelectorAll('p, h1, h2, h3, h4, h5, h6, li');
+                        const lines = editorContent.querySelectorAll('p, h1, h2, h3, h4, h5, h6, li');
                         
                         // Save existing notice values (from inputs or from backend annotations)
                         const existingNotices = {};
@@ -549,8 +548,12 @@ document.addEventListener('DOMContentLoaded', () => {
                         // Clear and rebuild
                         noticeOverlay.innerHTML = '';
                         
-                        // Get wrapper rect for absolute positioning
-                        const wrapperRect = editorContainer.getBoundingClientRect();
+                        // Get positions for absolute positioning
+                        const wrapperRect = editorWrapper.getBoundingClientRect();
+                        const editorRect = editorContent.getBoundingClientRect();
+                        
+                        // Calculate offset from wrapper top to editor content top
+                        const editorTopOffset = editorRect.top - wrapperRect.top;
                         
                         lines.forEach((line, index) => {
                             const lineNum = index + 1;
@@ -583,6 +586,7 @@ document.addEventListener('DOMContentLoaded', () => {
                                 font-style: italic;
                                 pointer-events: auto;
                                 transition: all 0.2s ease;
+                                line-height: ${lineRect.height - 16}px;
                             `;
                             
                             // Hover effect
@@ -747,8 +751,15 @@ document.addEventListener('DOMContentLoaded', () => {
             // Insert right after text content
             const contentHolder = wrapper.querySelector('.inline-line-content');
             if (contentHolder) {
-                // Append to content holder so it appears inline after text
-                contentHolder.appendChild(box);
+                // Find the last text node or inline element in content holder
+                const blockEl = contentHolder.querySelector('p, h1, h2, h3, h4, h5, h6');
+                if (blockEl) {
+                    // Append directly inside the block element to keep it inline
+                    blockEl.appendChild(box);
+                } else {
+                    // Append to content holder for inline elements
+                    contentHolder.appendChild(box);
+                }
             } else {
                 // Fallback: find the text element and insert after it
                 const textEl = wrapper.querySelector('p, h1, h2, h3, h4, h5, h6, span');

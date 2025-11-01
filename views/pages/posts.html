@@ -541,13 +541,12 @@ document.addEventListener('DOMContentLoaded', function () {
         
         // Wait for next frame to ensure DOM is updated
         requestAnimationFrame(() => {
-            // Get toolbar height to offset overlay
-            const editorContainer = document.getElementById('editor-container');
-            const toolbar = editorContainer.querySelector('.ql-toolbar');
-            const toolbarHeight = toolbar ? toolbar.offsetHeight : 0;
+            // Get the editor content area (ql-editor)
+            const editorContent = quill.root; // This is the .ql-editor element
+            const editorWrapper = document.querySelector('[style*="position: relative"]'); // Parent wrapper
             
             // Get all paragraphs/lines from editor
-            const lines = quill.root.querySelectorAll('p, h1, h2, h3, h4, h5, h6, li');
+            const lines = editorContent.querySelectorAll('p, h1, h2, h3, h4, h5, h6, li');
             
             // Save existing notice values
             const existingNotices = {};
@@ -561,8 +560,12 @@ document.addEventListener('DOMContentLoaded', function () {
             // Clear and rebuild
             noticeOverlay.innerHTML = '';
             
-            // Get wrapper rect for absolute positioning
-            const wrapperRect = editorContainer.getBoundingClientRect();
+            // Get positions for absolute positioning
+            const wrapperRect = editorWrapper.getBoundingClientRect();
+            const editorRect = editorContent.getBoundingClientRect();
+            
+            // Calculate offset from wrapper top to editor content top
+            const editorTopOffset = editorRect.top - wrapperRect.top;
             
             lines.forEach((line, index) => {
                 const lineNum = index + 1;
@@ -595,6 +598,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     font-style: italic;
                     pointer-events: auto;
                     transition: all 0.2s ease;
+                    line-height: ${lineRect.height - 16}px;
                 `;
                 
                 // Hover effect
