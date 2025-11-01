@@ -58,15 +58,18 @@ body {
 
 .inline-line {
   position: relative;
-  display: inline-block;
-  width: 100%;
-  transition: background 0.2s ease;
-  padding: 0 !important;
-  margin: 0 !important;
-  line-height: 0.8 !important;
-  box-sizing: border-box;
-  overflow-wrap: anywhere;
-  word-wrap: break-word;
+  display: block;
+  padding: 0.4rem 0;
+  transition: background-color 0.2s ease;
+  min-height: 2rem;
+  padding-right: 350px; /* Space for notice inline */
+}
+
+@media (max-width: 768px) {
+  .inline-line {
+    padding-right: 0;
+    padding-left: 60px; /* Space for action box on mobile */
+  }
 }
 
 .inline-line-content {
@@ -96,23 +99,22 @@ body {
 
 /* Actions box that appears right after text content */
 .inline-actions-box {
+  position: absolute;
+  top: 0.2rem;
+  right: 0;
   display: flex;
-  align-items: center;
   gap: 0.25rem;
-  margin-left: 0.5rem;
-  padding: 0.2rem 0.4rem;
-  background: rgba(15, 23, 42, 0.95);
-  border: 1px solid rgba(148, 163, 184, 0.3);
-  border-radius: 6px;
   opacity: 0;
   transition: opacity 0.2s ease;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
-  white-space: nowrap;
-  flex-shrink: 0;
+  z-index: 10;
 }
 
-.inline-line:hover .inline-actions-box {
-  opacity: 1;
+@media (max-width: 768px) {
+  .inline-actions-box {
+    left: 0;
+    right: auto;
+    flex-direction: column;
+  }
 }
 
 .inline-btn {
@@ -150,7 +152,7 @@ body {
   transition: opacity 0.2s ease;
   pointer-events: none;
   width: 300px;
-  max-width: 35%;
+  max-width: 300px;
   padding: 0.3rem 0.6rem;
   background: rgba(76, 29, 149, 0.15);
   border-radius: 6px;
@@ -161,7 +163,18 @@ body {
   z-index: 5;
   user-select: none;
   -webkit-user-select: none;
-  margin-left: 120px;
+  margin-left: 0;
+}
+
+@media (max-width: 768px) {
+  .line-annotation {
+    position: relative;
+    display: block;
+    margin-top: 0.5rem;
+    margin-left: 0;
+    max-width: 100%;
+    width: auto;
+  }
 }
 
 .inline-line:hover .line-annotation,
@@ -199,6 +212,22 @@ body {
   padding: 1rem;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
   z-index: 1000;
+}
+
+@media (min-width: 769px) {
+  .inline-panel {
+    /* Desktop: position near cursor/button */
+  }
+}
+
+@media (max-width: 768px) {
+  .inline-panel {
+    /* Mobile: center on screen */
+    left: 50% !important;
+    top: 50% !important;
+    transform: translate(-50%, -50%) !important;
+    max-height: 90vh;
+  }
 }
 
 .inline-panel-header {
