@@ -309,6 +309,9 @@ document.addEventListener('DOMContentLoaded', function () {
                         }
                     }
                 }
+            },
+            clipboard: {
+                matchVisual: false
             }
         }
     });
@@ -332,6 +335,7 @@ document.addEventListener('DOMContentLoaded', function () {
         <select class="ql-color" title="Text Color" style="width: 60px; height: 28px; border: 1px solid rgba(148, 163, 184, 0.3); background: rgba(30, 41, 59, 0.8); color: #94a3b8; border-radius: 4px; cursor: pointer;">
             <option value="#e2e8f0" selected>Default</option>
             <option value="#38bdf8">Blue</option>
+            <option value="#ffffff">White</option>
             <option value="#22c55e">Green</option>
             <option value="#ef4444">Red</option>
             <option value="#f59e0b">Orange</option>
@@ -363,8 +367,16 @@ document.addEventListener('DOMContentLoaded', function () {
     });
 
     // Handle font size select
-    bubbleToolbar.querySelector('.ql-size').addEventListener('change', (e) => {
-        quill.format('size', e.target.value || false);
+    const sizeSelect = bubbleToolbar.querySelector('.ql-size');
+    sizeSelect.addEventListener('mousedown', (e) => {
+        e.stopPropagation();
+    });
+    sizeSelect.addEventListener('change', (e) => {
+        e.preventDefault();
+        const selection = quill.getSelection();
+        if (selection && selection.length > 0) {
+            quill.format('size', e.target.value || false);
+        }
     });
 
     // Handle color select
@@ -434,6 +446,17 @@ document.addEventListener('DOMContentLoaded', function () {
             }
         });
     }, 300);
+
+    // Prevent scroll to top on paste
+    const editorContainer = document.getElementById('editor-container');
+    editorContainer.addEventListener('paste', function(e) {
+        // Store scroll position before paste
+        const scrollPos = window.scrollY;
+        // Restore scroll position after paste completes
+        setTimeout(() => {
+            window.scrollTo(0, scrollPos);
+        }, 0);
+    });
 
     // Sync Quill content to hidden textarea and preview
     quill.on('text-change', function() {
