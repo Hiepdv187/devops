@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"golang.org/x/crypto/bcrypt"
-	"gorm.io/driver/postgres"
+	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
 	"gorm.io/gorm/schema"
@@ -24,16 +24,14 @@ var (
 // Init khởi tạo kết nối GORM.
 func Init() *gorm.DB {
 	once.Do(func() {
-		// PostgreSQL connection parameters
-		host := getEnv("DB_HOST", "ep-odd-morning-a7ox4rz0-pooler.ap-southeast-2.aws.neon.tech")
-		port := getEnv("DB_PORT", "5432")
-		user := getEnv("DB_USER", "neondb_owner")
-		password := getEnv("DB_PASSWORD", "npg_ZCva2xmGOt3g")
-		database := getEnv("DB_NAME", "wedevops")
-		sslmode := getEnv("DB_SSLMODE", "require")
+		host := getEnv("DB_HOST", "znovxl.h.filess.io")
+		port := getEnv("DB_PORT", "3306")
+		user := getEnv("DB_USER", "Wedevops_queenplant")
+		password := getEnv("DB_PASSWORD", "856333f8b461857adb56cfaa544f250bfae28f9c")
+		database := getEnv("DB_NAME", "Wedevops_queenplant")
 
-		// Tạo PostgreSQL DSN
-		defaultDSN := "host=" + host + " user=" + user + " password=" + password + " dbname=" + database + " port=" + port + " sslmode=" + sslmode
+		// Tạo DSN từ các biến môi trường hoặc sử dụng DATABASE_DSN trực tiếp
+		defaultDSN := user + ":" + password + "@tcp(" + host + ":" + port + ")/" + database + "?charset=utf8mb4&parseTime=True&loc=Local"
 		dsn := strings.TrimSpace(getEnv("DATABASE_DSN", defaultDSN))
 		if dsn == "" {
 			dsn = defaultDSN
@@ -45,7 +43,7 @@ func Init() *gorm.DB {
 		}
 
 		var err error
-		db, err = gorm.Open(postgres.Open(dsn), dbConfig)
+		db, err = gorm.Open(mysql.Open(dsn), dbConfig)
 		if err != nil {
 			log.Fatalf("failed to connect database: %v", err)
 		}
