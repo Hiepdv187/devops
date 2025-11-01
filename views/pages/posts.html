@@ -474,7 +474,7 @@ document.addEventListener('DOMContentLoaded', function () {
     // Sync Quill content to hidden textarea and preview + prevent scroll on paste
     quill.on('text-change', function(delta, oldDelta, source) {
         // Restore scroll position after paste
-        if (isPasting && savedScrollPos > 0) {
+        if (isPasting) {
             // Use requestAnimationFrame for smoother scroll restoration
             requestAnimationFrame(() => {
                 window.scrollTo({
@@ -483,7 +483,6 @@ document.addEventListener('DOMContentLoaded', function () {
                 });
             });
             isPasting = false;
-            savedScrollPos = 0;
         }
         
         // Sync content to textarea and preview

@@ -403,7 +403,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 
                 // Restore scroll position after Quill processes the paste
                 editQuill.on('text-change', function(delta, oldDelta, source) {
-                    if (isPasting && savedScrollPos > 0) {
+                    if (isPasting) {
                         // Use requestAnimationFrame for smoother scroll restoration
                         requestAnimationFrame(() => {
                             window.scrollTo({
@@ -412,7 +412,6 @@ document.addEventListener('DOMContentLoaded', () => {
                             });
                         });
                         isPasting = false;
-                        savedScrollPos = 0;
                     }
                 });
 
@@ -626,8 +625,15 @@ document.addEventListener('DOMContentLoaded', () => {
         for (let i = textNodes.length - 1; i >= 0; i--) {
             const node = textNodes[i];
             if (!node.textContent) continue;
-            // Match space + # hoặc chỉ # ở cuối text node
-            const match = node.textContent.match(/[\s\u00a0]*\s#([^#]+)$/);
+            
+            // Try to match " #comment" pattern (space before #)
+            let match = node.textContent.match(/\s+#([^#]+)$/);
+            
+            // If no match and this is the only/last text node, try matching just "#comment"
+            if (!match && i === textNodes.length - 1) {
+                match = node.textContent.match(/#([^#]+)$/);
+            }
+            
             if (match) {
                 const annotationText = match[1].trim();
                 node.textContent = node.textContent.slice(0, node.textContent.length - match[0].length).replace(/[\s\u00a0]+$/, '');
@@ -639,6 +645,17 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
                 }
                 return annotationText;
+            }
+        }
+        
+        // Fallback: check if entire content is just " #comment"
+        const fullText = contentHolder.textContent.trim();
+        if (fullText.match(/^\s*#([^#]+)$/)) {
+            const simpleMatch = fullText.match(/^\s*#([^#]+)$/);
+            if (simpleMatch) {
+                // Clear all text nodes
+                textNodes.forEach(n => n.textContent = '');
+                return simpleMatch[1].trim();
             }
         }
 
