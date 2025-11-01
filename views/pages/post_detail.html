@@ -516,81 +516,87 @@ document.addEventListener('DOMContentLoaded', () => {
                 // Function to generate notice inline inputs aligned with editor lines
                 function updateNoticeInputs() {
                     const noticeOverlay = document.getElementById('edit-notice-overlay');
-                    if (!noticeOverlay) return;
+                    if (!noticeOverlay || !editQuill) return;
                     
-                    // Get toolbar height to offset overlay
-                    const toolbar = document.querySelector('#edit-editor-container .ql-toolbar');
-                    const toolbarHeight = toolbar ? toolbar.offsetHeight : 42;
-                    noticeOverlay.style.paddingTop = `${toolbarHeight}px`;
-                    
-                    // Get all paragraphs/lines from editor
-                    const lines = editQuill.root.querySelectorAll('p, h1, h2, h3, h4, h5, h6, li');
-                    
-                    // Save existing notice values (from inputs or from backend annotations)
-                    const existingNotices = {};
-                    noticeOverlay.querySelectorAll('input[data-line]').forEach(input => {
-                        const lineNum = input.dataset.line;
-                        if (input.value) {
-                            existingNotices[lineNum] = input.value;
-                        }
-                    });
-                    
-                    // Merge with backend annotations if not already set
-                    if (typeof lineAnnotations !== 'undefined') {
-                        Object.keys(lineAnnotations).forEach(lineNum => {
-                            if (!existingNotices[lineNum]) {
-                                existingNotices[lineNum] = lineAnnotations[lineNum];
+                    // Wait for next frame to ensure DOM is updated
+                    requestAnimationFrame(() => {
+                        // Get toolbar height to offset overlay
+                        const editorContainer = document.getElementById('edit-editor-container');
+                        const toolbar = editorContainer.querySelector('.ql-toolbar');
+                        const toolbarHeight = toolbar ? toolbar.offsetHeight : 0;
+                        
+                        // Get all paragraphs/lines from editor
+                        const lines = editQuill.root.querySelectorAll('p, h1, h2, h3, h4, h5, h6, li');
+                        
+                        // Save existing notice values (from inputs or from backend annotations)
+                        const existingNotices = {};
+                        noticeOverlay.querySelectorAll('input[data-line]').forEach(input => {
+                            const lineNum = input.dataset.line;
+                            if (input.value) {
+                                existingNotices[lineNum] = input.value;
                             }
                         });
-                    }
-                    
-                    // Clear and rebuild
-                    noticeOverlay.innerHTML = '';
-                    
-                    lines.forEach((line, index) => {
-                        const lineNum = index + 1;
-                        const lineText = line.textContent.trim();
                         
-                        if (!lineText) return; // Skip empty lines
+                        // Merge with backend annotations if not already set
+                        if (typeof lineAnnotations !== 'undefined') {
+                            Object.keys(lineAnnotations).forEach(lineNum => {
+                                if (!existingNotices[lineNum]) {
+                                    existingNotices[lineNum] = lineAnnotations[lineNum];
+                                }
+                            });
+                        }
                         
-                        // Get line position relative to ql-editor (not including toolbar)
-                        const lineRect = line.getBoundingClientRect();
-                        const editorRect = editQuill.root.getBoundingClientRect();
-                        const topOffset = lineRect.top - editorRect.top + editQuill.root.scrollTop;
+                        // Clear and rebuild
+                        noticeOverlay.innerHTML = '';
                         
-                        // Create notice input positioned at line height
-                        const noticeInput = document.createElement('input');
-                        noticeInput.type = 'text';
-                        noticeInput.placeholder = `# Notice ${lineNum}`;
-                        noticeInput.dataset.line = lineNum;
-                        noticeInput.value = existingNotices[lineNum] || '';
-                        noticeInput.style.cssText = `
-                            position: absolute;
-                            top: ${topOffset}px;
-                            left: 0;
-                            right: 0;
-                            padding: 0.4rem 0.5rem;
-                            border-radius: 4px;
-                            border: 1px solid rgba(168, 85, 247, 0.3);
-                            background: rgba(76, 29, 149, 0.15);
-                            color: #a78bfa;
-                            font-size: 0.75rem;
-                            font-style: italic;
-                            pointer-events: auto;
-                            transition: all 0.2s ease;
-                        `;
+                        // Get wrapper rect for absolute positioning
+                        const wrapperRect = editorContainer.getBoundingClientRect();
                         
-                        // Hover effect
-                        noticeInput.addEventListener('focus', function() {
-                            this.style.background = 'rgba(76, 29, 149, 0.25)';
-                            this.style.borderColor = 'rgba(168, 85, 247, 0.5)';
+                        lines.forEach((line, index) => {
+                            const lineNum = index + 1;
+                            const lineText = line.textContent.trim();
+                            
+                            if (!lineText) return; // Skip empty lines
+                            
+                            // Get line position relative to wrapper
+                            const lineRect = line.getBoundingClientRect();
+                            const topOffset = lineRect.top - wrapperRect.top;
+                            
+                            // Create notice input positioned at line height
+                            const noticeInput = document.createElement('input');
+                            noticeInput.type = 'text';
+                            noticeInput.placeholder = `# Notice ${lineNum}`;
+                            noticeInput.dataset.line = lineNum;
+                            noticeInput.value = existingNotices[lineNum] || '';
+                            noticeInput.style.cssText = `
+                                position: absolute;
+                                top: ${topOffset}px;
+                                left: 0;
+                                right: 0;
+                                height: ${lineRect.height}px;
+                                padding: 0.4rem 0.5rem;
+                                border-radius: 4px;
+                                border: 1px solid rgba(168, 85, 247, 0.3);
+                                background: rgba(76, 29, 149, 0.15);
+                                color: #a78bfa;
+                                font-size: 0.75rem;
+                                font-style: italic;
+                                pointer-events: auto;
+                                transition: all 0.2s ease;
+                            `;
+                            
+                            // Hover effect
+                            noticeInput.addEventListener('focus', function() {
+                                this.style.background = 'rgba(76, 29, 149, 0.25)';
+                                this.style.borderColor = 'rgba(168, 85, 247, 0.5)';
+                            });
+                            noticeInput.addEventListener('blur', function() {
+                                this.style.background = 'rgba(76, 29, 149, 0.15)';
+                                this.style.borderColor = 'rgba(168, 85, 247, 0.3)';
+                            });
+                            
+                            noticeOverlay.appendChild(noticeInput);
                         });
-                        noticeInput.addEventListener('blur', function() {
-                            this.style.background = 'rgba(76, 29, 149, 0.15)';
-                            this.style.borderColor = 'rgba(168, 85, 247, 0.3)';
-                        });
-                        
-                        noticeOverlay.appendChild(noticeInput);
                     });
                 }
                 
