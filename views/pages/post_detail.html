@@ -306,6 +306,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     <select class="ql-color" title="Text Color" style="width: 60px; height: 28px; border: 1px solid rgba(148, 163, 184, 0.3); background: rgba(30, 41, 59, 0.8); color: #94a3b8; border-radius: 4px; cursor: pointer;">
                         <option value="#e2e8f0" selected>Default</option>
                         <option value="#38bdf8">Blue</option>
+                        <option value="#ffffff">White</option>
                         <option value="#22c55e">Green</option>
                         <option value="#ef4444">Red</option>
                         <option value="#f59e0b">Orange</option>
@@ -345,7 +346,20 @@ document.addEventListener('DOMContentLoaded', () => {
                     e.preventDefault();
                     const selection = editQuill.getSelection();
                     if (selection && selection.length > 0) {
-                        editQuill.format('size', e.target.value || false);
+                        const value = e.target.value;
+                        if (value) {
+                            editQuill.format('size', value);
+                        } else {
+                            // Remove size formatting to return to normal
+                            editQuill.removeFormat(selection.index, selection.length);
+                            // Reapply other formats that were there
+                            const formats = editQuill.getFormat(selection);
+                            Object.keys(formats).forEach(key => {
+                                if (key !== 'size') {
+                                    editQuill.formatText(selection.index, selection.length, key, formats[key]);
+                                }
+                            });
+                        }
                     }
                 });
 
@@ -378,11 +392,21 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 // Prevent scroll to top on paste
                 const editEditorContainer = document.getElementById('edit-editor-container');
+                let savedScrollPos = 0;
+                
+                // Save scroll position before paste
                 editEditorContainer.addEventListener('paste', function(e) {
-                    const scrollPos = window.scrollY;
-                    setTimeout(() => {
-                        window.scrollTo(0, scrollPos);
-                    }, 0);
+                    savedScrollPos = window.scrollY;
+                });
+                
+                // Restore scroll position after Quill processes the paste
+                editQuill.on('text-change', function(delta, oldDelta, source) {
+                    if (source === 'user' && savedScrollPos > 0) {
+                        setTimeout(() => {
+                            window.scrollTo(0, savedScrollPos);
+                            savedScrollPos = 0;
+                        }, 10);
+                    }
                 });
 
                 // Load existing content - use clipboard to preserve formatting including <br>
@@ -596,7 +620,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const node = textNodes[i];
             if (!node.textContent) continue;
             // Chỉ match khi có dấu cách sau # (# + space)
-            const match = node.textContent.match(/[\s\u00a0]*#\s+([^#]+)$/);
+            const match = node.textContent.match(/[\s\u00a0]*\s+#([^#]+)$/);
             if (match) {
                 const annotationText = match[1].trim();
                 node.textContent = node.textContent.slice(0, node.textContent.length - match[0].length).replace(/[\s\u00a0]+$/, '');
@@ -614,7 +638,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // Handle case where entire line starts with '# ' (with space)
         if (textNodes.length === 1) {
             const text = textNodes[0].textContent.trim();
-            const leadingMatch = text.match(/^#\s+([^#]+)$/);
+            const leadingMatch = text.match(/^\s+#([^#]+)$/);
             if (leadingMatch) {
                 textNodes[0].textContent = '';
                 return leadingMatch[1].trim();
@@ -1082,10 +1106,10 @@ document.addEventListener('DOMContentLoaded', () => {
                         for (let i = textNodes.length - 1; i >= 0; i--) {
                             const node = textNodes[i];
                             // Match # followed by space
-                            if (node.textContent.match(/#\s+[^#]*$/)) {
+                            if (node.textContent.match(/\s+#[^#]*$/)) {
                                 const newText = content 
-                                    ? node.textContent.replace(/#\s+[^#]*$/, '').trim() + ' # ' + content
-                                    : node.textContent.replace(/\s*#\s+[^#]*$/, '').trim();
+                                    ? node.textContent.replace(/\s+#[^#]*$/, '').trim() + ' # ' + content
+                                    : node.textContent.replace(/\s*\s+#[^#]*$/, '').trim();
                                 node.textContent = newText;
                                 found = true;
                                 break;

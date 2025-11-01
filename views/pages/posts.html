@@ -375,7 +375,20 @@ document.addEventListener('DOMContentLoaded', function () {
         e.preventDefault();
         const selection = quill.getSelection();
         if (selection && selection.length > 0) {
-            quill.format('size', e.target.value || false);
+            const value = e.target.value;
+            if (value) {
+                quill.format('size', value);
+            } else {
+                // Remove size formatting to return to normal
+                quill.removeFormat(selection.index, selection.length);
+                // Reapply other formats that were there
+                const formats = quill.getFormat(selection);
+                Object.keys(formats).forEach(key => {
+                    if (key !== 'size') {
+                        quill.formatText(selection.index, selection.length, key, formats[key]);
+                    }
+                });
+            }
         }
     });
 
@@ -449,17 +462,24 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // Prevent scroll to top on paste
     const editorContainer = document.getElementById('editor-container');
+    let savedScrollPos = 0;
+    
+    // Save scroll position before paste
     editorContainer.addEventListener('paste', function(e) {
-        // Store scroll position before paste
-        const scrollPos = window.scrollY;
-        // Restore scroll position after paste completes
-        setTimeout(() => {
-            window.scrollTo(0, scrollPos);
-        }, 0);
+        savedScrollPos = window.scrollY;
     });
-
-    // Sync Quill content to hidden textarea and preview
-    quill.on('text-change', function() {
+    
+    // Sync Quill content to hidden textarea and preview + prevent scroll on paste
+    quill.on('text-change', function(delta, oldDelta, source) {
+        // Restore scroll position after paste
+        if (source === 'user' && savedScrollPos > 0) {
+            setTimeout(() => {
+                window.scrollTo(0, savedScrollPos);
+                savedScrollPos = 0;
+            }, 10);
+        }
+        
+        // Sync content to textarea and preview
         let html = quill.root.innerHTML;
         // Replace text nodes containing \n with <br> tags
         const tempDiv = document.createElement('div');
