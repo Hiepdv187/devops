@@ -568,25 +568,30 @@ document.addEventListener('DOMContentLoaded', () => {
                             // Create notice input positioned at line height
                             const noticeInput = document.createElement('input');
                             noticeInput.type = 'text';
-                            noticeInput.placeholder = `# Notice ${lineNum}`;
+                            noticeInput.placeholder = `#${lineNum}`;
                             noticeInput.dataset.line = lineNum;
                             noticeInput.value = existingNotices[lineNum] || '';
+                            
+                            // Calculate proper height - match line height but smaller padding
+                            const inputHeight = Math.max(lineRect.height * 0.8, 28);
+                            
                             noticeInput.style.cssText = `
                                 position: absolute;
-                                top: ${topOffset}px;
+                                top: ${topOffset + (lineRect.height - inputHeight) / 2}px;
                                 left: 0;
                                 right: 0;
-                                height: ${lineRect.height}px;
-                                padding: 0.4rem 0.5rem;
-                                border-radius: 4px;
-                                border: 1px solid rgba(168, 85, 247, 0.3);
-                                background: rgba(76, 29, 149, 0.15);
+                                height: ${inputHeight}px;
+                                padding: 0.25rem 0.4rem;
+                                border-radius: 3px;
+                                border: 1px solid rgba(168, 85, 247, 0.25);
+                                background: rgba(76, 29, 149, 0.1);
                                 color: #a78bfa;
-                                font-size: 0.75rem;
+                                font-size: 0.7rem;
                                 font-style: italic;
                                 pointer-events: auto;
                                 transition: all 0.2s ease;
-                                line-height: ${lineRect.height - 16}px;
+                                line-height: normal;
+                                box-sizing: border-box;
                             `;
                             
                             // Hover effect
@@ -604,8 +609,20 @@ document.addEventListener('DOMContentLoaded', () => {
                     });
                 }
                 
-                // Initial generation
-                updateNoticeInputs();
+                // Initial generation with delay to ensure content is loaded
+                setTimeout(() => {
+                    updateNoticeInputs();
+                }, 100);
+                
+                // Update on paste
+                editQuill.root.addEventListener('paste', () => {
+                    setTimeout(updateNoticeInputs, 50);
+                });
+                
+                // Update on scroll (for long content)
+                editQuill.root.addEventListener('scroll', () => {
+                    requestAnimationFrame(updateNoticeInputs);
+                });
                 
                 // Sync notice inputs to hidden field before form submit
                 const editForm = document.getElementById('post-edit-form');
