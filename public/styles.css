@@ -158,10 +158,10 @@ body {
   white-space: normal;
   word-wrap: break-word;
   line-height: 1.8;
-  z-index: 10;
+  z-index: 5;
   user-select: none;
   -webkit-user-select: none;
-  margin-left: 80px;
+  margin-left: 120px;
 }
 
 .inline-line:hover .line-annotation,
