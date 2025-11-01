@@ -123,7 +123,7 @@ window.IS_AUTHOR = {{.IsAuthor}};
     <div class="stack comment-list">
         {{range .GeneralComments}}
         <article class="card comment-card">
-            <p>{{.Content}}</p>
+            <p style="white-space: pre-wrap; word-wrap: break-word;">{{.Content}}</p>
             <p class="meta">Bởi {{.AuthorName}} · {{.CreatedAt}}</p>
         </article>
         {{end}}
@@ -824,7 +824,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 <div class="inline-comments">
                     ${comments.length > 0 ? comments.map(c => `
                         <div class="inline-comment">
-                            <p>${c.Content}</p>
+                            <p style="white-space: pre-wrap; word-wrap: break-word;">${c.Content}</p>
                             <small>${c.AuthorName} · ${c.CreatedAt}</small>
                         </div>
                     `).join('') : '<p class="inline-empty">Chưa có bình luận.</p>'}
@@ -988,7 +988,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     const newComment = document.createElement('div');
                     newComment.className = 'inline-comment new';
                     newComment.innerHTML = `
-                        <p>${data.comment.content}</p>
+                        <p style="white-space: pre-wrap; word-wrap: break-word;">${data.comment.content}</p>
                         <small>${data.comment.author_name} · ${data.comment.created_at}</small>
                     `;
                     commentsDiv.appendChild(newComment);
