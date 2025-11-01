@@ -656,6 +656,19 @@ document.addEventListener('DOMContentLoaded', () => {
                 return annotationText;
             }
         }
+        
+        // Check if entire line is just "#comment" (no text before)
+        const fullText = contentHolder.textContent.trim();
+        if (fullText.match(/^#\s+(.+)$/)) {
+            const lineMatch = fullText.match(/^#\s+(.+)$/);
+            if (lineMatch) {
+                // Clear all text content
+                textNodes.forEach(n => {
+                    if (n.textContent) n.textContent = '';
+                });
+                return lineMatch[1].trim();
+            }
+        }
 
         return '';
     };
