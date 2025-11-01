@@ -30,9 +30,8 @@
                 </label>
                 <label>Nội dung bài viết
                     <div id="edit-wrapper" style="position: relative;">
-                        <div id="edit-editor-container" style="min-height: 300px; background: rgba(15, 23, 42, 0.65); border: 1px solid rgba(148, 163, 184, 0.3); border-radius: 8px;"></div>
-                        <div id="edit-notice-overlay" style="position: absolute; top: 0; right: 0; bottom: 0; width: 280px; pointer-events: none; overflow: hidden;">
-                            <!-- Notice inputs will be positioned here aligned with editor lines -->
+                        <div id="edit-editor-container" style="min-height: 300px; background: rgba(15, 23, 42, 0.65); border: 1px solid rgba(148, 163, 184, 0.3); border-radius: 8px; padding-right: 200px;">
+                            <!-- Notice inputs will be injected inline after each line -->
                         </div>
                     </div>
                     <textarea name="content" id="edit-content-textarea" hidden required minlength="10">{{.Post.Content}}</textarea>
@@ -513,23 +512,18 @@ document.addEventListener('DOMContentLoaded', () => {
                     updateNoticeInputs();
                 });
                 
-                // Function to generate notice inline inputs aligned with editor lines
+                // Function to inject notice inline inputs directly into editor lines
                 function updateNoticeInputs() {
-                    const noticeOverlay = document.getElementById('edit-notice-overlay');
-                    if (!noticeOverlay || !editQuill) return;
+                    if (!editQuill) return;
                     
                     // Wait for next frame to ensure DOM is updated
                     requestAnimationFrame(() => {
-                        // Get the editor content area (ql-editor)
-                        const editorContent = editQuill.root; // This is the .ql-editor element
-                        const editorWrapper = document.getElementById('edit-wrapper');
-                        
                         // Get all paragraphs/lines from editor
-                        const lines = editorContent.querySelectorAll('p, h1, h2, h3, h4, h5, h6, li');
+                        const lines = editQuill.root.querySelectorAll('p, h1, h2, h3, h4, h5, h6, li');
                         
                         // Save existing notice values (from inputs or from backend annotations)
                         const existingNotices = {};
-                        noticeOverlay.querySelectorAll('input[data-line]').forEach(input => {
+                        editQuill.root.querySelectorAll('input.notice-inline-input').forEach(input => {
                             const lineNum = input.dataset.line;
                             if (input.value) {
                                 existingNotices[lineNum] = input.value;
@@ -545,67 +539,80 @@ document.addEventListener('DOMContentLoaded', () => {
                             });
                         }
                         
-                        // Clear and rebuild
-                        noticeOverlay.innerHTML = '';
-                        
-                        // Get positions for absolute positioning
-                        const wrapperRect = editorWrapper.getBoundingClientRect();
-                        const editorRect = editorContent.getBoundingClientRect();
-                        
-                        // Calculate offset from wrapper top to editor content top
-                        const editorTopOffset = editorRect.top - wrapperRect.top;
-                        
                         lines.forEach((line, index) => {
                             const lineNum = index + 1;
-                            const lineText = line.textContent.trim();
+                            const lineText = line.textContent.replace(/\s*#\d+.*$/, '').trim(); // Remove existing input text
                             
                             if (!lineText) return; // Skip empty lines
                             
-                            // Get line position relative to wrapper
-                            const lineRect = line.getBoundingClientRect();
-                            const topOffset = lineRect.top - wrapperRect.top;
+                            // Check if input already exists
+                            let noticeInput = line.querySelector('input.notice-inline-input');
                             
-                            // Create notice input positioned at line height
-                            const noticeInput = document.createElement('input');
-                            noticeInput.type = 'text';
-                            noticeInput.placeholder = `#${lineNum}`;
-                            noticeInput.dataset.line = lineNum;
-                            noticeInput.value = existingNotices[lineNum] || '';
-                            
-                            // Calculate proper height - match line height but smaller padding
-                            const inputHeight = Math.max(lineRect.height * 0.8, 28);
-                            
-                            noticeInput.style.cssText = `
-                                position: absolute;
-                                top: ${topOffset + (lineRect.height - inputHeight) / 2}px;
-                                left: 0;
-                                right: 0;
-                                height: ${inputHeight}px;
-                                padding: 0.25rem 0.4rem;
-                                border-radius: 3px;
-                                border: 1px solid rgba(168, 85, 247, 0.25);
-                                background: rgba(76, 29, 149, 0.1);
-                                color: #a78bfa;
-                                font-size: 0.7rem;
-                                font-style: italic;
-                                pointer-events: auto;
-                                transition: all 0.2s ease;
-                                line-height: normal;
-                                box-sizing: border-box;
-                            `;
-                            
-                            // Hover effect
-                            noticeInput.addEventListener('focus', function() {
-                                this.style.background = 'rgba(76, 29, 149, 0.25)';
-                                this.style.borderColor = 'rgba(168, 85, 247, 0.5)';
-                            });
-                            noticeInput.addEventListener('blur', function() {
-                                this.style.background = 'rgba(76, 29, 149, 0.15)';
-                                this.style.borderColor = 'rgba(168, 85, 247, 0.3)';
-                            });
-                            
-                            noticeOverlay.appendChild(noticeInput);
+                            if (!noticeInput) {
+                                // Create new input
+                                noticeInput = document.createElement('input');
+                                noticeInput.type = 'text';
+                                noticeInput.className = 'notice-inline-input';
+                                noticeInput.dataset.line = lineNum;
+                                noticeInput.placeholder = `#${lineNum}`;
+                                noticeInput.value = existingNotices[lineNum] || '';
+                                
+                                noticeInput.style.cssText = `
+                                    display: inline-block;
+                                    width: 180px;
+                                    height: 24px;
+                                    margin-left: 0.5rem;
+                                    padding: 0.2rem 0.4rem;
+                                    border-radius: 3px;
+                                    border: 1px solid rgba(168, 85, 247, 0.25);
+                                    background: rgba(76, 29, 149, 0.1);
+                                    color: #a78bfa;
+                                    font-size: 0.7rem;
+                                    font-style: italic;
+                                    vertical-align: middle;
+                                    transition: all 0.2s ease;
+                                    box-sizing: border-box;
+                                `;
+                                
+                                // Hover effect
+                                noticeInput.addEventListener('focus', function() {
+                                    this.style.background = 'rgba(76, 29, 149, 0.25)';
+                                    this.style.borderColor = 'rgba(168, 85, 247, 0.5)';
+                                });
+                                noticeInput.addEventListener('blur', function() {
+                                    this.style.background = 'rgba(76, 29, 149, 0.1)';
+                                    this.style.borderColor = 'rgba(168, 85, 247, 0.25)';
+                                });
+                                
+                                // Prevent Quill from capturing input events
+                                noticeInput.addEventListener('keydown', (e) => {
+                                    e.stopPropagation();
+                                });
+                                noticeInput.addEventListener('keyup', (e) => {
+                                    e.stopPropagation();
+                                });
+                                noticeInput.addEventListener('mousedown', (e) => {
+                                    e.stopPropagation();
+                                });
+                                
+                                // Append to end of line
+                                line.appendChild(noticeInput);
+                            } else {
+                                // Update existing input's line number
+                                noticeInput.dataset.line = lineNum;
+                                noticeInput.placeholder = `#${lineNum}`;
+                            }
                         });
+                        
+                        // Remove orphaned inputs (lines that were deleted)
+                        const allInputs = editQuill.root.querySelectorAll('input.notice-inline-input');
+                        if (allInputs.length > lines.length) {
+                            allInputs.forEach((input, idx) => {
+                                if (idx >= lines.length) {
+                                    input.remove();
+                                }
+                            });
+                        }
                     });
                 }
                 
@@ -629,7 +636,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (editForm) {
                     editForm.addEventListener('submit', function(e) {
                         const noticeData = {};
-                        document.querySelectorAll('#edit-notice-overlay input[data-line]').forEach(input => {
+                        editQuill.root.querySelectorAll('input.notice-inline-input').forEach(input => {
                             if (input.value.trim()) {
                                 noticeData[input.dataset.line] = input.value.trim();
                             }
@@ -1227,9 +1234,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 const wrapper = document.querySelector(`.inline-line[data-line="${line}"]`);
                 if (wrapper) {
                     // Live update: Sync to edit mode notice input if exists
-                    const noticeInput = document.querySelector(`#edit-notice-overlay input[data-line="${line}"]`);
-                    if (noticeInput) {
-                        noticeInput.value = content;
+                    const lines = editQuill.root.querySelectorAll('p, h1, h2, h3, h4, h5, h6, li');
+                    const targetLine = Array.from(lines)[line - 1];
+                    if (targetLine) {
+                        const noticeInput = targetLine.querySelector('input.notice-inline-input');
+                        if (noticeInput) {
+                            noticeInput.value = content;
+                        }
                     }
 
                     // Cập nhật hiển thị annotation span
