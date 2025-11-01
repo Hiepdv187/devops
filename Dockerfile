@@ -19,6 +19,8 @@ FROM gcr.io/distroless/base-debian12:latest
 WORKDIR /app
 
 COPY --from=builder /app/server /app/server
+COPY --from=builder /app/views /app/views
+COPY --from=builder /app/public /app/public
 
 EXPOSE 3003
 
