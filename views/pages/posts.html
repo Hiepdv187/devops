@@ -5,9 +5,9 @@
     </div>
     <div class="hero-actions">
         {{if .IsAuthenticated}}
-        <a href="#create" class="btn primary">Tạo bài viết mới</a>
+        <a href="/posts?create=true" class="btn primary">✍️ Tạo bài viết mới</a>
         {{else}}
-        <a href="/auth/login?next=/posts#create" class="btn ghost">Đăng nhập để chia sẻ</a>
+        <a href="/auth/login?next=/posts?create=true" class="btn ghost">Đăng nhập để chia sẻ</a>
         {{end}}
     </div>
 </header>

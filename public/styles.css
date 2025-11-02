@@ -245,6 +245,7 @@ body {
 @media (min-width: 769px) {
   .inline-panel {
     /* Desktop: position near cursor/button */
+    position: fixed;
   }
 }
 

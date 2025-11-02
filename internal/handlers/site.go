@@ -344,6 +344,20 @@ type createCommentRequest struct {
 
 func PostsPage() fiber.Handler {
 	return func(c *fiber.Ctx) error {
+		// Check if create mode is requested
+		createMode := c.Query("create") == "true"
+		if createMode {
+			// Check if user is authenticated
+			userID, _ := currentUserID(c)
+			if userID > 0 {
+				return render(c, "pages/posts_create_new", fiber.Map{
+					"Title": "Tạo bài viết mới",
+				}, "main")
+			}
+			// If not authenticated, redirect to login
+			return c.Redirect("/auth/login?next=/posts?create=true")
+		}
+		
 		db := database.Get()
 		query := strings.TrimSpace(c.Query("q"))
 		selectedTag := strings.TrimSpace(c.Query("tag"))
@@ -504,7 +518,14 @@ func PostDetailPage() fiber.Handler {
 			}
 		}
 
-		return render(c, "pages/post_detail", fiber.Map{
+		// Check if edit mode is requested
+		editMode := c.Query("edit") == "true"
+		templateName := "pages/post_detail"
+		if editMode && isAuthor {
+			templateName = "pages/post_edit_new"
+		}
+
+		return render(c, templateName, fiber.Map{
 			"Title": "Chi tiết bài viết",
 			"Post": fiber.Map{
 				"ID":           post.ID,
