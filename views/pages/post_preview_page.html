@@ -1,0 +1,416 @@
+{{define "pages/post_preview_page"}}
+<style>
+.preview-container {
+    max-width: 900px;
+    margin: 2rem auto;
+    padding: 0 1rem;
+}
+
+.preview-banner {
+    background: linear-gradient(135deg, rgba(99, 102, 241, 0.1), rgba(168, 85, 247, 0.1));
+    border: 2px dashed rgba(168, 85, 247, 0.3);
+    border-radius: 12px;
+    padding: 1.5rem;
+    margin-bottom: 2rem;
+    text-align: center;
+}
+
+.preview-banner h2 {
+    color: #a78bfa;
+    font-size: 1.5rem;
+    margin-bottom: 0.5rem;
+}
+
+.preview-banner p {
+    color: #94a3b8;
+    font-size: 0.95rem;
+}
+
+.preview-actions {
+    display: flex;
+    gap: 1rem;
+    justify-content: center;
+    margin-top: 1rem;
+}
+
+.preview-post {
+    background: rgba(15, 23, 42, 0.6);
+    border: 1px solid rgba(148, 163, 184, 0.2);
+    border-radius: 12px;
+    padding: 2rem;
+}
+
+.preview-post .hero {
+    margin-bottom: 2rem;
+}
+
+.preview-post .hero h1 {
+    font-size: 2rem;
+    color: #e2e8f0;
+    margin-bottom: 0.5rem;
+}
+
+.preview-post .meta {
+    color: #94a3b8;
+    font-size: 0.9rem;
+}
+
+.preview-post .summary {
+    color: #cbd5e1;
+    font-size: 1.05rem;
+    margin-top: 1rem;
+    padding: 1rem;
+    background: rgba(56, 189, 248, 0.05);
+    border-left: 3px solid #38bdf8;
+    border-radius: 4px;
+}
+
+.preview-post .post-body {
+    color: #e2e8f0;
+    line-height: 1.8;
+    font-size: 1rem;
+    position: relative;
+}
+
+.preview-post .post-body p {
+    margin-bottom: 1rem;
+}
+
+.preview-post .post-body h1,
+.preview-post .post-body h2,
+.preview-post .post-body h3 {
+    color: #f1f5f9;
+    margin-top: 1.5rem;
+    margin-bottom: 1rem;
+}
+
+.preview-post .cover-image {
+    width: 100%;
+    max-height: 400px;
+    object-fit: cover;
+    border-radius: 8px;
+    margin-bottom: 2rem;
+}
+
+.preview-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-top: 1.5rem;
+}
+
+.preview-tag {
+    padding: 0.25rem 0.75rem;
+    background: rgba(56, 189, 248, 0.15);
+    color: #38bdf8;
+    border-radius: 20px;
+    font-size: 0.85rem;
+}
+
+/* Inline hover styles - same as post_detail.html */
+.inline-line {
+    position: relative;
+    display: block;
+}
+
+.inline-line-content {
+    display: inline;
+}
+
+.inline-actions-box {
+    display: inline-flex;
+    gap: 0.25rem;
+    margin-left: 0.5rem;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.2s ease, visibility 0.2s ease;
+}
+
+.inline-line:hover .inline-actions-box {
+    opacity: 1 !important;
+    visibility: visible !important;
+}
+
+.inline-btn {
+    background: rgba(56, 189, 248, 0.15);
+    color: #38bdf8;
+    border: 1px solid rgba(56, 189, 248, 0.3);
+    padding: 0.15rem 0.4rem;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    white-space: nowrap;
+}
+
+.inline-btn:hover {
+    background: rgba(56, 189, 248, 0.25);
+    border-color: rgba(56, 189, 248, 0.5);
+}
+
+.line-annotation {
+    color: #a78bfa;
+    font-size: 0.85rem;
+    margin-left: 0.5rem;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.2s ease, visibility 0.2s ease;
+}
+
+.inline-line:hover .line-annotation {
+    opacity: 1 !important;
+    visibility: visible !important;
+}
+</style>
+
+<div class="preview-container">
+    <div class="preview-banner">
+        <h2>🔍 Xem trước bài viết</h2>
+        <p>Đây là cách bài viết của bạn sẽ hiển thị sau khi đăng</p>
+        <div class="preview-actions">
+            <button type="button" class="btn ghost" onclick="window.close()">← Quay lại</button>
+            <button type="button" class="btn primary" onclick="submitPost()">✓ Đăng bài</button>
+        </div>
+    </div>
+
+    <div class="preview-post">
+        <div class="hero">
+            <h1 id="preview-title">Tiêu đề bài viết</h1>
+            <p class="meta">Bởi <span id="preview-author">Bạn</span> · Hôm nay</p>
+            <p class="summary" id="preview-summary" style="display: none;"></p>
+        </div>
+
+        <img id="preview-cover" class="cover-image" style="display: none;" />
+
+        <div class="post-body" id="preview-content">
+            <p>Nội dung bài viết sẽ hiển thị tại đây...</p>
+        </div>
+
+        <div class="preview-tags" id="preview-tags"></div>
+    </div>
+</div>
+
+<script>
+// Load preview data from sessionStorage
+document.addEventListener('DOMContentLoaded', () => {
+    console.log('Preview page loaded');
+    const previewData = sessionStorage.getItem('postPreviewData');
+    console.log('Raw preview data:', previewData);
+    
+    if (!previewData) {
+        console.error('No preview data found in sessionStorage');
+        document.querySelector('.preview-post').innerHTML = `
+            <div style="text-align: center; padding: 3rem; color: #94a3b8;">
+                <p style="font-size: 1.2rem; margin-bottom: 1rem;">⚠️ Không có dữ liệu xem trước</p>
+                <p>Vui lòng quay lại trang tạo bài viết</p>
+                <button type="button" class="btn primary" onclick="window.close()" style="margin-top: 1rem;">← Quay lại</button>
+            </div>
+        `;
+        return;
+    }
+
+    try {
+        const data = JSON.parse(previewData);
+        console.log('Parsed preview data:', data);
+        
+        // Title
+        if (data.title) {
+            document.getElementById('preview-title').textContent = data.title;
+        }
+
+        // Author
+        if (data.author) {
+            document.getElementById('preview-author').textContent = data.author;
+        }
+
+        // Summary
+        if (data.summary) {
+            const summaryEl = document.getElementById('preview-summary');
+            summaryEl.textContent = data.summary;
+            summaryEl.style.display = 'block';
+        }
+
+        // Cover image
+        if (data.cover_url) {
+            const coverEl = document.getElementById('preview-cover');
+            coverEl.src = data.cover_url;
+            coverEl.style.display = 'block';
+        }
+
+        // Content
+        if (data.content) {
+            document.getElementById('preview-content').innerHTML = data.content;
+            
+            // Process lines for hover effects
+            processInlineElements(data.line_annotations || {});
+        }
+
+        // Tags
+        if (data.tags) {
+            const tagsEl = document.getElementById('preview-tags');
+            const tags = data.tags.split(',').map(t => t.trim()).filter(t => t);
+            if (tags.length > 0) {
+                tagsEl.innerHTML = tags.map(tag => 
+                    `<span class="preview-tag">${tag}</span>`
+                ).join('');
+            }
+        }
+    } catch (err) {
+        console.error('Failed to parse preview data:', err);
+    }
+}); // Close DOMContentLoaded
+
+// Process inline elements for hover effects
+function processInlineElements(lineAnnotations) {
+    const postBody = document.getElementById('preview-content');
+    if (!postBody) return;
+
+    let lineNumber = 0;
+    const processedElements = [];
+
+    // Process all block elements
+    postBody.querySelectorAll('p, pre, blockquote, h1, h2, h3, h4, h5, h6, li, div.ql-editor > *').forEach(el => {
+        if (el.querySelector('br')) {
+            const parts = [];
+            let currentPart = document.createElement('span');
+            
+            Array.from(el.childNodes).forEach(node => {
+                if (node.nodeName === 'BR') {
+                    if (currentPart.textContent.trim()) {
+                        parts.push(currentPart);
+                    }
+                    currentPart = document.createElement('span');
+                } else {
+                    currentPart.appendChild(node.cloneNode(true));
+                }
+            });
+            
+            if (currentPart.textContent.trim()) {
+                parts.push(currentPart);
+            }
+            
+            el.innerHTML = '';
+            parts.forEach((part, idx) => {
+                if (idx > 0) el.appendChild(document.createElement('br'));
+                el.appendChild(part);
+                processedElements.push({ element: part, parent: el });
+            });
+        } else {
+            processedElements.push({ element: el, parent: null });
+        }
+    });
+
+    processedElements.forEach(({ element: el }) => {
+        if (el.dataset.lineProcessed === 'true') return;
+
+        const text = el.textContent.trim();
+        const hasMedia = !!el.querySelector('img, figure, video, iframe');
+        const tagName = el.tagName ? el.tagName.toLowerCase() : '';
+        const isListItem = tagName === 'li';
+
+        if (text.length === 0 && !hasMedia) return;
+
+        lineNumber++;
+        const currentLine = lineNumber;
+
+        if (hasMedia && !isListItem) {
+            el.dataset.line = currentLine;
+            el.dataset.lineProcessed = 'true';
+            el.classList.add('image-line');
+            return;
+        }
+
+        let wrapper;
+
+        if (isListItem) {
+            el.dataset.line = currentLine;
+            el.dataset.lineProcessed = 'true';
+            el.classList.add('inline-list-item');
+
+            if (el.querySelector(':scope > .inline-line')) {
+                wrapper = el.querySelector(':scope > .inline-line');
+            } else {
+                wrapper = document.createElement('div');
+                wrapper.className = 'inline-line';
+                wrapper.dataset.line = currentLine;
+
+                const contentHolder = document.createElement('span');
+                contentHolder.className = 'inline-line-content';
+
+                while (el.firstChild) {
+                    contentHolder.appendChild(el.firstChild);
+                }
+
+                wrapper.appendChild(contentHolder);
+                el.appendChild(wrapper);
+            }
+        } else {
+            wrapper = document.createElement('span');
+            wrapper.className = 'inline-line';
+            wrapper.dataset.line = currentLine;
+            wrapper.style.display = 'block';
+
+            const contentHolder = document.createElement('span');
+            contentHolder.className = 'inline-line-content';
+
+            while (el.firstChild) {
+                contentHolder.appendChild(el.firstChild);
+            }
+
+            el.dataset.lineProcessed = 'true';
+            wrapper.appendChild(contentHolder);
+            el.appendChild(wrapper);
+        }
+
+        // Get annotation for this line
+        const annotation = lineAnnotations[currentLine] || '';
+
+        // Create control box with comment button
+        const controlBox = document.createElement('span');
+        controlBox.className = 'inline-actions-box';
+
+        const commentBtn = document.createElement('button');
+        commentBtn.type = 'button';
+        commentBtn.className = 'inline-btn';
+        commentBtn.innerHTML = '💬';
+        commentBtn.title = 'Bình luận (chỉ hiển thị sau khi đăng)';
+        commentBtn.style.cursor = 'default';
+        controlBox.appendChild(commentBtn);
+
+        // Insert control box
+        const contentHolder = wrapper.querySelector('.inline-line-content');
+        if (contentHolder) {
+            const blockEl = contentHolder.querySelector('p, h1, h2, h3, h4, h5, h6');
+            if (blockEl) {
+                blockEl.appendChild(controlBox);
+            } else {
+                contentHolder.appendChild(controlBox);
+            }
+        } else {
+            wrapper.appendChild(controlBox);
+        }
+
+        // Add annotation display if exists
+        if (annotation) {
+            const annotationSpan = document.createElement('span');
+            annotationSpan.className = 'line-annotation';
+            annotationSpan.textContent = `# ${annotation}`;
+            annotationSpan.title = annotation;
+            wrapper.appendChild(annotationSpan);
+        }
+    });
+}
+
+// Submit post from preview
+function submitPost() {
+    if (window.opener && !window.opener.closed) {
+        // Tell opener to submit the form
+        window.opener.postMessage({ action: 'submitPost' }, '*');
+        window.close();
+    } else {
+        alert('Không thể gửi bài viết. Vui lòng quay lại trang tạo bài viết.');
+    }
+}
+</script>
+
+{{end}}

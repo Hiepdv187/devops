@@ -29,35 +29,33 @@
                     <small style="color: #94a3b8; font-size: 0.85rem;">Nhập các tags cách nhau bằng dấu phẩy</small>
                 </label>
                 <label>Nội dung bài viết
-                    <div id="edit-content-wrapper" style="display: flex; gap: 1rem; min-height: 400px;">
-                        <!-- Main content area -->
-                        <div style="flex: 1; display: flex; flex-direction: column; gap: 0.5rem; overflow-y: auto; max-height: 600px; padding: 0.5rem; background: rgba(15, 23, 42, 0.65); border: 1px solid rgba(148, 163, 184, 0.3); border-radius: 8px;">
-                            <div id="edit-lines-container">
-                                <!-- Lines will be generated here -->
-                            </div>
-                            <button type="button" id="add-line-btn" style="padding: 0.5rem; background: rgba(56, 189, 248, 0.1); border: 1px dashed rgba(56, 189, 248, 0.3); border-radius: 4px; color: #38bdf8; cursor: pointer; font-size: 0.85rem;">
-                                + Thêm dòng
-                            </button>
-                        </div>
-                    </div>
+                    <div id="edit-editor-container" style="min-height: 300px; background: rgba(15, 23, 42, 0.65); border: 1px solid rgba(148, 163, 184, 0.3); border-radius: 8px;"></div>
                     <textarea name="content" id="edit-content-textarea" hidden required minlength="10">{{.Post.Content}}</textarea>
                     <input type="hidden" name="line_annotations" id="edit-line-annotations">
                 </label>
                 <div class="form-actions">
-                    <button type="button" id="preview-btn" class="btn ghost">👁️ Xem trước</button>
-                    <button type="submit" class="btn primary">💾 Lưu thay đổi</button>
+                    <button type="button" class="btn ghost" id="edit-preview-btn">👁️ Xem trước</button>
+                    <button type="submit" class="btn primary">Lưu thay đổi</button>
                     <button type="button" class="btn ghost" data-action="close-editor">Hủy</button>
                 </div>
             </form>
-            <aside class="preview" id="post-edit-preview">
-                <h3 class="preview-heading">Xem trước bài viết</h3>
-                <figure class="preview-cover" data-visible="{{if .Post.CoverURL}}true{{else}}false{{end}}">
-                    <img src="{{.Post.CoverURL}}" alt="Ảnh bìa xem trước" loading="lazy">
-                </figure>
-                <h3 class="preview-title">{{.Post.Title}}</h3>
-                <p class="preview-meta">Bởi {{.Post.AuthorName}} · {{.Post.CreatedLabel}}</p>
-                <p class="preview-summary">{{if .Post.Summary}}{{.Post.Summary}}{{else}}Tóm tắt sẽ giúp người đọc hiểu nhanh nội dung chính của bài viết.{{end}}</p>
-                <div class="preview-content" id="post-edit-preview-content"></div>
+            <aside class="preview" id="post-edit-notice">
+                <h3 class="preview-heading">Ghi chú</h3>
+                <p style="color: #94a3b8; font-size: 0.85rem; margin-bottom: 0.5rem;">Thêm ghi chú cho từng dòng trong bài viết</p>
+                
+                <!-- Search box -->
+                <div style="margin-bottom: 1rem;">
+                    <input 
+                        type="text" 
+                        id="edit-notice-search" 
+                        placeholder="Tìm kiếm theo dòng hoặc nội dung..." 
+                        style="width: 95%; padding: 0.5rem; background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(148, 163, 184, 0.3); border-radius: 6px; color: #e2e8f0; font-size: 0.9rem;"
+                    >
+                </div>
+                
+                <div id="edit-notice-list" style="display: flex; flex-direction: column; gap: 0.75rem; max-height: 500px; overflow-y: auto;">
+                    <!-- Notice items will be added here dynamically -->
+                </div>
             </aside>
         </div>
     </section>
@@ -73,7 +71,7 @@
         {{end}}
         {{if .IsAuthor}}
         <div class="post-author-actions">
-            <a href="/posts/{{.Post.ID}}?edit=true" class="btn ghost">✏️ Chỉnh sửa bài viết</a>
+            <button type="button" class="btn ghost" data-action="toggle-editor">Chỉnh sửa bài viết</button>
         </div>
         {{end}}
     </div>
@@ -250,26 +248,20 @@ document.addEventListener('DOMContentLoaded', () => {
         const postBodySection = document.getElementById('post-body');
         const closeEditorBtn = document.querySelector('[data-action="close-editor"]');
         const editForm = document.getElementById('post-edit-form');
-        const preview = document.getElementById('post-edit-preview');
+        const noticeList = document.getElementById('edit-notice-list');
 
-        if (toggleEditorBtn && editorSection && postBodySection && editForm && preview) {
-            const previewElements = {
-                title: preview.querySelector('.preview-title'),
-                summary: preview.querySelector('.preview-summary'),
-                content: preview.querySelector('.preview-content'),
-                coverWrapper: preview.querySelector('.preview-cover'),
-                coverImg: preview.querySelector('.preview-cover img'),
-            };
-
+        if (toggleEditorBtn && editorSection && postBodySection && editForm && noticeList) {
             const textarea = editForm.querySelector('#edit-content-textarea');
             const defaultSummary = 'Tóm tắt sẽ giúp người đọc hiểu nhanh nội dung chính của bài viết.';
             const defaultContent = '<p>Nội dung bài viết hiển thị theo từng đoạn...</p>';
 
-                // Custom line-by-line editor (no Quill)
-                const linesContainer = document.getElementById('edit-lines-container');
-                const addLineBtn = document.getElementById('add-line-btn');
-                const contentTextarea = document.getElementById('edit-content-textarea');
-                const lineAnnotationsInput = document.getElementById('edit-line-annotations');
+            // Initialize Quill editor for edit mode
+            if (window.Quill && document.getElementById('edit-editor-container')) {
+                editQuill = new Quill('#edit-editor-container', {
+                    theme: 'snow',
+                    placeholder: 'Chỉnh sửa nội dung bài viết...',
+                    modules: {
+                        toolbar: [
                             [{ 'header': [1, 2, 3, false] }],
                             ['bold', 'italic', 'underline', 'strike'],
                             [{ 'color': [] }, { 'background': [] }],
@@ -479,15 +471,12 @@ document.addEventListener('DOMContentLoaded', () => {
                     });
                 }, 300);
 
-                // Sync Quill to textarea, preview, and notice inputs
-                editQuill.on('text-change', function(delta, oldDelta, source) {
-                    // Get HTML but preserve notice inputs
+                // Sync Quill to textarea and update notice sidebar
+                editQuill.on('text-change', function() {
                     let html = editQuill.root.innerHTML;
-                    
-                    // Remove notice inputs from HTML before saving to textarea
+                    // Replace text nodes containing \n with <br> tags
                     const tempDiv = document.createElement('div');
                     tempDiv.innerHTML = html;
-                    tempDiv.querySelectorAll('input.notice-inline-input').forEach(input => input.remove());
                     
                     // Walk through all text nodes and replace \n with <br>
                     const walker = document.createTreeWalker(tempDiv, NodeFilter.SHOW_TEXT, null, false);
@@ -513,164 +502,10 @@ document.addEventListener('DOMContentLoaded', () => {
                     
                     html = tempDiv.innerHTML;
                     textarea.value = html;
-                    previewElements.content.innerHTML = html || defaultContent;
-                    attachLightbox(previewElements.content);
                     
-                    // Update notice inline inputs (only if user is typing, not programmatic)
-                    if (source === 'user') {
-                        updateNoticeInputs();
-                    }
+                    // Update notice sidebar
+                    updateEditNoticeInputs();
                 });
-                
-                // Function to inject notice inline inputs directly into editor lines
-                function updateNoticeInputs() {
-                    if (!editQuill) {
-                        console.log('updateNoticeInputs: editQuill not ready');
-                        return;
-                    }
-                    
-                    // Wait for next frame to ensure DOM is updated
-                    requestAnimationFrame(() => {
-                        // Get all paragraphs/lines from editor
-                        const lines = editQuill.root.querySelectorAll('p, h1, h2, h3, h4, h5, h6, li');
-                        console.log('updateNoticeInputs: found', lines.length, 'lines');
-                        
-                        // Save existing notice values (from inputs or from backend annotations)
-                        const existingNotices = {};
-                        editQuill.root.querySelectorAll('input.notice-inline-input').forEach(input => {
-                            const lineNum = input.dataset.line;
-                            if (input.value) {
-                                existingNotices[lineNum] = input.value;
-                            }
-                        });
-                        
-                        // Merge with backend annotations if not already set
-                        if (typeof lineAnnotations !== 'undefined') {
-                            Object.keys(lineAnnotations).forEach(lineNum => {
-                                if (!existingNotices[lineNum]) {
-                                    existingNotices[lineNum] = lineAnnotations[lineNum];
-                                }
-                            });
-                        }
-                        
-                        let inputsCreated = 0;
-                        let inputsSkipped = 0;
-                        
-                        lines.forEach((line, index) => {
-                            const lineNum = index + 1;
-                            const lineText = line.textContent.replace(/\s*#\d+.*$/, '').trim(); // Remove existing input text
-                            
-                            if (!lineText) {
-                                inputsSkipped++;
-                                return; // Skip empty lines
-                            }
-                            
-                            // Check if input already exists
-                            let noticeInput = line.querySelector('input.notice-inline-input');
-                            
-                            if (!noticeInput) {
-                                // Create new input
-                                noticeInput = document.createElement('input');
-                                noticeInput.type = 'text';
-                                noticeInput.className = 'notice-inline-input';
-                                noticeInput.dataset.line = lineNum;
-                                noticeInput.placeholder = `#${lineNum}`;
-                                noticeInput.value = existingNotices[lineNum] || '';
-                                
-                                noticeInput.style.cssText = `
-                                    display: inline-block !important;
-                                    width: 180px;
-                                    height: 24px;
-                                    margin-left: 0.5rem;
-                                    padding: 0.2rem 0.4rem;
-                                    border-radius: 3px;
-                                    border: 1px solid rgba(168, 85, 247, 0.5);
-                                    background: rgba(76, 29, 149, 0.3);
-                                    color: #a78bfa;
-                                    font-size: 0.7rem;
-                                    font-style: italic;
-                                    vertical-align: middle;
-                                    transition: all 0.2s ease;
-                                    box-sizing: border-box;
-                                `;
-                                
-                                // Hover effect
-                                noticeInput.addEventListener('focus', function() {
-                                    this.style.background = 'rgba(76, 29, 149, 0.25)';
-                                    this.style.borderColor = 'rgba(168, 85, 247, 0.5)';
-                                });
-                                noticeInput.addEventListener('blur', function() {
-                                    this.style.background = 'rgba(76, 29, 149, 0.1)';
-                                    this.style.borderColor = 'rgba(168, 85, 247, 0.25)';
-                                });
-                                
-                                // Prevent Quill from capturing input events
-                                noticeInput.addEventListener('keydown', (e) => {
-                                    e.stopPropagation();
-                                });
-                                noticeInput.addEventListener('keyup', (e) => {
-                                    e.stopPropagation();
-                                });
-                                noticeInput.addEventListener('mousedown', (e) => {
-                                    e.stopPropagation();
-                                });
-                                
-                                // Append to end of line
-                                line.appendChild(noticeInput);
-                                inputsCreated++;
-                            } else {
-                                // Update existing input's line number
-                                noticeInput.dataset.line = lineNum;
-                                noticeInput.placeholder = `#${lineNum}`;
-                            }
-                        });
-                        
-                        console.log(`Created ${inputsCreated} inputs, skipped ${inputsSkipped} empty lines`);
-                        
-                        // Remove orphaned inputs (lines that were deleted)
-                        const allInputs = editQuill.root.querySelectorAll('input.notice-inline-input');
-                        if (allInputs.length > lines.length) {
-                            allInputs.forEach((input, idx) => {
-                                if (idx >= lines.length) {
-                                    input.remove();
-                                }
-                            });
-                        }
-                    });
-                }
-                
-                // Initial generation with delay to ensure content is loaded
-                setTimeout(() => {
-                    console.log('Initial updateNoticeInputs call');
-                    updateNoticeInputs();
-                    
-                    // Force another update after a bit more time for existing content
-                    setTimeout(updateNoticeInputs, 500);
-                }, 200);
-                
-                // Update on paste
-                editQuill.root.addEventListener('paste', () => {
-                    setTimeout(updateNoticeInputs, 50);
-                });
-                
-                // Update on scroll (for long content)
-                editQuill.root.addEventListener('scroll', () => {
-                    requestAnimationFrame(updateNoticeInputs);
-                });
-                
-                // Sync notice inputs to hidden field before form submit
-                const editForm = document.getElementById('post-edit-form');
-                if (editForm) {
-                    editForm.addEventListener('submit', function(e) {
-                        const noticeData = {};
-                        editQuill.root.querySelectorAll('input.notice-inline-input').forEach(input => {
-                            if (input.value.trim()) {
-                                noticeData[input.dataset.line] = input.value.trim();
-                            }
-                        });
-                        document.getElementById('edit-line-annotations').value = JSON.stringify(noticeData);
-                    });
-                }
 
                 // Image upload handler
                 editQuill.getModule('toolbar').addHandler('image', function() {
@@ -707,45 +542,83 @@ document.addEventListener('DOMContentLoaded', () => {
                 });
             }
 
-            const updatePreview = (target, value) => {
-                switch (target) {
-                    case 'title':
-                        previewElements.title.textContent = value || 'Tiêu đề bài viết sẽ hiển thị tại đây';
-                        break;
-                    case 'summary':
-                        previewElements.summary.textContent = value || defaultSummary;
-                        break;
-                    case 'content': {
-                        // Content preview is now handled by Quill editor
-                        break;
-                    }
-                    case 'cover':
-                        if (!previewElements.coverWrapper || !previewElements.coverImg) return;
-                        if (value) {
-                            previewElements.coverImg.src = value;
-                            previewElements.coverWrapper.setAttribute('data-visible', 'true');
-                        } else {
-                            previewElements.coverImg.src = '';
-                            previewElements.coverWrapper.setAttribute('data-visible', 'false');
-                        }
-                        break;
-                    default:
-                        break;
-                }
-            };
+            // Function to update notice sidebar
+            function updateEditNoticeInputs() {
+                if (!editQuill || !noticeList) return;
 
-            const syncPreviewFromForm = () => {
-                editForm.querySelectorAll('[data-preview]').forEach((input) => {
-                    const target = input.getAttribute('data-preview');
-                    updatePreview(target, input.value.trim());
+                requestAnimationFrame(() => {
+                    const lines = editQuill.root.querySelectorAll('p, h1, h2, h3, h4, h5, h6, li');
+                    const existingNotices = {};
+                    
+                    // Preserve existing notice values
+                    noticeList.querySelectorAll('input[data-line]').forEach(input => {
+                        if (input.value.trim()) {
+                            existingNotices[input.dataset.line] = input.value.trim();
+                        }
+                    });
+
+                    noticeList.innerHTML = '';
+
+                    let lineNum = 0; // Counter for non-empty lines only
+                    lines.forEach((line, index) => {
+                        const lineText = line.textContent.trim();
+                        if (!lineText) return; // Skip empty lines without incrementing counter
+                        
+                        lineNum++; // Increment only for non-empty lines
+
+                        const noticeItem = document.createElement('div');
+                        noticeItem.className = 'notice-item';
+                        noticeItem.dataset.line = lineNum;
+                        noticeItem.style.cssText = 'display: flex; flex-direction: column; gap: 0.5rem; padding: 0.75rem; background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(148, 163, 184, 0.2); border-radius: 6px;';
+
+                        const linePreview = document.createElement('div');
+                        linePreview.style.cssText = 'font-size: 0.85rem; color: #94a3b8;';
+                        linePreview.innerHTML = `<strong style="color: #38bdf8;">Dòng ${lineNum}:</strong> ${lineText.substring(0, 50)}${lineText.length > 50 ? '...' : ''}`;
+
+                        const noticeInput = document.createElement('input');
+                        noticeInput.type = 'text';
+                        noticeInput.dataset.line = lineNum;
+                        noticeInput.placeholder = `Ghi chú cho dòng ${lineNum}...`;
+                        noticeInput.value = existingNotices[lineNum] || '';
+                        noticeInput.style.cssText = 'padding: 0.5rem; background: rgba(30, 41, 59, 0.6); border: 1px solid rgba(148, 163, 184, 0.3); border-radius: 4px; color: #e2e8f0; font-size: 0.9rem;';
+
+                        noticeItem.appendChild(linePreview);
+                        noticeItem.appendChild(noticeInput);
+                        noticeList.appendChild(noticeItem);
+                    });
                 });
-            };
+            }
+
+            // Search functionality
+            const searchInput = document.getElementById('edit-notice-search');
+            if (searchInput) {
+                searchInput.addEventListener('input', (e) => {
+                    const query = e.target.value.toLowerCase();
+                    noticeList.querySelectorAll('.notice-item').forEach(item => {
+                        const lineText = item.textContent.toLowerCase();
+                        item.style.display = lineText.includes(query) ? 'flex' : 'none';
+                    });
+                });
+            }
 
             const openEditor = () => {
                 editorSection.hidden = false;
                 postBodySection.hidden = true;
                 if (toggleEditorBtn) toggleEditorBtn.disabled = true;
-                syncPreviewFromForm();
+                
+                // Load existing annotations into sidebar
+                setTimeout(() => {
+                    updateEditNoticeInputs();
+                    
+                    // Populate with existing annotations
+                    Object.keys(lineAnnotations).forEach(lineNum => {
+                        const input = noticeList.querySelector(`input[data-line="${lineNum}"]`);
+                        if (input) {
+                            input.value = lineAnnotations[lineNum];
+                        }
+                    });
+                }, 100);
+                
                 if (editQuill) {
                     editQuill.focus();
                 }
@@ -757,16 +630,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (toggleEditorBtn) toggleEditorBtn.disabled = false;
             };
 
-            editForm.querySelectorAll('[data-preview]').forEach((input) => {
-                const target = input.getAttribute('data-preview');
-                if (!target) return;
-                input.addEventListener('input', () => {
-                    updatePreview(target, input.value.trim());
-                });
-            });
-
-            // Old textarea and upload zone handlers removed - now handled by Quill
-
             toggleEditorBtn?.addEventListener('click', () => {
                 openEditor();
             });
@@ -775,10 +638,54 @@ document.addEventListener('DOMContentLoaded', () => {
                 closeEditor();
             });
 
-            // Initialize preview with current values
-            syncPreviewFromForm();
-            if (editQuill && textarea?.value) {
-                previewElements.content.innerHTML = textarea.value;
+            // Sync notices to hidden field before submit
+            editForm.addEventListener('submit', function() {
+                const noticeData = {};
+                noticeList.querySelectorAll('input[data-line]').forEach(input => {
+                    if (input.value.trim()) {
+                        noticeData[input.dataset.line] = input.value.trim();
+                    }
+                });
+                document.getElementById('edit-line-annotations').value = JSON.stringify(noticeData);
+            });
+
+            // Preview button handler
+            const editPreviewBtn = document.getElementById('edit-preview-btn');
+            if (editPreviewBtn) {
+                editPreviewBtn.addEventListener('click', () => {
+                    if (!editQuill) {
+                        alert('Editor chưa sẵn sàng. Vui lòng thử lại.');
+                        return;
+                    }
+
+                    const title = editForm.querySelector('input[name="title"]').value;
+                    const summary = editForm.querySelector('input[name="summary"]').value;
+                    const coverUrl = editForm.querySelector('input[name="cover_url"]').value;
+                    const tags = editForm.querySelector('input[name="tags"]').value;
+                    const content = editQuill.root.innerHTML;
+                    
+                    const lineAnnotationsData = {};
+                    noticeList.querySelectorAll('input[data-line]').forEach(input => {
+                        if (input.value.trim()) {
+                            lineAnnotationsData[input.dataset.line] = input.value.trim();
+                        }
+                    });
+                    
+                    const authorName = '{{.Post.AuthorName}}';
+                    
+                    const previewData = {
+                        title: title || 'Tiêu đề bài viết',
+                        summary: summary,
+                        cover_url: coverUrl,
+                        tags: tags,
+                        content: content,
+                        author: authorName,
+                        line_annotations: lineAnnotationsData
+                    };
+                    
+                    sessionStorage.setItem('postPreviewData', JSON.stringify(previewData));
+                    window.open('/posts/preview', '_blank', 'width=1000,height=800');
+                });
             }
         }
     }
@@ -927,31 +834,26 @@ document.addEventListener('DOMContentLoaded', () => {
             const contentHolder = document.createElement('span');
             contentHolder.className = 'inline-line-content';
 
+            while (el.firstChild) {
+                contentHolder.appendChild(el.firstChild);
+            }
+
             el.dataset.lineProcessed = 'true';
-            el.parentNode.insertBefore(wrapper, el);
-            contentHolder.appendChild(el);
             wrapper.appendChild(contentHolder);
+            el.appendChild(wrapper);
         }
 
         const comments = lineComments[currentLine] || [];
         
-        // Extract and remove inline annotation from content
-        const inlineAnnotation = extractInlineAnnotationFromContent(wrapper);
+        // Get annotation from backend data (no longer parse from content)
+        const annotation = lineAnnotations[currentLine] || '';
         
-        // Use stored annotation from backend, or fallback to inline annotation
-        const annotation = lineAnnotations[currentLine] || inlineAnnotation || '';
-        
-        // Get clean text after removing #annotation
+        // Get clean text (no need to remove # since we don't parse it anymore)
         const cleanText = wrapper.textContent.trim();
         
-        // If content is empty after extraction, add a placeholder or hide content holder
-        const contentHolder = wrapper.querySelector('.inline-line-content');
-        if (cleanText.length === 0 && annotation) {
-            // Content is only annotation, make content holder minimal
-            if (contentHolder) {
-                contentHolder.style.minHeight = '0';
-                contentHolder.innerHTML = '&nbsp;'; // Non-breaking space to maintain structure
-            }
+        // Debug: log annotation data
+        if (annotation) {
+            console.log(`Line ${currentLine} has annotation:`, annotation);
         }
         
         const controlBox = ensureControlBox(wrapper);
@@ -1261,13 +1163,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 const wrapper = document.querySelector(`.inline-line[data-line="${line}"]`);
                 if (wrapper) {
                     // Live update: Sync to edit mode notice input if exists
-                    const lines = editQuill.root.querySelectorAll('p, h1, h2, h3, h4, h5, h6, li');
-                    const targetLine = Array.from(lines)[line - 1];
-                    if (targetLine) {
-                        const noticeInput = targetLine.querySelector('input.notice-inline-input');
-                        if (noticeInput) {
-                            noticeInput.value = content;
-                        }
+                    const noticeInput = document.querySelector(`#edit-notice-overlay input[data-line="${line}"]`);
+                    if (noticeInput) {
+                        noticeInput.value = content;
                     }
 
                     // Cập nhật hiển thị annotation span

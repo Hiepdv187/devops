@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -328,12 +329,13 @@ func Home() fiber.Handler {
 }
 
 type createPostRequest struct {
-	Title    string `json:"title"`
-	Summary  string `json:"summary"`
-	Content  string `json:"content"`
-	CoverURL string `json:"cover_url"`
-	Tags     string `json:"tags"`
-	AuthorID uint   `json:"author_id"`
+	Title           string `json:"title"`
+	Summary         string `json:"summary"`
+	Content         string `json:"content"`
+	CoverURL        string `json:"cover_url"`
+	Tags            string `json:"tags"`
+	AuthorID        uint   `json:"author_id"`
+	LineAnnotations string `json:"line_annotations"` // JSON string: {"1": "notice text", "2": "another notice"}
 }
 
 type createCommentRequest struct {
@@ -460,7 +462,7 @@ func PostsPage() fiber.Handler {
 
 func PostPreviewPage() fiber.Handler {
 	return func(c *fiber.Ctx) error {
-		return render(c, "pages/post_preview", fiber.Map{
+		return render(c, "pages/post_preview_page", fiber.Map{
 			"Title": "Xem trước bài viết",
 		}, "main")
 	}
@@ -604,6 +606,7 @@ func CreatePost() fiber.Handler {
 			body.Content = c.FormValue("content")
 			body.CoverURL = c.FormValue("cover_url")
 			body.Tags = c.FormValue("tags")
+			body.LineAnnotations = c.FormValue("line_annotations")
 		}
 
 		body.Title = strings.TrimSpace(body.Title)
@@ -677,17 +680,26 @@ func CreatePost() fiber.Handler {
 			return respondError(c, fiber.StatusInternalServerError, "Không thể tạo bài viết", "/posts")
 		}
 
-		// Parse and create inline annotations from content
-		inlineAnnotations := parseInlineAnnotations(body.Content)
-		for lineNum, annotationText := range inlineAnnotations {
-			annotation := models.Annotation{
-				PostID:     post.ID,
-				LineNumber: lineNum,
-				Content:    annotationText,
-			}
-			if err := db.Create(&annotation).Error; err != nil {
-				// Log error but don't fail the post creation
-				fmt.Printf("Warning: Failed to create annotation for line %d: %v\n", lineNum, err)
+		// Create annotations from line_annotations JSON field
+		if body.LineAnnotations != "" {
+			var annotationsMap map[string]string
+			if err := json.Unmarshal([]byte(body.LineAnnotations), &annotationsMap); err == nil {
+				for lineNumStr, annotationText := range annotationsMap {
+					lineNum, err := strconv.Atoi(lineNumStr)
+					if err != nil {
+						continue
+					}
+					annotation := models.Annotation{
+						PostID:     post.ID,
+						LineNumber: lineNum,
+						Content:    strings.TrimSpace(annotationText),
+					}
+					if err := db.Create(&annotation).Error; err != nil {
+						fmt.Printf("Warning: Failed to create annotation for line %d: %v\n", lineNum, err)
+					}
+				}
+			} else {
+				fmt.Printf("Warning: Failed to parse line_annotations JSON: %v\n", err)
 			}
 		}
 
@@ -727,11 +739,12 @@ func UpdatePost() fiber.Handler {
 		}
 
 		var req struct {
-			Title    string `json:"title"`
-			Summary  string `json:"summary"`
-			Content  string `json:"content"`
-			CoverURL string `json:"cover_url"`
-			Tags     string `json:"tags"`
+			Title           string `json:"title"`
+			Summary         string `json:"summary"`
+			Content         string `json:"content"`
+			CoverURL        string `json:"cover_url"`
+			Tags            string `json:"tags"`
+			LineAnnotations string `json:"line_annotations"`
 		}
 
 		isJSON := isJSONRequest(c)
@@ -745,6 +758,7 @@ func UpdatePost() fiber.Handler {
 			req.Content = c.FormValue("content")
 			req.CoverURL = c.FormValue("cover_url")
 			req.Tags = c.FormValue("tags")
+			req.LineAnnotations = c.FormValue("line_annotations")
 		}
 
 		req.Title = strings.TrimSpace(req.Title)
@@ -803,37 +817,30 @@ func UpdatePost() fiber.Handler {
 			return respondError(c, fiber.StatusInternalServerError, "Không thể cập nhật bài viết", fmt.Sprintf("/posts/%d", postID))
 		}
 
-		// Parse and sync inline annotations from updated content
-		inlineAnnotations := parseInlineAnnotations(req.Content)
-		
-		// Delete existing annotations that are not in the new content
-		var existingAnnotations []models.Annotation
-		db.Where("post_id = ?", post.ID).Find(&existingAnnotations)
-		
-		for _, existing := range existingAnnotations {
-			if newContent, exists := inlineAnnotations[existing.LineNumber]; exists {
-				// Update if content changed
-				if existing.Content != newContent {
-					existing.Content = newContent
-					db.Save(&existing)
+		// Sync annotations from line_annotations JSON field
+		if req.LineAnnotations != "" {
+			var annotationsMap map[string]string
+			if err := json.Unmarshal([]byte(req.LineAnnotations), &annotationsMap); err == nil {
+				// Delete all existing annotations for this post
+				db.Where("post_id = ?", post.ID).Delete(&models.Annotation{})
+				
+				// Create new annotations from JSON
+				for lineNumStr, annotationText := range annotationsMap {
+					lineNum, err := strconv.Atoi(lineNumStr)
+					if err != nil {
+						continue
+					}
+					annotation := models.Annotation{
+						PostID:     post.ID,
+						LineNumber: lineNum,
+						Content:    strings.TrimSpace(annotationText),
+					}
+					if err := db.Create(&annotation).Error; err != nil {
+						fmt.Printf("Warning: Failed to create annotation for line %d: %v\n", lineNum, err)
+					}
 				}
-				// Remove from map so we don't create duplicate
-				delete(inlineAnnotations, existing.LineNumber)
 			} else {
-				// Delete annotation that no longer exists in content
-				db.Delete(&existing)
-			}
-		}
-		
-		// Create new annotations
-		for lineNum, annotationText := range inlineAnnotations {
-			annotation := models.Annotation{
-				PostID:     post.ID,
-				LineNumber: lineNum,
-				Content:    annotationText,
-			}
-			if err := db.Create(&annotation).Error; err != nil {
-				fmt.Printf("Warning: Failed to create annotation for line %d: %v\n", lineNum, err)
+				fmt.Printf("Warning: Failed to parse line_annotations JSON: %v\n", err)
 			}
 		}
 
@@ -1486,11 +1493,8 @@ func CreateAnnotation() fiber.Handler {
 			})
 		}
 
-		// Cập nhật nội dung bài viết để đồng bộ #annotation
-		if err := updatePostContentAnnotation(db, &post, body.LineNumber, strings.TrimSpace(body.Content)); err != nil {
-			// Log warning but don't fail the request
-			fmt.Printf("Warning: Failed to update post content annotation: %v\n", err)
-		}
+		// No longer update post content with #annotation
+		// Annotations are stored separately in the annotations table
 
 		return c.JSON(fiber.Map{
 			"annotation": fiber.Map{

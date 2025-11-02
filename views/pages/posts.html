@@ -5,9 +5,9 @@
     </div>
     <div class="hero-actions">
         {{if .IsAuthenticated}}
-        <a href="/posts?create=true" class="btn primary">✍️ Tạo bài viết mới</a>
+        <a href="#create" class="btn primary">Tạo bài viết mới</a>
         {{else}}
-        <a href="/auth/login?next=/posts?create=true" class="btn ghost">Đăng nhập để chia sẻ</a>
+        <a href="/auth/login?next=/posts#create" class="btn ghost">Đăng nhập để chia sẻ</a>
         {{end}}
     </div>
 </header>
@@ -126,41 +126,44 @@
     <div class="composer-grid">
         <form method="post" action="/posts" class="stack" id="post-composer">
             <label>Tựa đề
-                <input type="text" name="title" placeholder="Ví dụ: Thiết lập GitOps trên Kubernetes" required minlength="3" data-preview="title">
+                <input type="text" name="title" placeholder="Ví dụ: Thiết lập GitOps trên Kubernetes" required minlength="3">
             </label>
             <label>Tóm tắt ngắn
-                <input type="text" name="summary" placeholder="Tóm tắt ngắn gọn (tùy chọn)" data-preview="summary">
+                <input type="text" name="summary" placeholder="Tóm tắt ngắn gọn (tùy chọn)">
             </label>
             <label>Ảnh bìa (URL)
-                <input type="url" name="cover_url" placeholder="https://example.com/cover.jpg" data-preview="cover">
+                <input type="url" name="cover_url" placeholder="https://example.com/cover.jpg">
             </label>
             <label>Tags (phân loại)
-                <input type="text" name="tags" placeholder="docker, kubernetes, ci-cd" data-preview="tags">
+                <input type="text" name="tags" placeholder="docker, kubernetes, ci-cd">
                 <small style="color: #94a3b8; font-size: 0.85rem;">Nhập các tags cách nhau bằng dấu phẩy</small>
             </label>
             <label>Nội dung chi tiết
-                <div style="position: relative;">
-                    <div id="editor-container" style="min-height: 300px; background: rgba(15, 23, 42, 0.65); border: 1px solid rgba(148, 163, 184, 0.3); border-radius: 8px; padding-right: 200px;">
-                        <!-- Notice inputs will be injected inline after each line -->
-                    </div>
-                </div>
+                <div id="editor-container" style="min-height: 300px; background: rgba(15, 23, 42, 0.65); border: 1px solid rgba(148, 163, 184, 0.3); border-radius: 8px;"></div>
                 <textarea name="content" id="content-textarea" hidden required minlength="10"></textarea>
                 <input type="hidden" name="line_annotations" id="line-annotations">
             </label>
             <div class="form-actions">
+                <button type="button" class="btn ghost" id="preview-btn">👁️ Xem trước</button>
                 <button type="submit" class="btn primary">Đăng bài</button>
             </div>
         </form>
         <aside class="preview" id="post-preview">
-            <h3 class="preview-heading">Xem trước bài viết</h3>
-            <figure class="preview-cover" data-visible="false">
-                <img src="" alt="Ảnh bìa xem trước" loading="lazy">
-            </figure>
-            <h3 class="preview-title">Tiêu đề bài viết sẽ hiển thị tại đây</h3>
-            <p class="preview-meta">Bởi bạn · {{now | date "02/01/2006 15:04"}}</p>
-            <p class="preview-summary">Tóm tắt sẽ giúp người đọc hiểu nhanh nội dung chính của bài viết.</p>
-            <div class="preview-content">
-                <p>Nội dung bài viết hiển thị theo từng đoạn, bạn có thể nhập Markdown cơ bản như xuống dòng bằng cách nhấn Enter.</p>
+            <h3 class="preview-heading">Ghi chú</h3>
+            <p style="color: #94a3b8; font-size: 0.85rem; margin-bottom: 0.5rem;">Thêm ghi chú cho từng dòng trong bài viết</p>
+            
+            <!-- Search box -->
+            <div style="margin-bottom: 1rem;">
+                <input 
+                    type="text" 
+                    id="notice-search" 
+                    placeholder="Tìm theo số dòng hoặc nội dung..." 
+                    style="width: 95%; padding: 0.5rem; background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(148, 163, 184, 0.3); border-radius: 6px; color: #e2e8f0; font-size: 0.85rem;"
+                />
+            </div>
+            
+            <div id="notice-list" style="display: flex; flex-direction: column; gap: 0.75rem; max-height: 450px; overflow-y: auto;">
+                <p style="color: #64748b; font-style: italic; font-size: 0.9rem;">Nhập nội dung để thấy danh sách dòng...</p>
             </div>
             <div class="preview-images" data-visible="false"></div>
         </aside>
@@ -465,45 +468,30 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }, 300);
 
-    // Prevent scroll on paste - maintain cursor position
+    // Prevent scroll to top on paste
     const editorContainer = document.getElementById('editor-container');
-    let isPasting = false;
     let savedScrollPos = 0;
-    let savedSelection = null;
     
-    // Save position before paste
+    // Save scroll position before paste
     editorContainer.addEventListener('paste', function(e) {
-        isPasting = true;
         savedScrollPos = window.scrollY;
-        savedSelection = quill.getSelection();
     });
     
     // Sync Quill content to hidden textarea and preview + prevent scroll on paste
     quill.on('text-change', function(delta, oldDelta, source) {
-        // Restore position after paste
-        if (isPasting) {
-            requestAnimationFrame(() => {
-                // Restore scroll
-                window.scrollTo({
-                    top: savedScrollPos,
-                    behavior: 'instant'
-                });
-                // Keep cursor at paste location
-                if (savedSelection) {
-                    const newPos = savedSelection.index + (delta.ops[0]?.insert?.length || 0);
-                    quill.setSelection(newPos, 0);
-                }
-            });
-            isPasting = false;
+        // Restore scroll position after paste
+        if (source === 'user' && savedScrollPos > 0) {
+            setTimeout(() => {
+                window.scrollTo(0, savedScrollPos);
+                savedScrollPos = 0;
+            }, 10);
         }
         
         // Sync content to textarea and preview
         let html = quill.root.innerHTML;
-        
-        // Remove notice inputs from HTML before saving to textarea
+        // Replace text nodes containing \n with <br> tags
         const tempDiv = document.createElement('div');
         tempDiv.innerHTML = html;
-        tempDiv.querySelectorAll('input.notice-inline-input').forEach(input => input.remove());
         
         // Walk through all text nodes and replace \n with <br>
         const walker = document.createTreeWalker(tempDiv, NodeFilter.SHOW_TEXT, null, false);
@@ -529,136 +517,147 @@ document.addEventListener('DOMContentLoaded', function () {
         
         html = tempDiv.innerHTML;
         textarea.value = html;
-        elements.content.innerHTML = html || '<p>Nội dung bài viết hiển thị theo từng đoạn...</p>';
         
-        // Update notice inline inputs (only if user is typing)
-        if (source === 'user') {
-            updateNoticeInputs();
-        }
+        // Update notice inputs
+        updateNoticeInputs();
     });
     
-    // Function to inject notice inline inputs directly into editor lines
+    // Function to generate notice inline sidebar
     function updateNoticeInputs() {
-        if (!quill) {
-            console.log('updateNoticeInputs: quill not ready');
-            return;
-        }
+        const noticeList = document.getElementById('notice-list');
+        if (!noticeList || !quill) return;
         
-        // Wait for next frame to ensure DOM is updated
         requestAnimationFrame(() => {
-            // Get all paragraphs/lines from editor
-            const lines = quill.root.querySelectorAll('p, h1, h2, h3, h4, h5, h6, li');
-            console.log('updateNoticeInputs: found', lines.length, 'lines');
+            const editorContent = quill.root;
+            const lines = editorContent.querySelectorAll('p, h1, h2, h3, h4, h5, h6, li');
             
-            // Save existing notice values
+            // Save existing values
             const existingNotices = {};
-            quill.root.querySelectorAll('input.notice-inline-input').forEach(input => {
-                const lineNum = input.dataset.line;
-                if (input.value) {
-                    existingNotices[lineNum] = input.value;
-                }
+            noticeList.querySelectorAll('input[data-line]').forEach(input => {
+                if (input.value) existingNotices[input.dataset.line] = input.value;
             });
             
-            lines.forEach((line, index) => {
-                const lineNum = index + 1;
-                const lineText = line.textContent.replace(/\s*#\d+.*$/, '').trim();
-                
-                if (!lineText) return; // Skip empty lines
-                
-                // Check if input already exists
-                let noticeInput = line.querySelector('input.notice-inline-input');
-                
-                if (!noticeInput) {
-                    // Create new input
-                    noticeInput = document.createElement('input');
-                    noticeInput.type = 'text';
-                    noticeInput.className = 'notice-inline-input';
-                    noticeInput.dataset.line = lineNum;
-                    noticeInput.placeholder = `#${lineNum}`;
-                    noticeInput.value = existingNotices[lineNum] || '';
-                    
-                    noticeInput.style.cssText = `
-                        display: inline-block;
-                        width: 180px;
-                        height: 24px;
-                        margin-left: 0.5rem;
-                        padding: 0.2rem 0.4rem;
-                        border-radius: 3px;
-                        border: 1px solid rgba(168, 85, 247, 0.25);
-                        background: rgba(76, 29, 149, 0.1);
-                        color: #a78bfa;
-                        font-size: 0.7rem;
-                        font-style: italic;
-                        vertical-align: middle;
-                        transition: all 0.2s ease;
-                        box-sizing: border-box;
-                    `;
-                    
-                    // Hover effect
-                    noticeInput.addEventListener('focus', function() {
-                        this.style.background = 'rgba(76, 29, 149, 0.25)';
-                        this.style.borderColor = 'rgba(168, 85, 247, 0.5)';
-                    });
-                    noticeInput.addEventListener('blur', function() {
-                        this.style.background = 'rgba(76, 29, 149, 0.1)';
-                        this.style.borderColor = 'rgba(168, 85, 247, 0.25)';
-                    });
-                    
-                    // Prevent Quill from capturing input events
-                    noticeInput.addEventListener('keydown', (e) => {
-                        e.stopPropagation();
-                    });
-                    noticeInput.addEventListener('keyup', (e) => {
-                        e.stopPropagation();
-                    });
-                    noticeInput.addEventListener('mousedown', (e) => {
-                        e.stopPropagation();
-                    });
-                    
-                    // Append to end of line
-                    line.appendChild(noticeInput);
-                } else {
-                    // Update existing input's line number
-                    noticeInput.dataset.line = lineNum;
-                    noticeInput.placeholder = `#${lineNum}`;
-                }
-            });
+            // Clear and rebuild
+            noticeList.innerHTML = '';
             
-            // Remove orphaned inputs
-            const allInputs = quill.root.querySelectorAll('input.notice-inline-input');
-            if (allInputs.length > lines.length) {
-                allInputs.forEach((input, idx) => {
-                    if (idx >= lines.length) {
-                        input.remove();
-                    }
-                });
+            if (lines.length === 0) {
+                noticeList.innerHTML = '<p style="color: #64748b; font-style: italic; font-size: 0.9rem;">Nhập nội dung để thấy danh sách dòng...</p>';
+                return;
             }
+            
+            let lineNum = 0; // Counter for non-empty lines only
+            lines.forEach((line, index) => {
+                const lineText = line.textContent.trim();
+                if (!lineText) return; // Skip empty lines without incrementing counter
+                
+                lineNum++; // Increment only for non-empty lines
+                
+                // Create sidebar item - vertical layout
+                const noticeItem = document.createElement('div');
+                noticeItem.className = 'notice-item';
+                noticeItem.style.cssText = 'display: flex; flex-direction: column; gap: 0.5rem; padding: 0.75rem; background: rgba(15, 23, 42, 0.4); border: 1px solid rgba(148, 163, 184, 0.2); border-radius: 8px;';
+                
+                // Header: line number + preview
+                const header = document.createElement('div');
+                header.style.cssText = 'display: flex; gap: 0.5rem; align-items: center;';
+                
+                const lineLabel = document.createElement('span');
+                lineLabel.className = 'notice-line-num';
+                lineLabel.textContent = lineNum;
+                lineLabel.style.cssText = 'min-width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; background: rgba(56, 189, 248, 0.15); color: #38bdf8; border-radius: 6px; font-size: 0.8rem; font-weight: 600; flex-shrink: 0;';
+                
+                const linePreview = document.createElement('div');
+                linePreview.className = 'line-preview-text';
+                linePreview.textContent = lineText.length > 50 ? lineText.substring(0, 50) + '...' : lineText;
+                linePreview.dataset.fullText = lineText;
+                linePreview.style.cssText = 'color: #cbd5e1; font-size: 0.85rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1;';
+                
+                header.appendChild(lineLabel);
+                header.appendChild(linePreview);
+                
+                // Notice input
+                const sidebarInput = document.createElement('input');
+                sidebarInput.type = 'text';
+                sidebarInput.placeholder = `Notice cho dòng ${lineNum}...`;
+                sidebarInput.dataset.line = lineNum;
+                sidebarInput.value = existingNotices[lineNum] || '';
+                sidebarInput.style.cssText = 'width: 95%; padding: 0.5rem; background: rgba(76, 29, 149, 0.15); border: 1px solid rgba(168, 85, 247, 0.3); border-radius: 6px; color: #e2e8f0; font-size: 0.85rem; transition: all 0.2s ease;';
+                
+                sidebarInput.addEventListener('focus', function() {
+                    this.style.background = 'rgba(76, 29, 149, 0.25)';
+                    this.style.borderColor = 'rgba(168, 85, 247, 0.5)';
+                });
+                sidebarInput.addEventListener('blur', function() {
+                    this.style.background = 'rgba(76, 29, 149, 0.15)';
+                    this.style.borderColor = 'rgba(168, 85, 247, 0.3)';
+                });
+                
+                noticeItem.appendChild(header);
+                noticeItem.appendChild(sidebarInput);
+                noticeList.appendChild(noticeItem);
+            });
         });
     }
     
-    // Initial generation with delay to ensure content is loaded
-    setTimeout(() => {
-        console.log('Initial updateNoticeInputs call');
-        updateNoticeInputs();
-        
-        // Force another update after a bit more time
-        setTimeout(updateNoticeInputs, 500);
-    }, 200);
+    // Initial update
+    setTimeout(updateNoticeInputs, 100);
     
     // Update on paste
     quill.root.addEventListener('paste', () => {
         setTimeout(updateNoticeInputs, 50);
     });
     
-    // Update on scroll (for long content)
-    quill.root.addEventListener('scroll', () => {
-        requestAnimationFrame(updateNoticeInputs);
-    });
+    // Search functionality
+    const noticeSearch = document.getElementById('notice-search');
+    if (noticeSearch) {
+        noticeSearch.addEventListener('input', (e) => {
+            const searchTerm = e.target.value.toLowerCase().trim();
+            const noticeItems = document.querySelectorAll('.notice-item');
+            
+            let visibleCount = 0;
+            
+            noticeItems.forEach(item => {
+                const linePreview = item.querySelector('.line-preview-text');
+                const fullText = linePreview ? (linePreview.dataset.fullText || linePreview.textContent) : '';
+                const lineNum = item.querySelector('.notice-line-num').textContent;
+                const noticeInput = item.querySelector('input[data-line]');
+                const noticeValue = noticeInput ? noticeInput.value : '';
+                
+                // Search in line number, line content, or notice content
+                const matchesSearch = searchTerm === '' || 
+                                      fullText.toLowerCase().includes(searchTerm) || 
+                                      lineNum.includes(searchTerm) ||
+                                      noticeValue.toLowerCase().includes(searchTerm);
+                
+                if (matchesSearch) {
+                    item.style.display = 'flex';
+                    visibleCount++;
+                } else {
+                    item.style.display = 'none';
+                }
+            });
+            
+            // Show "no results" message if needed
+            const noticeList = document.getElementById('notice-list');
+            const existingMsg = noticeList.querySelector('.no-results-msg');
+            if (searchTerm && visibleCount === 0) {
+                if (!existingMsg) {
+                    const noResults = document.createElement('p');
+                    noResults.className = 'no-results-msg';
+                    noResults.style.cssText = 'color: #64748b; font-style: italic; font-size: 0.9rem; text-align: center; padding: 1rem;';
+                    noResults.textContent = `Không tìm thấy dòng nào với "${searchTerm}"`;
+                    noticeList.appendChild(noResults);
+                }
+            } else if (existingMsg) {
+                existingMsg.remove();
+            }
+        });
+    }
     
-    // Sync notice inputs to hidden field before form submit
-    composer.addEventListener('submit', function(e) {
+    // Sync notices to hidden field before submit
+    composer.addEventListener('submit', function() {
         const noticeData = {};
-        quill.root.querySelectorAll('input.notice-inline-input').forEach(input => {
+        document.querySelectorAll('#notice-list input[data-line]').forEach(input => {
             if (input.value.trim()) {
                 noticeData[input.dataset.line] = input.value.trim();
             }
@@ -739,6 +738,63 @@ document.addEventListener('DOMContentLoaded', function () {
             }
             window.location.href = url.toString();
         });
+    });
+
+    // Preview button
+    const previewBtn = document.getElementById('preview-btn');
+    if (previewBtn) {
+        previewBtn.addEventListener('click', () => {
+            // Check if Quill is initialized
+            if (!quill) {
+                alert('Editor chưa sẵn sàng. Vui lòng thử lại.');
+                return;
+            }
+
+            // Collect form data
+            const title = document.querySelector('input[name="title"]').value;
+            const summary = document.querySelector('input[name="summary"]').value;
+            const coverUrl = document.querySelector('input[name="cover_url"]').value;
+            const tags = document.querySelector('input[name="tags"]').value;
+            const content = quill.root.innerHTML;
+            
+            // Debug: log content
+            console.log('Preview content:', content);
+            
+            // Collect line annotations from sidebar
+            const lineAnnotations = {};
+            document.querySelectorAll('#notice-list input[data-line]').forEach(input => {
+                if (input.value.trim()) {
+                    lineAnnotations[input.dataset.line] = input.value.trim();
+                }
+            });
+            
+            // Get author name from session
+            const authorName = '{{if .User}}{{.User.Name}}{{else}}Bạn{{end}}';
+            
+            // Store in sessionStorage
+            const previewData = {
+                title: title || 'Tiêu đề bài viết',
+                summary: summary,
+                cover_url: coverUrl,
+                tags: tags,
+                content: content,
+                author: authorName,
+                line_annotations: lineAnnotations
+            };
+            
+            console.log('Storing preview data:', previewData);
+            sessionStorage.setItem('postPreviewData', JSON.stringify(previewData));
+            
+            // Open preview in new window
+            window.open('/posts/preview', '_blank', 'width=1000,height=800');
+        });
+    }
+
+    // Listen for submit message from preview window
+    window.addEventListener('message', (event) => {
+        if (event.data && event.data.action === 'submitPost') {
+            composer.submit();
+        }
     });
 });
 </script>
