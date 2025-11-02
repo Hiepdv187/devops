@@ -499,9 +499,11 @@ document.addEventListener('DOMContentLoaded', function () {
         
         // Sync content to textarea and preview
         let html = quill.root.innerHTML;
-        // Replace text nodes containing \n with <br> tags
+        
+        // Remove notice inputs from HTML before saving to textarea
         const tempDiv = document.createElement('div');
         tempDiv.innerHTML = html;
+        tempDiv.querySelectorAll('input.notice-inline-input').forEach(input => input.remove());
         
         // Walk through all text nodes and replace \n with <br>
         const walker = document.createTreeWalker(tempDiv, NodeFilter.SHOW_TEXT, null, false);
@@ -529,18 +531,24 @@ document.addEventListener('DOMContentLoaded', function () {
         textarea.value = html;
         elements.content.innerHTML = html || '<p>Nội dung bài viết hiển thị theo từng đoạn...</p>';
         
-        // Update notice inline inputs
-        updateNoticeInputs();
+        // Update notice inline inputs (only if user is typing)
+        if (source === 'user') {
+            updateNoticeInputs();
+        }
     });
     
     // Function to inject notice inline inputs directly into editor lines
     function updateNoticeInputs() {
-        if (!quill) return;
+        if (!quill) {
+            console.log('updateNoticeInputs: quill not ready');
+            return;
+        }
         
         // Wait for next frame to ensure DOM is updated
         requestAnimationFrame(() => {
             // Get all paragraphs/lines from editor
             const lines = quill.root.querySelectorAll('p, h1, h2, h3, h4, h5, h6, li');
+            console.log('updateNoticeInputs: found', lines.length, 'lines');
             
             // Save existing notice values
             const existingNotices = {};
@@ -630,8 +638,12 @@ document.addEventListener('DOMContentLoaded', function () {
     
     // Initial generation with delay to ensure content is loaded
     setTimeout(() => {
+        console.log('Initial updateNoticeInputs call');
         updateNoticeInputs();
-    }, 100);
+        
+        // Force another update after a bit more time
+        setTimeout(updateNoticeInputs, 500);
+    }, 200);
     
     // Update on paste
     quill.root.addEventListener('paste', () => {
