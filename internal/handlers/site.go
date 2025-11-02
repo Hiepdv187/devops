@@ -350,7 +350,7 @@ func PostsPage() fiber.Handler {
 			// Check if user is authenticated
 			userID, _ := currentUserID(c)
 			if userID > 0 {
-				return render(c, "pages/posts_create_new", fiber.Map{
+				return render(c, "pages/posts_create_smart", fiber.Map{
 					"Title": "Tạo bài viết mới",
 				}, "main")
 			}
@@ -522,7 +522,7 @@ func PostDetailPage() fiber.Handler {
 		editMode := c.Query("edit") == "true"
 		templateName := "pages/post_detail"
 		if editMode && isAuthor {
-			templateName = "pages/post_edit_new"
+			templateName = "pages/post_edit_smart"
 		}
 
 		return render(c, templateName, fiber.Map{
