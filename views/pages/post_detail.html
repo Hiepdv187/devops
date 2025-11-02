@@ -548,11 +548,17 @@ document.addEventListener('DOMContentLoaded', () => {
                             });
                         }
                         
+                        let inputsCreated = 0;
+                        let inputsSkipped = 0;
+                        
                         lines.forEach((line, index) => {
                             const lineNum = index + 1;
                             const lineText = line.textContent.replace(/\s*#\d+.*$/, '').trim(); // Remove existing input text
                             
-                            if (!lineText) return; // Skip empty lines
+                            if (!lineText) {
+                                inputsSkipped++;
+                                return; // Skip empty lines
+                            }
                             
                             // Check if input already exists
                             let noticeInput = line.querySelector('input.notice-inline-input');
@@ -567,14 +573,14 @@ document.addEventListener('DOMContentLoaded', () => {
                                 noticeInput.value = existingNotices[lineNum] || '';
                                 
                                 noticeInput.style.cssText = `
-                                    display: inline-block;
+                                    display: inline-block !important;
                                     width: 180px;
                                     height: 24px;
                                     margin-left: 0.5rem;
                                     padding: 0.2rem 0.4rem;
                                     border-radius: 3px;
-                                    border: 1px solid rgba(168, 85, 247, 0.25);
-                                    background: rgba(76, 29, 149, 0.1);
+                                    border: 1px solid rgba(168, 85, 247, 0.5);
+                                    background: rgba(76, 29, 149, 0.3);
                                     color: #a78bfa;
                                     font-size: 0.7rem;
                                     font-style: italic;
@@ -606,12 +612,15 @@ document.addEventListener('DOMContentLoaded', () => {
                                 
                                 // Append to end of line
                                 line.appendChild(noticeInput);
+                                inputsCreated++;
                             } else {
                                 // Update existing input's line number
                                 noticeInput.dataset.line = lineNum;
                                 noticeInput.placeholder = `#${lineNum}`;
                             }
                         });
+                        
+                        console.log(`Created ${inputsCreated} inputs, skipped ${inputsSkipped} empty lines`);
                         
                         // Remove orphaned inputs (lines that were deleted)
                         const allInputs = editQuill.root.querySelectorAll('input.notice-inline-input');
