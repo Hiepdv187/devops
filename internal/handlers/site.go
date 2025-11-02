@@ -458,6 +458,14 @@ func PostsPage() fiber.Handler {
 	}
 }
 
+func PostPreviewPage() fiber.Handler {
+	return func(c *fiber.Ctx) error {
+		return render(c, "pages/post_preview", fiber.Map{
+			"Title": "Xem trước bài viết",
+		}, "main")
+	}
+}
+
 func PostDetailPage() fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		postID, err := strconv.Atoi(c.Params("id"))

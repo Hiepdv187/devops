@@ -225,6 +225,7 @@ func main() {
 	app.Get("/about", handlers.About())
 	app.Get("/contribute", handlers.Contribute())
 	app.Get("/posts", handlers.PostsPage())
+	app.Get("/posts/preview", handlers.PostPreviewPage())
 	app.Get("/posts/:id", handlers.PostDetailPage())
 	app.Get("/auth/register", handlers.RegisterPage())
 	app.Get("/auth/login", handlers.LoginPage())

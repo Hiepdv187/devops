@@ -43,6 +43,7 @@
                         <input type="hidden" name="line_annotations" id="annotations-hidden">
 
                         <div style="display: flex; gap: 1rem; margin-top: 1.5rem;">
+                            <button type="button" id="preview-post-btn" class="btn btn-ghost" style="flex: 1;">👁️ Xem trước</button>
                             <button type="submit" class="btn btn-primary" style="flex: 1;">💾 Lưu thay đổi</button>
                             <a href="/posts/{{.Post.ID}}" class="btn btn-ghost" style="flex: 1; text-align: center;">Hủy</a>
                         </div>
@@ -54,6 +55,17 @@
             <div>
                 <div style="position: sticky; top: 2rem;">
                     <h3 style="margin-bottom: 1rem; color: #f1f5f9; font-size: 1.1rem;">📝 Notice Inline</h3>
+                    
+                    <!-- Search box -->
+                    <div style="margin-bottom: 1rem;">
+                        <input 
+                            type="text" 
+                            id="notice-search" 
+                            placeholder="🔍 Tìm kiếm dòng..." 
+                            style="width: 100%; padding: 0.75rem; background: rgba(15, 23, 42, 0.65); border: 1px solid rgba(148, 163, 184, 0.3); border-radius: 8px; color: #e2e8f0; font-size: 0.875rem;"
+                        />
+                    </div>
+                    
                     <div id="notices-container" style="background: rgba(15, 23, 42, 0.65); border: 1px solid rgba(148, 163, 184, 0.3); border-radius: 8px; padding: 1rem; max-height: 500px; overflow-y: auto;">
                         <p style="color: #64748b; font-size: 0.875rem; text-align: center; padding: 2rem;">
                             Nhập nội dung bên trái.<br>Notice inputs sẽ xuất hiện tương ứng với mỗi dòng.
@@ -94,10 +106,10 @@
 
 .btn {
     padding: 0.75rem 1.5rem;
-    border-radius: 6px;
-    font-weight: 500;
+    border-radius: 12px;
+    font-weight: 600;
     cursor: pointer;
-    transition: all 0.2s;
+    transition: all 0.15s ease-in-out;
     text-decoration: none;
     display: inline-block;
     border: none;
@@ -105,13 +117,13 @@
 }
 
 .btn-primary {
-    background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
-    color: white;
+    background: linear-gradient(135deg, #38bdf8, #0ea5e9);
+    color: #0f172a;
 }
 
 .btn-primary:hover {
     transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+    box-shadow: 0 10px 25px rgba(14, 165, 233, 0.35);
 }
 
 .btn-ghost {
@@ -239,6 +251,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const contentHidden = document.getElementById('content-hidden');
     const annotationsHidden = document.getElementById('annotations-hidden');
     const noticesContainer = document.getElementById('notices-container');
+    const noticeSearch = document.getElementById('notice-search');
     
     // Load existing annotations
     const existingAnnotations = {{.LineAnnotations | json}} || {};
@@ -359,6 +372,24 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
     
+    // Search notices
+    noticeSearch.addEventListener('input', (e) => {
+        const searchTerm = e.target.value.toLowerCase().trim();
+        const noticeItems = noticesContainer.querySelectorAll('.notice-item');
+        
+        noticeItems.forEach(item => {
+            const linePreview = item.querySelector('div[style*="color: #94a3b8"]');
+            const text = linePreview ? linePreview.textContent.toLowerCase() : '';
+            const lineNum = item.querySelector('.notice-line-num').textContent;
+            
+            if (searchTerm === '' || text.includes(searchTerm) || lineNum.includes(searchTerm)) {
+                item.style.display = 'flex';
+            } else {
+                item.style.display = 'none';
+            }
+        });
+    });
+    
     // Update on text change
     quill.on('text-change', () => {
         // Save content
@@ -371,6 +402,33 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // Initial update
     updateNotices();
+    
+    // Preview button
+    const previewBtn = document.getElementById('preview-post-btn');
+    previewBtn.addEventListener('click', () => {
+        // Save current data to sessionStorage
+        const data = {
+            title: form.querySelector('input[name="title"]').value,
+            summary: form.querySelector('input[name="summary"]').value,
+            cover_url: form.querySelector('input[name="cover_url"]').value,
+            tags: form.querySelector('input[name="tags"]').value,
+            content: quill.root.innerHTML
+        };
+        
+        // Collect notices
+        const notices = {};
+        noticesContainer.querySelectorAll('.notice-input').forEach(input => {
+            const lineNum = input.dataset.line;
+            const value = input.value.trim();
+            if (value) {
+                notices[lineNum] = value;
+            }
+        });
+        data.notices = notices;
+        
+        sessionStorage.setItem('postPreviewData', JSON.stringify(data));
+        window.open('/posts/preview', '_blank');
+    });
     
     // Form submit
     form.addEventListener('submit', (e) => {
@@ -388,13 +446,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
         
         annotationsHidden.value = JSON.stringify(notices);
-    });
-    
-    // Preview other fields
-    form.querySelectorAll('input[name="title"], input[name="summary"]').forEach(input => {
-        input.addEventListener('input', () => {
-            // Could add live preview here if needed
-        });
     });
 });
 </script>

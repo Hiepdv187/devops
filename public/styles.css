@@ -123,13 +123,14 @@ body {
 
 /* Actions box that appears right after text content */
 .inline-actions-box {
-  display: inline-flex;
+  display: inline-flex !important;
   gap: 0.25rem;
   opacity: 0;
   transition: opacity 0.2s ease;
   z-index: 10;
   margin-left: 0.5rem;
   vertical-align: middle;
+  pointer-events: auto;
 }
 
 @media (max-width: 768px) {
@@ -205,8 +206,20 @@ body {
   opacity: 1;
 }
 
-/* Show action box on hover */
-.inline-line:hover .inline-actions-box {
+/* Show action box on hover - works for all users */
+.inline-line:hover .inline-actions-box,
+.inline-list-item:hover .inline-actions-box,
+.inline-line:hover .inline-line .inline-actions-box {
+  opacity: 1 !important;
+  visibility: visible !important;
+}
+
+/* Also show if there are comments (has count badge) */
+.inline-actions-box:has(.inline-btn span) {
+  opacity: 0.6;
+}
+
+.inline-actions-box:has(.inline-btn span):hover {
   opacity: 1;
 }
 
