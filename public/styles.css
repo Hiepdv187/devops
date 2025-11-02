@@ -131,7 +131,14 @@ body {
   margin-left: 0.5rem;
   vertical-align: middle;
   pointer-events: auto;
+  position: relative;
 }
+
+/* DEBUG: Temporary - always show to test */
+/* .inline-actions-box {
+  opacity: 1 !important;
+  background: rgba(255, 0, 0, 0.1);
+} */
 
 @media (max-width: 768px) {
   .inline-actions-box {
@@ -201,17 +208,36 @@ body {
   }
 }
 
+/* Show annotation on hover */
 .inline-line:hover .line-annotation,
-.inline-line.annotation-active .line-annotation {
-  opacity: 1;
+.inline-line.annotation-active .line-annotation,
+.inline-list-item:hover .line-annotation,
+p:hover .line-annotation,
+h1:hover .line-annotation,
+h2:hover .line-annotation,
+h3:hover .line-annotation,
+li:hover .line-annotation,
+span.inline-line:hover .line-annotation,
+div.inline-line:hover .line-annotation,
+*:hover > .line-annotation {
+  opacity: 1 !important;
+  visibility: visible !important;
 }
 
 /* Show action box on hover - works for all users */
 .inline-line:hover .inline-actions-box,
 .inline-list-item:hover .inline-actions-box,
-.inline-line:hover .inline-line .inline-actions-box {
+.inline-line:hover .inline-line .inline-actions-box,
+p:hover .inline-actions-box,
+h1:hover .inline-actions-box,
+h2:hover .inline-actions-box,
+h3:hover .inline-actions-box,
+li:hover .inline-actions-box,
+span.inline-line:hover .inline-actions-box,
+div.inline-line:hover .inline-actions-box {
   opacity: 1 !important;
   visibility: visible !important;
+  display: inline-flex !important;
 }
 
 /* Also show if there are comments (has count badge) */
@@ -221,6 +247,11 @@ body {
 
 .inline-actions-box:has(.inline-btn span):hover {
   opacity: 1;
+}
+
+/* Force show on parent hover */
+*:hover > .inline-actions-box {
+  opacity: 1 !important;
 }
 
 /* Highlight effect for live annotation updates */
