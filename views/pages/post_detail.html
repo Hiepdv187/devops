@@ -625,7 +625,12 @@ document.addEventListener('DOMContentLoaded', () => {
                     const lines = editQuill.root.querySelectorAll('p, h1, h2, h3, h4, h5, h6, li');
                     const existingNotices = {};
                     
-                    // Preserve existing notice values
+                    // First, load from lineAnnotations (from backend)
+                    Object.keys(lineAnnotations).forEach(lineNum => {
+                        existingNotices[lineNum] = lineAnnotations[lineNum];
+                    });
+                    
+                    // Then preserve existing notice values from inputs (override if changed)
                     noticeList.querySelectorAll('input[data-line]').forEach(input => {
                         if (input.value.trim()) {
                             existingNotices[input.dataset.line] = input.value.trim();
@@ -684,14 +689,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 // Load existing annotations into sidebar
                 setTimeout(() => {
                     updateEditNoticeInputs();
-                    
-                    // Populate with existing annotations
-                    Object.keys(lineAnnotations).forEach(lineNum => {
-                        const input = noticeList.querySelector(`input[data-line="${lineNum}"]`);
-                        if (input) {
-                            input.value = lineAnnotations[lineNum];
-                        }
-                    });
+                    // Annotations are now loaded inside updateEditNoticeInputs()
                 }, 100);
                 
                 if (editQuill) {
