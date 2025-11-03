@@ -675,24 +675,44 @@ document.addEventListener('DOMContentLoaded', () => {
                         }
                     });
                     
-                    const formData = new FormData(editForm);
-                    formData.set('line_annotations', JSON.stringify(noticeData));
+                    // Use JSON instead of FormData to avoid WAF issues
+                    const payload = {
+                        title: editForm.querySelector('input[name="title"]').value,
+                        summary: editForm.querySelector('input[name="summary"]').value,
+                        content: editForm.querySelector('#edit-content-textarea').value,
+                        cover_url: editForm.querySelector('input[name="cover_url"]').value,
+                        tags: editForm.querySelector('input[name="tags"]').value,
+                        line_annotations: JSON.stringify(noticeData)
+                    };
                     
-                    // Submit via fetch to avoid WAF issues with large POST
+                    // Submit via fetch with JSON to avoid WAF issues
                     const response = await fetch(editForm.action, {
                         method: 'POST',
-                        body: formData,
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Accept': 'application/json'
+                        },
+                        body: JSON.stringify(payload),
                         redirect: 'manual' // Don't auto-follow redirects
                     });
                     
-                    if (response.ok || response.status === 303 || response.status === 302) {
+                    if (response.ok) {
                         // Success - reload to show updated content
                         window.location.reload();
                     } else if (response.status === 403) {
                         throw new Error('Yêu cầu bị chặn bởi tường lửa. Vui lòng thử giảm độ dài nội dung hoặc liên hệ quản trị viên.');
                     } else {
-                        const error = await response.text();
-                        throw new Error(error || 'Có lỗi xảy ra khi cập nhật bài viết');
+                        // Try to parse error as JSON first
+                        try {
+                            const errorData = await response.json();
+                            throw new Error(errorData.message || errorData.error || 'Có lỗi xảy ra khi cập nhật bài viết');
+                        } catch (e) {
+                            if (e.message && !e.message.includes('JSON')) {
+                                throw e;
+                            }
+                            const error = await response.text();
+                            throw new Error(error || 'Có lỗi xảy ra khi cập nhật bài viết');
+                        }
                     }
                 } catch (error) {
                     alert('Lỗi: ' + error.message);
