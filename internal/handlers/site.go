@@ -26,6 +26,24 @@ import (
 
 var sessionStore = session.New()
 
+// Vietnam timezone
+var vietnamLocation *time.Location
+
+func init() {
+	// Load Vietnam timezone (UTC+7)
+	var err error
+	vietnamLocation, err = time.LoadLocation("Asia/Ho_Chi_Minh")
+	if err != nil {
+		// Fallback to fixed offset if timezone data not available
+		vietnamLocation = time.FixedZone("ICT", 7*60*60) // UTC+7
+	}
+}
+
+// formatTimeVN formats time in Vietnam timezone
+func formatTimeVN(t time.Time) string {
+	return t.In(vietnamLocation).Format("02/01/2006 15:04")
+}
+
 func isJSONRequest(c *fiber.Ctx) bool {
 	return c.Is("json") || strings.Contains(strings.ToLower(c.Get(fiber.HeaderContentType)), fiber.MIMEApplicationJSON)
 }
@@ -270,7 +288,7 @@ func Home() fiber.Handler {
 					"Summary":      p.Summary,
 					"CoverURL":     p.CoverURL,
 					"AuthorName":   p.Author.Name,
-					"CreatedLabel": p.CreatedAt.Format("02/01/2006 15:04"),
+					"CreatedLabel": formatTimeVN(p.CreatedAt),
 					"PostTags":     postTags,
 				})
 			}
@@ -411,7 +429,7 @@ func PostsPage() fiber.Handler {
 				"Content":      p.Content,
 				"CoverURL":     p.CoverURL,
 				"AuthorName":   p.Author.Name,
-				"CreatedLabel": p.CreatedAt.Format("02/01/2006 15:04"),
+				"CreatedLabel": formatTimeVN(p.CreatedAt),
 				"PostTags":     postTags,
 			})
 		}
@@ -496,7 +514,7 @@ func PostDetailPage() fiber.Handler {
 				"ID":         cm.ID,
 				"Content":    cm.Content,
 				"AuthorName": cm.Author.Name,
-				"CreatedAt":  cm.CreatedAt.Format("02/01/2006 15:04"),
+				"CreatedAt":  formatTimeVN(cm.CreatedAt),
 			}
 			if cm.LineNumber != nil {
 				lineComments[*cm.LineNumber] = append(lineComments[*cm.LineNumber], comment)
@@ -548,7 +566,7 @@ func PostDetailPage() fiber.Handler {
 				"Tags":         post.Tags,
 				"AuthorName":   post.Author.Name,
 				"AuthorID":     post.AuthorID,
-				"CreatedLabel": post.CreatedAt.Format("02/01/2006 15:04"),
+				"CreatedLabel": formatTimeVN(post.CreatedAt),
 			},
 			"PostTags":        postTags,
 			"LineComments":    lineComments,
@@ -964,24 +982,21 @@ func CreateComment() fiber.Handler {
 			return respondError(c, fiber.StatusInternalServerError, "Không thể tạo bình luận", fmt.Sprintf("/posts/%d", postID))
 		}
 
+		authorName := author.Name
 		if isJSON {
-			var authorName string
-			if err := db.Model(&models.User{}).Where("id = ?", comment.AuthorID).Pluck("name", &authorName).Error; err == nil {
-				// got name
-			}
 			return c.Status(fiber.StatusCreated).JSON(fiber.Map{
-				"message": "Thêm bình luận thành công",
+				"message": "Đã thêm bình luận",
 				"comment": fiber.Map{
 					"id":          comment.ID,
 					"content":     comment.Content,
 					"author_name": authorName,
 					"line_number": body.LineNumber,
-					"created_at":  comment.CreatedAt.Format("02/01/2006 15:04"),
+					"created_at":  formatTimeVN(comment.CreatedAt),
 				},
 			})
 		}
 
-		setFlash(c, "success", "Bình luận đã được gửi")
+		setFlash(c, "success", "Đã thêm bình luận")
 		return c.Status(fiber.StatusSeeOther).Redirect(fmt.Sprintf("/posts/%d", postID))
 	}
 }
