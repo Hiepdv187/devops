@@ -370,14 +370,36 @@ document.addEventListener('DOMContentLoaded', () => {
                     editQuill.format('color', e.target.value);
                 });
 
-                // Show/hide bubble toolbar on text selection
-                editQuill.on('selection-change', (range) => {
-                    if (range && range.length > 0) {
-                        const bounds = editQuill.getBounds(range.index, range.length);
-                        const editorRect = document.getElementById('edit-editor-container').getBoundingClientRect();
-                        
-                        // Update bubble toolbar controls to reflect current format
-                        const currentFormat = editQuill.getFormat(range);
+                // Function to update and show bubble toolbar
+                function updateEditBubbleToolbar() {
+                    const selection = window.getSelection();
+                    if (!selection || selection.rangeCount === 0) {
+                        bubbleToolbar.style.display = 'none';
+                        return;
+                    }
+
+                    const range = selection.getRangeAt(0);
+                    const editorContainer = document.getElementById('edit-editor-container');
+                    
+                    // Check if selection is within editor
+                    if (!editorContainer.contains(range.commonAncestorContainer)) {
+                        bubbleToolbar.style.display = 'none';
+                        return;
+                    }
+
+                    // Check if there's actual text selected
+                    if (selection.toString().trim().length === 0) {
+                        bubbleToolbar.style.display = 'none';
+                        return;
+                    }
+
+                    // Get selection bounds
+                    const rect = range.getBoundingClientRect();
+                    
+                    // Get Quill format for the selection
+                    const quillSelection = editQuill.getSelection();
+                    if (quillSelection) {
+                        const currentFormat = editQuill.getFormat(quillSelection);
                         
                         // Update size select
                         const sizeSelect = bubbleToolbar.querySelector('.ql-size');
@@ -394,13 +416,34 @@ document.addEventListener('DOMContentLoaded', () => {
                         } else {
                             colorSelect.value = '#e2e8f0'; // Default color
                         }
-                        
-                        bubbleToolbar.style.display = 'flex';
-                        bubbleToolbar.style.gap = '2px';
-                        bubbleToolbar.style.left = (editorRect.left + bounds.left + (bounds.width / 2) - (bubbleToolbar.offsetWidth / 2)) + 'px';
-                        bubbleToolbar.style.top = (editorRect.top + bounds.top - bubbleToolbar.offsetHeight - 8 + window.scrollY) + 'px';
+                    }
+                    
+                    // Position and show bubble toolbar
+                    bubbleToolbar.style.display = 'flex';
+                    bubbleToolbar.style.gap = '2px';
+                    bubbleToolbar.style.left = (rect.left + (rect.width / 2) - (bubbleToolbar.offsetWidth / 2)) + 'px';
+                    bubbleToolbar.style.top = (rect.top - bubbleToolbar.offsetHeight - 8 + window.scrollY) + 'px';
+                }
+
+                // Listen to both Quill and native selection changes
+                editQuill.on('selection-change', (range) => {
+                    if (range && range.length > 0) {
+                        updateEditBubbleToolbar();
                     } else {
                         bubbleToolbar.style.display = 'none';
+                    }
+                });
+
+                // Also listen to native selectionchange for multiple selections
+                document.addEventListener('selectionchange', () => {
+                    const selection = window.getSelection();
+                    const editorContainer = document.getElementById('edit-editor-container');
+                    
+                    if (selection && selection.toString().trim().length > 0) {
+                        const range = selection.getRangeAt(0);
+                        if (editorContainer.contains(range.commonAncestorContainer)) {
+                            updateEditBubbleToolbar();
+                        }
                     }
                 });
 

@@ -1174,7 +1174,7 @@ nav a.active::after {
 .post-body h6,
 .post-body li,
 .post-body div {
-  line-height: 1.6;
+  line-height: 1;
   margin: 0.5em 0;
 }
 
