@@ -1,0 +1,447 @@
+<section class="hero hero-basic posts-hero">
+    <div class="hero-header">
+        <div class="hero-text">
+            <h1>📚 Sách</h1>
+            <p>Khám phá và tạo sách kỹ thuật với tính năng lật trang</p>
+        </div>
+    </div>
+    {{if .User}}
+    <div class="hero-actions">
+        <button type="button" class="btn primary" id="create-book-btn">+ Tạo sách mới</button>
+    </div>
+    {{end}}
+</section>
+
+{{if .Books}}
+<div class="books-grid">
+    {{range .Books}}
+    <article class="card book-card">
+        {{if .CoverURL}}
+        <figure class="book-cover">
+            <img src="{{.CoverURL}}" alt="{{.Title}}" loading="lazy">
+        </figure>
+        {{else}}
+        <figure class="book-cover book-cover-placeholder">
+            <span>📖</span>
+        </figure>
+        {{end}}
+        <div class="book-info">
+            <h3>{{.Title}}</h3>
+            {{if .Description}}
+            <p class="book-description">{{.Description}}</p>
+            {{end}}
+            <p class="meta">Bởi {{.AuthorName}}</p>
+        </div>
+        <div class="book-actions">
+            <a href="/books/{{.ID}}/read" class="btn ghost">📖 Đọc sách</a>
+            {{if $.User}}
+            {{if eq .AuthorID $.User.ID}}
+            <a href="/books/{{.ID}}" class="btn ghost">✏️ Chỉnh sửa</a>
+            {{end}}
+            {{end}}
+        </div>
+    </article>
+    {{end}}
+</div>
+{{else}}
+<div class="empty-state">
+    <p>Chưa có sách nào. {{if .User}}Hãy tạo sách đầu tiên!{{end}}</p>
+</div>
+{{end}}
+
+<!-- Create Book Modal -->
+{{if .User}}
+<div id="create-book-modal" class="modal" style="display: none;">
+    <div class="modal-content modal-large">
+        <div class="modal-header">
+            <h2>📚 Tạo sách mới</h2>
+            <button type="button" class="modal-close" data-action="close-modal">×</button>
+        </div>
+        <div class="book-creator-grid">
+            <form id="create-book-form" class="stack">
+                <label>
+                    Tiêu đề sách
+                    <input type="text" name="title" id="book-title-input" placeholder="Nhập tiêu đề sách" required>
+                </label>
+                <label>
+                    Mô tả ngắn
+                    <textarea name="description" id="book-desc-input" rows="4" placeholder="Tóm tắt nội dung sách..."></textarea>
+                </label>
+                <label>
+                    Ảnh bìa (URL)
+                    <input type="url" name="cover_url" id="book-cover-input" placeholder="https://example.com/cover.jpg">
+                </label>
+                <div class="form-actions">
+                    <button type="button" class="btn ghost" data-action="close-modal">Hủy</button>
+                    <button type="submit" class="btn primary">Tạo sách & Viết nội dung</button>
+                </div>
+            </form>
+            <div class="book-cover-preview">
+                <h3 style="margin-top: 0; font-size: 1rem; color: #94a3b8;">Preview bìa sách</h3>
+                <div class="preview-book-card">
+                    <div class="preview-cover" id="preview-cover">
+                        <span class="preview-placeholder">📖</span>
+                        <img id="preview-cover-img" style="display: none;" alt="Book cover">
+                    </div>
+                    <div class="preview-info">
+                        <h4 id="preview-title">Tiêu đề sách</h4>
+                        <p id="preview-description">Mô tả sẽ hiển thị ở đây...</p>
+                        <p class="preview-author">Bởi {{.User.Name}}</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.books-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 1.5rem;
+    margin-top: 2rem;
+}
+
+.book-card {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    padding: 1.25rem;
+}
+
+.book-cover {
+    width: 100%;
+    height: 200px;
+    border-radius: 12px;
+    overflow: hidden;
+    background: rgba(15, 23, 42, 0.6);
+    margin: 0;
+}
+
+.book-cover img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.book-cover-placeholder {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 4rem;
+}
+
+.book-info {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.book-info h3 {
+    margin: 0;
+    font-size: 1.25rem;
+    color: #e2e8f0;
+}
+
+.book-description {
+    color: #cbd5e1;
+    font-size: 0.9rem;
+    line-height: 1.5;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.book-actions {
+    display: flex;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+}
+
+.empty-state {
+    text-align: center;
+    padding: 3rem;
+    color: #94a3b8;
+    font-size: 1.1rem;
+}
+
+.modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(15, 23, 42, 0.9);
+    backdrop-filter: blur(8px);
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+}
+
+.modal-content {
+    background: rgba(30, 41, 59, 0.95);
+    border: 1px solid rgba(148, 163, 184, 0.3);
+    border-radius: 16px;
+    padding: 2rem;
+    max-width: 500px;
+    width: 100%;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+}
+
+.modal-header h2 {
+    margin: 0;
+    font-size: 1.5rem;
+    color: #e2e8f0;
+}
+
+.modal-close {
+    background: none;
+    border: none;
+    color: #94a3b8;
+    font-size: 2rem;
+    cursor: pointer;
+    padding: 0;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 8px;
+    transition: all 0.2s;
+}
+
+.modal-close:hover {
+    background: rgba(148, 163, 184, 0.15);
+    color: #e2e8f0;
+}
+
+.modal-large {
+    max-width: 900px !important;
+}
+
+.book-creator-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 2rem;
+}
+
+.book-cover-preview {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.preview-book-card {
+    background: rgba(15, 23, 42, 0.6);
+    border: 1px solid rgba(148, 163, 184, 0.2);
+    border-radius: 12px;
+    padding: 1.25rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.preview-cover {
+    width: 100%;
+    height: 220px;
+    border-radius: 12px;
+    overflow: hidden;
+    background: rgba(15, 23, 42, 0.6);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+}
+
+.preview-placeholder {
+    font-size: 5rem;
+    opacity: 0.3;
+}
+
+.preview-cover img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    position: absolute;
+    top: 0;
+    left: 0;
+}
+
+.preview-info {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.preview-info h4 {
+    margin: 0;
+    font-size: 1.25rem;
+    color: #e2e8f0;
+}
+
+.preview-info p {
+    margin: 0;
+    color: #cbd5e1;
+    font-size: 0.9rem;
+    line-height: 1.5;
+}
+
+.preview-author {
+    color: #94a3b8 !important;
+    font-size: 0.85rem !important;
+    font-style: italic;
+    margin-top: 0.5rem !important;
+}
+
+@media (max-width: 768px) {
+    .book-creator-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 640px) {
+    .books-grid {
+        grid-template-columns: 1fr;
+    }
+}
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const createBtn = document.getElementById('create-book-btn');
+    const modal = document.getElementById('create-book-modal');
+    const form = document.getElementById('create-book-form');
+    const closeButtons = document.querySelectorAll('[data-action="close-modal"]');
+
+    // Preview elements
+    const titleInput = document.getElementById('book-title-input');
+    const descInput = document.getElementById('book-desc-input');
+    const coverInput = document.getElementById('book-cover-input');
+    const previewTitle = document.getElementById('preview-title');
+    const previewDesc = document.getElementById('preview-description');
+    const previewCoverImg = document.getElementById('preview-cover-img');
+    const previewPlaceholder = document.querySelector('.preview-placeholder');
+
+    // Live preview updates
+    if (titleInput && previewTitle) {
+        titleInput.addEventListener('input', (e) => {
+            previewTitle.textContent = e.target.value || 'Tiêu đề sách';
+        });
+    }
+
+    if (descInput && previewDesc) {
+        descInput.addEventListener('input', (e) => {
+            previewDesc.textContent = e.target.value || 'Mô tả sẽ hiển thị ở đây...';
+        });
+    }
+
+    if (coverInput && previewCoverImg && previewPlaceholder) {
+        coverInput.addEventListener('input', (e) => {
+            const url = e.target.value.trim();
+            if (url) {
+                previewCoverImg.src = url;
+                previewCoverImg.style.display = 'block';
+                previewPlaceholder.style.display = 'none';
+                
+                // Handle image load error
+                previewCoverImg.onerror = () => {
+                    previewCoverImg.style.display = 'none';
+                    previewPlaceholder.style.display = 'flex';
+                };
+            } else {
+                previewCoverImg.style.display = 'none';
+                previewPlaceholder.style.display = 'flex';
+            }
+        });
+    }
+
+    // Open modal
+    function openModal() {
+        if (modal) {
+            modal.style.display = 'flex';
+            // Reset preview
+            if (previewTitle) previewTitle.textContent = 'Tiêu đề sách';
+            if (previewDesc) previewDesc.textContent = 'Mô tả sẽ hiển thị ở đây...';
+            if (previewCoverImg) previewCoverImg.style.display = 'none';
+            if (previewPlaceholder) previewPlaceholder.style.display = 'flex';
+        }
+    }
+
+    // Close modal
+    function closeModal() {
+        if (modal) {
+            modal.style.display = 'none';
+            form.reset();
+        }
+    }
+
+    if (createBtn && modal) {
+        createBtn.addEventListener('click', openModal);
+
+        closeButtons.forEach(btn => {
+            btn.addEventListener('click', closeModal);
+        });
+
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) {
+                closeModal();
+            }
+        });
+
+        // Handle #create hash
+        function handleHash() {
+            if (window.location.hash === '#create') {
+                openModal();
+            }
+        }
+
+        handleHash();
+        window.addEventListener('hashchange', handleHash);
+
+        // Form submit
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const formData = new FormData(form);
+            const data = {
+                title: formData.get('title'),
+                description: formData.get('description'),
+                cover_url: formData.get('cover_url')
+            };
+
+            try {
+                const response = await fetch('/books', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(data)
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    window.location.href = `/books/${result.book_id}`;
+                } else {
+                    alert(result.error || 'Lỗi tạo sách');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Lỗi kết nối');
+            }
+        });
+    }
+});
+</script>
+{{end}}

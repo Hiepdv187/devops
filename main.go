@@ -206,6 +206,9 @@ func main() {
 	engine.AddFunc("safeHTML", func(s string) template.HTML {
 		return template.HTML(s)
 	})
+	engine.AddFunc("add", func(a, b int) int {
+		return a + b
+	})
 	app := fiber.New(fiber.Config{
 		Views:       engine,
 		ViewsLayout: "layouts/main",
@@ -227,6 +230,9 @@ func main() {
 	app.Get("/posts", handlers.PostsPage())
 	app.Get("/posts/preview", handlers.PostPreviewPage())
 	app.Get("/posts/:id", handlers.PostDetailPage())
+	app.Get("/books", handlers.BooksPage())
+	app.Get("/books/:id", handlers.BookDetailPage())
+	app.Get("/books/:id/read", handlers.BookReadPage())
 	app.Get("/auth/register", handlers.RegisterPage())
 	app.Get("/auth/login", handlers.LoginPage())
 	app.Post("/auth/register", handlers.Register())
@@ -236,6 +242,11 @@ func main() {
 	app.Post("/posts/:id/comments", handlers.CreateComment())
 	app.Post("/posts/:id/annotations", handlers.CreateAnnotation())
 	app.Post("/posts/:id/edit", handlers.UpdatePost())
+	app.Post("/books", handlers.CreateBook())
+	app.Post("/books/:id/edit", handlers.UpdateBook())
+	app.Post("/books/:id/pages", handlers.CreateBookPage())
+	app.Post("/books/:bookId/pages/:pageId/edit", handlers.UpdateBookPage())
+	app.Delete("/books/:bookId/pages/:pageId", handlers.DeleteBookPage())
 	app.Post("/upload/image", handlers.UploadImage())
 	app.Get("/images/:id", handlers.GetImage())
 
