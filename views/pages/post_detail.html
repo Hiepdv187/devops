@@ -256,7 +256,8 @@ document.addEventListener('DOMContentLoaded', () => {
             const defaultContent = '<p>Nội dung bài viết hiển thị theo từng đoạn...</p>';
 
             // Initialize Quill editor for edit mode
-            if (window.Quill && document.getElementById('edit-editor-container')) {
+            const editEditorContainer = document.getElementById('edit-editor-container');
+            if (window.Quill && editEditorContainer) {
                 editQuill = new Quill('#edit-editor-container', {
                     theme: 'snow',
                     placeholder: 'Chỉnh sửa nội dung bài viết...',
@@ -482,7 +483,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 });
 
                 // Prevent scroll on paste - maintain cursor position
-                const editEditorContainer = document.getElementById('edit-editor-container');
                 let isPasting = false;
                 let savedScrollPos = 0;
                 let savedSelection = null;
