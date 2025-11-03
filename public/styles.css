@@ -132,6 +132,10 @@ body {
   vertical-align: middle;
   pointer-events: auto;
   position: relative;
+  user-select: none;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
 }
 
 /* DEBUG: Uncomment to test if action boxes exist */
@@ -162,6 +166,10 @@ body {
   display: inline-flex;
   align-items: center;
   line-height: 1.6;
+  user-select: none;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
 }
 
 .inline-btn:hover {
@@ -284,6 +292,10 @@ div.inline-line:hover .inline-actions-box {
   padding: 1rem;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
   z-index: 1000;
+  user-select: none;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
 }
 
 @media (min-width: 769px) {
