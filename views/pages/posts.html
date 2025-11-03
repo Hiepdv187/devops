@@ -411,6 +411,25 @@ document.addEventListener('DOMContentLoaded', function () {
             const bounds = quill.getBounds(range.index, range.length);
             const editorRect = document.getElementById('editor-container').getBoundingClientRect();
             
+            // Update bubble toolbar controls to reflect current format
+            const currentFormat = quill.getFormat(range);
+            
+            // Update size select
+            const sizeSelect = bubbleToolbar.querySelector('.ql-size');
+            if (currentFormat.size) {
+                sizeSelect.value = currentFormat.size;
+            } else {
+                sizeSelect.value = ''; // Normal/default size
+            }
+            
+            // Update color select
+            const colorSelect = bubbleToolbar.querySelector('.ql-color');
+            if (currentFormat.color) {
+                colorSelect.value = currentFormat.color;
+            } else {
+                colorSelect.value = '#e2e8f0'; // Default color
+            }
+            
             bubbleToolbar.style.display = 'flex';
             bubbleToolbar.style.gap = '2px';
             bubbleToolbar.style.left = (editorRect.left + bounds.left + (bounds.width / 2) - (bubbleToolbar.offsetWidth / 2)) + 'px';
@@ -655,14 +674,62 @@ document.addEventListener('DOMContentLoaded', function () {
     }
     
     // Sync notices to hidden field before submit
-    composer.addEventListener('submit', function() {
-        const noticeData = {};
-        document.querySelectorAll('#notice-list input[data-line]').forEach(input => {
-            if (input.value.trim()) {
-                noticeData[input.dataset.line] = input.value.trim();
+    composer.addEventListener('submit', async function(e) {
+        e.preventDefault();
+        
+        const submitBtn = composer.querySelector('button[type="submit"]');
+        const originalText = submitBtn.textContent;
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Đang đăng...';
+        
+        try {
+            // Collect form data
+            const noticeData = {};
+            document.querySelectorAll('#notice-list input[data-line]').forEach(input => {
+                if (input.value.trim()) {
+                    noticeData[input.dataset.line] = input.value.trim();
+                }
+            });
+            
+            const formData = new FormData(composer);
+            formData.set('line_annotations', JSON.stringify(noticeData));
+            
+            // Submit via fetch to avoid WAF issues with large POST
+            const response = await fetch('/posts', {
+                method: 'POST',
+                body: formData,
+                redirect: 'manual' // Don't auto-follow redirects
+            });
+            
+            if (response.ok || response.status === 303 || response.status === 302) {
+                // Success - check for redirect location
+                const location = response.headers.get('Location');
+                if (location) {
+                    window.location.href = location;
+                } else {
+                    // Try to parse JSON response
+                    try {
+                        const result = await response.json();
+                        if (result.post && result.post.id) {
+                            window.location.href = `/posts/${result.post.id}`;
+                        } else {
+                            window.location.href = '/posts';
+                        }
+                    } catch {
+                        window.location.href = '/posts';
+                    }
+                }
+            } else if (response.status === 403) {
+                throw new Error('Yêu cầu bị chặn bởi tường lửa. Vui lòng thử giảm độ dài nội dung hoặc liên hệ quản trị viên.');
+            } else {
+                const error = await response.text();
+                throw new Error(error || 'Có lỗi xảy ra khi đăng bài');
             }
-        });
-        document.getElementById('line-annotations').value = JSON.stringify(noticeData);
+        } catch (error) {
+            alert('Lỗi: ' + error.message);
+            submitBtn.disabled = false;
+            submitBtn.textContent = originalText;
+        }
     });
 
     // Handle other preview fields

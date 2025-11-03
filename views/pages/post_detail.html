@@ -376,6 +376,25 @@ document.addEventListener('DOMContentLoaded', () => {
                         const bounds = editQuill.getBounds(range.index, range.length);
                         const editorRect = document.getElementById('edit-editor-container').getBoundingClientRect();
                         
+                        // Update bubble toolbar controls to reflect current format
+                        const currentFormat = editQuill.getFormat(range);
+                        
+                        // Update size select
+                        const sizeSelect = bubbleToolbar.querySelector('.ql-size');
+                        if (currentFormat.size) {
+                            sizeSelect.value = currentFormat.size;
+                        } else {
+                            sizeSelect.value = ''; // Normal/default size
+                        }
+                        
+                        // Update color select
+                        const colorSelect = bubbleToolbar.querySelector('.ql-color');
+                        if (currentFormat.color) {
+                            colorSelect.value = currentFormat.color;
+                        } else {
+                            colorSelect.value = '#e2e8f0'; // Default color
+                        }
+                        
                         bubbleToolbar.style.display = 'flex';
                         bubbleToolbar.style.gap = '2px';
                         bubbleToolbar.style.left = (editorRect.left + bounds.left + (bounds.width / 2) - (bubbleToolbar.offsetWidth / 2)) + 'px';
@@ -639,14 +658,47 @@ document.addEventListener('DOMContentLoaded', () => {
             });
 
             // Sync notices to hidden field before submit
-            editForm.addEventListener('submit', function() {
-                const noticeData = {};
-                noticeList.querySelectorAll('input[data-line]').forEach(input => {
-                    if (input.value.trim()) {
-                        noticeData[input.dataset.line] = input.value.trim();
+            editForm.addEventListener('submit', async function(e) {
+                e.preventDefault();
+                
+                const submitBtn = editForm.querySelector('button[type="submit"]');
+                const originalText = submitBtn.textContent;
+                submitBtn.disabled = true;
+                submitBtn.textContent = 'Đang lưu...';
+                
+                try {
+                    // Collect form data
+                    const noticeData = {};
+                    noticeList.querySelectorAll('input[data-line]').forEach(input => {
+                        if (input.value.trim()) {
+                            noticeData[input.dataset.line] = input.value.trim();
+                        }
+                    });
+                    
+                    const formData = new FormData(editForm);
+                    formData.set('line_annotations', JSON.stringify(noticeData));
+                    
+                    // Submit via fetch to avoid WAF issues with large POST
+                    const response = await fetch(editForm.action, {
+                        method: 'POST',
+                        body: formData,
+                        redirect: 'manual' // Don't auto-follow redirects
+                    });
+                    
+                    if (response.ok || response.status === 303 || response.status === 302) {
+                        // Success - reload to show updated content
+                        window.location.reload();
+                    } else if (response.status === 403) {
+                        throw new Error('Yêu cầu bị chặn bởi tường lửa. Vui lòng thử giảm độ dài nội dung hoặc liên hệ quản trị viên.');
+                    } else {
+                        const error = await response.text();
+                        throw new Error(error || 'Có lỗi xảy ra khi cập nhật bài viết');
                     }
-                });
-                document.getElementById('edit-line-annotations').value = JSON.stringify(noticeData);
+                } catch (error) {
+                    alert('Lỗi: ' + error.message);
+                    submitBtn.disabled = false;
+                    submitBtn.textContent = originalText;
+                }
             });
 
             // Preview button handler
