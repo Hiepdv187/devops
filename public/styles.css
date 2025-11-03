@@ -676,6 +676,11 @@ nav a.active::after {
   /* Prevent content overflow */
   box-sizing: border-box;
   overflow: hidden;
+  /* Sticky positioning to follow scroll */
+  position: sticky;
+  top: 2rem;
+  max-height: calc(100vh - 4rem);
+  overflow-y: auto;
 }
 
 /* Preview content: force wrapping and prevent overflow */
