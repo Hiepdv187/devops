@@ -1103,18 +1103,19 @@ nav a.active::after {
     max-width: none;
   }
 
-  /* Full width post detail on mobile */
-  .post-detail .hero,
-  .post-detail .post-meta-actions,
-  .post-detail .post-body,
-  .post-detail .comments,
-  .post-detail .comment-form {
-    margin-left: -1rem;
-    margin-right: -1rem;
+  /* Full width post detail on mobile - remove container padding */
+  main:has(.post-detail) .container {
+    padding-left: 0;
+    padding-right: 0;
+  }
+
+  /* Add padding back to individual sections */
+  .post-detail > * {
     padding-left: 1rem;
     padding-right: 1rem;
   }
 
+  /* Remove rounded corners and side borders for cards */
   .post-detail .card {
     border-radius: 0;
     border-left: none;
