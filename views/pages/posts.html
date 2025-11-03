@@ -471,17 +471,23 @@ document.addEventListener('DOMContentLoaded', function () {
     });
 
     // Also listen to native selectionchange for multiple selections
-    document.addEventListener('selectionchange', () => {
+    const handleSelectionChange = () => {
         const selection = window.getSelection();
         const editorContainer = document.getElementById('editor-container');
         
-        if (selection && selection.toString().trim().length > 0) {
+        if (!editorContainer || !selection) return;
+        
+        if (selection.toString().trim().length > 0 && selection.rangeCount > 0) {
             const range = selection.getRangeAt(0);
             if (editorContainer.contains(range.commonAncestorContainer)) {
-                updateBubbleToolbar();
+                setTimeout(() => updateBubbleToolbar(), 10);
             }
         }
-    });
+    };
+    
+    // Remove any existing listener first
+    document.removeEventListener('selectionchange', handleSelectionChange);
+    document.addEventListener('selectionchange', handleSelectionChange);
 
     // Hide bubble toolbar when clicking outside
     document.addEventListener('click', (e) => {

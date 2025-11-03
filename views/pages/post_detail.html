@@ -435,17 +435,23 @@ document.addEventListener('DOMContentLoaded', () => {
                 });
 
                 // Also listen to native selectionchange for multiple selections
-                document.addEventListener('selectionchange', () => {
+                const handleEditSelectionChange = () => {
                     const selection = window.getSelection();
                     const editorContainer = document.getElementById('edit-editor-container');
                     
-                    if (selection && selection.toString().trim().length > 0) {
+                    if (!editorContainer || !selection) return;
+                    
+                    if (selection.toString().trim().length > 0 && selection.rangeCount > 0) {
                         const range = selection.getRangeAt(0);
                         if (editorContainer.contains(range.commonAncestorContainer)) {
-                            updateEditBubbleToolbar();
+                            setTimeout(() => updateEditBubbleToolbar(), 10);
                         }
                     }
-                });
+                };
+                
+                // Remove any existing listener first
+                document.removeEventListener('selectionchange', handleEditSelectionChange);
+                document.addEventListener('selectionchange', handleEditSelectionChange);
 
                 // Hide bubble toolbar when clicking outside
                 document.addEventListener('click', (e) => {
@@ -486,8 +492,15 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
                 });
 
-                // Load existing content - use clipboard to preserve formatting including <br>
-                if (textarea && textarea.value) {
+                // Load existing content from postBody (which includes annotations)
+                // Use postBody.innerHTML instead of textarea to preserve annotations
+                const postBodyContent = document.querySelector('.post-body');
+                if (postBodyContent) {
+                    const delta = editQuill.clipboard.convert(postBodyContent.innerHTML);
+                    editQuill.setContents(delta, 'silent');
+                    // Update textarea to match
+                    textarea.value = postBodyContent.innerHTML;
+                } else if (textarea && textarea.value) {
                     const delta = editQuill.clipboard.convert(textarea.value);
                     editQuill.setContents(delta, 'silent');
                 }
