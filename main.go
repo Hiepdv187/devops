@@ -247,6 +247,9 @@ func main() {
 	app.Post("/books/:id/pages", handlers.CreateBookPage())
 	app.Post("/books/:bookId/pages/:pageId/edit", handlers.UpdateBookPage())
 	app.Delete("/books/:bookId/pages/:pageId", handlers.DeleteBookPage())
+	app.Post("/books/:bookId/pages/:pageId/highlights", handlers.SaveHighlight())
+	app.Get("/books/:bookId/pages/:pageId/highlights", handlers.GetHighlights())
+	app.Delete("/books/:bookId/pages/:pageId/highlights/:highlightId", handlers.DeleteHighlight())
 	app.Post("/upload/image", handlers.UploadImage())
 	app.Get("/images/:id", handlers.GetImage())
 

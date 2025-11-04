@@ -23,22 +23,18 @@
 {{if .Books}}
 <div class="books-grid">
     {{range .Books}}
-    <article class="card book-card">
-        {{if .CoverURL}}
-        <figure class="book-cover">
-            <img src="{{.CoverURL}}" alt="{{.Title}}" loading="lazy">
-        </figure>
-        {{else}}
-        <figure class="book-cover book-cover-placeholder" style="background-color: {{if .CoverColor}}{{.CoverColor}}{{else}}#1e293b{{end}};">
-            <span>📖</span>
-        </figure>
-        {{end}}
-        <div class="book-info">
-            <h3>{{.Title}}</h3>
-            {{if .Description}}
-            <p class="book-description">{{.Description}}</p>
+    <article class="card book-card" style="background-color: {{if .CoverColor}}{{.CoverColor}}{{else}}#1e293b{{end}};">
+        <div class="book-cover-layout">
+            <div class="book-author-top">{{.AuthorName}}</div>
+            <h3 class="book-title-center">{{.Title}}</h3>
+            {{if .CoverURL}}
+            <div class="book-cover-image">
+                <img src="{{.CoverURL}}" alt="{{.Title}}" loading="lazy" onerror="this.style.display='none'">
+            </div>
             {{end}}
-            <p class="meta">Bởi {{.AuthorName}}</p>
+            {{if .Description}}
+            <p class="book-description-bottom">{{.Description}}</p>
+            {{end}}
         </div>
         <div class="book-actions">
             <a href="/books/{{.ID}}/read" class="btn ghost">📖 Đọc sách</a>
@@ -126,67 +122,102 @@
 
 .books-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    grid-template-columns: repeat(auto-fill, 320px);
     gap: 1.5rem;
     margin-top: 2rem;
+    justify-content: start;
 }
 
 .book-card {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 0 !important;
+    padding: 0 !important;
+    transition: transform 0.2s, box-shadow 0.2s;
+    overflow: hidden;
+    border: none !important;
+    border-radius: 12px !important;
+    max-width: 320px !important;
+    width: 320px !important;
+}
+
+.book-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+}
+
+.book-cover-layout {
     display: flex;
     flex-direction: column;
-    gap: 1rem;
-    padding: 1.25rem;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 0.8rem;
+    padding: 1rem;
+    min-height: 280px;
+    text-align: center;
 }
 
-.book-cover {
-    width: 100%;
-    height: 200px;
-    border-radius: 12px;
-    overflow: hidden;
-    background: rgba(15, 23, 42, 0.6);
+.book-author-top {
+    font-size: 0.85rem;
+    opacity: 0.85;
+    align-self: flex-start;
+    margin-left: 0.5rem;
+    color: rgba(255, 255, 255, 0.9);
+}
+
+.book-title-center {
+    font-size: 1.5rem;
+    font-weight: 700;
     margin: 0;
+    text-align: center;
+    width: 100%;
+    color: rgba(255, 255, 255, 0.95);
+    line-height: 1.3;
 }
 
-.book-cover img {
+.book-cover-image {
+    width: 100%;
+    max-width: 200px;
+    aspect-ratio: 1 / 1;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 8px 20px rgba(15, 23, 42, 0.3);
+}
+
+.book-cover-image img {
     width: 100%;
     height: 100%;
     object-fit: cover;
 }
 
-.book-cover-placeholder {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 4rem;
-}
-
-.book-info {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
-}
-
-.book-info h3 {
+.book-description-bottom {
+    font-size: 0.75rem;
+    line-height: 1.4;
+    opacity: 0.9;
+    max-width: 90%;
+    text-align: center;
     margin: 0;
-    font-size: 1.25rem;
-    color: #e2e8f0;
-}
-
-.book-description {
-    color: #cbd5e1;
-    font-size: 0.9rem;
-    line-height: 1.5;
+    color: rgba(255, 255, 255, 0.85);
     display: -webkit-box;
-    -webkit-line-clamp: 3;
+    -webkit-line-clamp: 2;
     -webkit-box-orient: vertical;
     overflow: hidden;
 }
 
 .book-actions {
     display: flex;
-    gap: 0.75rem;
+    gap: 0.5rem;
     flex-wrap: wrap;
+    padding: 0.75rem 1rem;
+    background: rgba(15, 23, 42, 0.4);
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.book-actions .btn {
+    font-size: 0.85rem;
+    padding: 0.4rem 0.8rem;
+    flex: 1;
+    justify-content: center;
 }
 
 .empty-state {

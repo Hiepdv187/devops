@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -107,7 +106,7 @@
       top: 0;
       left: 50%;
       transform-origin: left center;
-      transition: transform 1s cubic-bezier(0.65, 0, 0.35, 1);
+      transition: transform 1s ease-in-out;
       transform-style: preserve-3d;
       box-shadow: 0 4px 20px rgba(0,0,0,0.2);
     }
@@ -142,7 +141,6 @@
         color: hsl(var(--accent-foreground));
         text-align: center;
         font-size: 1.2rem;
-        padding: 1rem;
         display: flex;
         flex-direction: column;
         align-items: center;
@@ -167,8 +165,8 @@
         width: 100%;
     }
     .page.is-cover .cover-image {
-        width: 200px;
-        height: 200px;
+        width: 100%;
+        height: auto;
         object-fit: cover;
         border-radius: 8px;
         box-shadow: 0 8px 20px rgba(15, 23, 42, 0.3);
@@ -223,6 +221,12 @@
         height: auto;
         border-radius: 4px;
         cursor: pointer;
+        user-select: none;
+        -webkit-user-select: none;
+    }
+    .editable-area[contenteditable="false"] img {
+        pointer-events: none;
+        cursor: default;
     }
     .editable-area table {
       width: 100%;
@@ -310,7 +314,13 @@
       display: flex;
       width: 90%;
       max-width: 1200px;
-      justify-content: space-between;
+      justify-content: center;
+      align-items: center;
+      gap: 1rem;
+    }
+    .nav-buttons {
+      display: flex;
+      gap: 1rem;
       align-items: center;
     }
 
@@ -453,15 +463,17 @@
         <!-- Sheets will be generated here by JavaScript -->
       </div>
        <div class="controls">
-        <button id="prev-btn" class="button">
-          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg>
-          Previous
-        </button>
-        
-        <button id="next-btn" class="button">
-          Next
-          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
-        </button>
+        <div class="nav-buttons">
+          <button id="prev-btn" class="button">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg>
+            Previous
+          </button>
+          
+          <button id="next-btn" class="button">
+            Next
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+          </button>
+        </div>
 
         <button id="add-page-btn" class="button icon-button">
             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
@@ -512,15 +524,15 @@
     document.addEventListener('DOMContentLoaded', () => {
       // --- CONFIGURATION ---
       function getBookIdFromUrl() {
-          const pathParts = window.location.pathname.split('/');
-          const readIndex = pathParts.indexOf('read');
-          if (readIndex > -1 && pathParts.length > readIndex + 1) {
-              const bookId = pathParts[readIndex + 1];
+          // URL format: /books/:id/read
+          const pathParts = window.location.pathname.split('/').filter(p => p);
+          if (pathParts[0] === 'books' && pathParts.length >= 3 && pathParts[2] === 'read') {
+              const bookId = pathParts[1];
               if (bookId && !isNaN(parseInt(bookId, 10))) {
                   return parseInt(bookId, 10);
               }
           }
-          console.warn("Could not find book ID in URL, falling back to 1. URL should be like /read/1");
+          console.warn("Could not find book ID in URL, falling back to 1. URL should be like /books/1/read");
           return 1; 
       }
       const BOOK_ID = getBookIdFromUrl();
@@ -536,6 +548,7 @@
       let activeEditableArea = null;
       let selectedImage = null;
       let debounceTimeout = null;
+      let isAuthenticated = false; // Track if user is logged in
 
       // --- DOM ELEMENTS ---
       const loader = document.getElementById('loader');
@@ -544,6 +557,7 @@
       const prevBtn = document.getElementById('prev-btn');
       const nextBtn = document.getElementById('next-btn');
       const addPageBtn = document.getElementById('add-page-btn');
+      const editorToolbar = document.querySelector('.editor-toolbar');
       
       // Popovers and Modals
       const highlightPopover = document.getElementById('highlight-popover');
@@ -576,7 +590,6 @@
       // --- API FUNCTIONS ---
       async function fetchBook() {
         try {
-          // IMPORTANT: This now calls the dedicated JSON API endpoint
           const response = await fetch(`/books/${BOOK_ID}/read`, {
             headers: {
               'Accept': 'application/json'
@@ -585,11 +598,9 @@
           if (!response.ok) {
             let errorDetails = `HTTP error! status: ${response.status}`;
             try {
-                // Try to get more specific error from JSON response
                 const errorJson = await response.clone().json();
                 errorDetails = errorJson.error || JSON.stringify(errorJson);
             } catch (e) {
-                 // If the response is not JSON (e.g., it's an HTML error page), show that
                  const text = await response.clone().text();
                  errorDetails += ' - Response is not valid JSON: ' + text.substring(0, 200);
             }
@@ -599,8 +610,16 @@
           if (!book.pages) {
             book.pages = [];
           }
-          // The backend should already sort pages, but we do it again just in case
           book.pages.sort((a, b) => a.page_number - b.page_number);
+          
+          // Check if user is authenticated (book has user_id or is_author flag)
+          isAuthenticated = book.is_author || false;
+          
+          // Hide editor toolbar and add page button if not author
+          if (!isAuthenticated) {
+              addPageBtn.style.display = 'none';
+              editorToolbar.style.display = 'none';
+          }
           
           loader.style.display = 'none';
           pageFlipperContainer.style.display = 'flex';
@@ -644,27 +663,140 @@
           }
       }
 
+      async function saveHighlight(pageId, highlightData) {
+          try {
+              const response = await fetch(`/books/${BOOK_ID}/pages/${pageId}/highlights`, {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify(highlightData)
+              });
+              if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+              const highlight = await response.json();
+              console.log("Highlight saved:", highlight);
+              return highlight;
+          } catch(error) {
+              console.error("Failed to save highlight:", error);
+              return null;
+          }
+      }
+
+      async function fetchHighlights(pageId) {
+          try {
+              const response = await fetch(`/books/${BOOK_ID}/pages/${pageId}/highlights`);
+              if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+              const highlights = await response.json();
+              return highlights;
+          } catch(error) {
+              console.error("Failed to fetch highlights:", error);
+              return [];
+          }
+      }
+
+      async function deleteHighlight(pageId, highlightId) {
+          try {
+              const response = await fetch(`/books/${BOOK_ID}/pages/${pageId}/highlights/${highlightId}`, {
+                  method: 'DELETE'
+              });
+              if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+              console.log("Highlight deleted:", highlightId);
+              return true;
+          } catch(error) {
+              console.error("Failed to delete highlight:", error);
+              return false;
+          }
+      }
+
       // --- CORE LOGIC ---
+      async function loadHighlightsForPage(pageId, editableElement) {
+          if (pageId === 'cover' || pageId === 'back-cover' || pageId === 'placeholder' || isNaN(parseInt(pageId))) {
+              return;
+          }
+
+          // Try to load highlights (may fail if not authenticated, that's ok)
+          let highlights = [];
+          try {
+              highlights = await fetchHighlights(pageId);
+          } catch (error) {
+              // Silently fail if not authenticated - highlights just won't show
+              console.log("Could not load highlights (may not be authenticated)");
+              return;
+          }
+
+          if (!highlights || highlights.length === 0) return;
+
+          // Apply highlights to the content
+          const content = editableElement.textContent;
+          
+          // Sort highlights by start_offset descending to apply from end to start
+          highlights.sort((a, b) => b.start_offset - a.start_offset);
+          
+          let newHTML = editableElement.innerHTML;
+          
+          for (const highlight of highlights) {
+              try {
+                  // Create a temporary div to work with the content
+                  const tempDiv = document.createElement('div');
+                  tempDiv.innerHTML = newHTML;
+                  const textContent = tempDiv.textContent;
+                  
+                  // Find the text to highlight
+                  const beforeText = textContent.substring(0, highlight.start_offset);
+                  const highlightText = textContent.substring(highlight.start_offset, highlight.end_offset);
+                  const afterText = textContent.substring(highlight.end_offset);
+                  
+                  // Create mark element
+                  const mark = document.createElement('mark');
+                  mark.style.backgroundColor = highlight.color;
+                  mark.setAttribute('data-highlight-id', highlight.id);
+                  mark.textContent = highlightText;
+                  
+                  if (highlight.note) {
+                      const noteSpan = document.createElement('span');
+                      noteSpan.className = 'highlight-note';
+                      // Show user name and note
+                      const userName = highlight.user_name || 'Anonymous';
+                      noteSpan.textContent = `${userName}: ${highlight.note}`;
+                      mark.insertBefore(noteSpan, mark.firstChild);
+                  }
+                  
+                  // Reconstruct HTML
+                  tempDiv.textContent = beforeText;
+                  tempDiv.appendChild(mark);
+                  tempDiv.appendChild(document.createTextNode(afterText));
+                  
+                  newHTML = tempDiv.innerHTML;
+              } catch (e) {
+                  console.error("Error applying highlight:", e, highlight);
+              }
+          }
+          
+          editableElement.innerHTML = newHTML;
+      }
+
       function renderBook() {
         bookContainer.innerHTML = '';
-        if (!book || !book.pages) {
+        if (!book) {
             console.error("Book data is not available for rendering.");
             return;
         }
 
-        const displayPages = [...book.pages];
+        // 1. Create a clean array of actual content pages from the API
+        const contentPages = book.pages ? [...book.pages] : [];
 
-        const quotes = [
-            "Học, học nữa, học mãi.",
-            "Đi một ngày đàng, học một sàng khôn.",
-            "Có công mài sắt, có ngày nên kim.",
-            "Không thầy đố mày làm nên.",
-            "Muốn biết phải hỏi, muốn giỏi phải học."
-        ];
-        const randomQuote = quotes[Math.floor(Math.random() * quotes.length)];
+        // 2. Ensure content pages are even for spread layout
+        if (contentPages.length % 2 !== 0) {
+            const lastPageNum = contentPages.length > 0 ? contentPages[contentPages.length - 1].page_number : 0;
+            contentPages.push({
+                id: 'placeholder', 
+                page_number: lastPageNum + 1, 
+                content: '',
+                title: ''
+            });
+        }
+        
+        const finalPages = [...contentPages];
 
-
-        // Always add a cover page first
+        // 3. Add Cover and Back Cover
         const coverImageUrl = book.cover_url || '/static/images/default-book-cover.jpg';
         const coverContent = `
             <div class="cover-author">${book.author_name || 'Ẩn danh'}</div>
@@ -672,12 +804,17 @@
             <img class="cover-image" src="${coverImageUrl}" alt="Cover Image" onerror="this.src='/static/images/default-book-cover.jpg'">
             ${book.description ? `<div class="cover-description">${book.description}</div>` : ''}
         `;
-        displayPages.unshift({id: 'cover', page_number: 0, content: coverContent});
+        finalPages.unshift({id: 'cover', page_number: 0, content: coverContent});
         
-        // Add back cover
-        displayPages.push({id: 'back-cover', page_number: displayPages.length + 1, content: randomQuote});
-        
-        const numSheets = Math.ceil(displayPages.length / 2);
+        const quotes = [
+            "Học, học nữa, học mãi.", "Đi một ngày đàng, học một sàng khôn.",
+            "Có công mài sắt, có ngày nên kim.", "Không thầy đố mày làm nên.",
+            "Muốn biết phải hỏi, muốn giỏi phải học."
+        ];
+        const randomQuote = quotes[Math.floor(Math.random() * quotes.length)];
+        finalPages.push({id: 'back-cover', page_number: -1, content: randomQuote});
+
+        const numSheets = Math.ceil(finalPages.length / 2);
 
         for (let index = 0; index < numSheets; index++) {
           const sheet = document.createElement('div');
@@ -688,80 +825,96 @@
           }
           sheet.style.zIndex = isFlipped ? index + 1 : numSheets - index;
           
-          const frontPageIndexInSheet = index * 2;
-          const backPageIndexInSheet = frontPageIndexInSheet + 1;
-          
-          const frontPageData = displayPages[frontPageIndexInSheet];
-          const backPageData = displayPages[backPageIndexInSheet];
+          const frontPageData = finalPages[index * 2];
+          const backPageData = finalPages[index * 2 + 1];
 
-          const isCoverSheet = frontPageData && frontPageData.id === 'cover';
-          const isBackCoverSheet = backPageData && backPageData.id === 'back-cover';
-
-          // Front page
+          // --- Front Page ---
           if (frontPageData) {
               const pageFront = document.createElement('div');
+              const isCover = frontPageData.id === 'cover';
               pageFront.className = 'page page-front';
-              if (isCoverSheet) pageFront.classList.add('is-cover');
+              if (isCover) {
+                  pageFront.classList.add('is-cover');
+                  // Apply cover color if available
+                  if (book.cover_color) {
+                      pageFront.style.backgroundColor = book.cover_color;
+                  }
+              }
 
               const pageContentFront = document.createElement('div');
               pageContentFront.className = 'page-content';
               
               const editableFront = document.createElement('div');
-              editableFront.contentEditable = String(!isCoverSheet);
+              // Only make editable if user is authenticated and not cover
+              editableFront.contentEditable = String(isAuthenticated && !isCover);
               editableFront.className = 'editable-area';
               editableFront.setAttribute('data-page-id', frontPageData.id);
-              editableFront.setAttribute('data-page-index', frontPageIndexInSheet);
-              editableFront.setAttribute('placeholder', `Start writing on page ${frontPageData.page_number}...`);
               editableFront.innerHTML = frontPageData.content || '';
               
-              if (!isCoverSheet) {
-                editableFront.addEventListener('input', handlePageInput);
+              if (!isCover) {
+                if (isAuthenticated) {
+                  editableFront.addEventListener('input', handlePageInput);
+                  editableFront.setAttribute('placeholder', `Start writing on page ${frontPageData.page_number}...`);
+                }
+                // Load highlights for this page
+                loadHighlightsForPage(frontPageData.id, editableFront);
               }
               editableFront.addEventListener('focus', () => { activeEditableArea = editableFront; });
 
-              const pageNumFront = document.createElement('div');
-              pageNumFront.className = 'page-number-right';
-              pageNumFront.textContent = frontPageData.page_number;
-
               pageContentFront.appendChild(editableFront);
-              if(!isCoverSheet) {
+
+              if(!isCover) {
+                const pageNumFront = document.createElement('div');
+                pageNumFront.className = 'page-number-right';
+                pageNumFront.textContent = frontPageData.page_number;
                 pageContentFront.appendChild(pageNumFront);
               }
               pageFront.appendChild(pageContentFront);
               sheet.appendChild(pageFront);
           }
           
-          // Back page
+          // --- Back Page ---
           if (backPageData) {
               const pageBack = document.createElement('div');
+              const isBackCover = backPageData.id === 'back-cover';
               pageBack.className = 'page page-back';
-              if (isBackCoverSheet) pageBack.classList.add('is-back-cover');
+              if (isBackCover) {
+                  pageBack.classList.add('is-back-cover');
+                  // Apply cover color to back cover as well
+                  if (book.cover_color) {
+                      pageBack.style.backgroundColor = book.cover_color;
+                  }
+              }
 
               const pageContentBack = document.createElement('div');
               pageContentBack.className = 'page-content';
               
               const editableBack = document.createElement('div');
-              editableBack.contentEditable = String(!isBackCoverSheet && backPageData.id !== 'back-cover');
+              // Only make editable if user is authenticated and not special pages
+              editableBack.contentEditable = String(isAuthenticated && !isBackCover && backPageData.id !== 'placeholder');
               editableBack.className = 'editable-area';
               editableBack.setAttribute('data-page-id', backPageData.id);
-              editableBack.setAttribute('data-page-index', backPageIndexInSheet);
-              editableBack.setAttribute('placeholder', `Start writing on page ${backPageData.page_number}...`);
               editableBack.innerHTML = backPageData.content || '';
               
-              if (!isBackCoverSheet) {
-                editableBack.addEventListener('input', handlePageInput);
+              if (!isBackCover && backPageData.id !== 'placeholder') {
+                if (isAuthenticated) {
+                  editableBack.addEventListener('input', handlePageInput);
+                  editableBack.setAttribute('placeholder', `Start writing on page ${backPageData.page_number}...`);
+                }
+                // Load highlights for this page
+                loadHighlightsForPage(backPageData.id, editableBack);
               }
               editableBack.addEventListener('focus', () => { activeEditableArea = editableBack; });
 
-
-              const pageNumBack = document.createElement('div');
-              pageNumBack.className = 'page-number-left';
-              pageNumBack.textContent = backPageData.page_number;
-
               pageContentBack.appendChild(editableBack);
-              if (!pageBack.classList.contains('is-back-cover')) {
-                pageContentBack.appendChild(pageNumBack);
+              
+              if (!isBackCover && backPageData.page_number > 0) {
+                 const pageNumBack = document.createElement('div');
+                 pageNumBack.className = 'page-number-left';
+                 pageNumBack.textContent = backPageData.page_number;
+                 pageContentBack.appendChild(pageNumBack);
               }
+
               pageBack.appendChild(pageContentBack);
               sheet.appendChild(pageBack);
           }
@@ -774,7 +927,7 @@
           const editableArea = event.target;
           const pageId = editableArea.dataset.pageId;
 
-          if (pageId === 'cover' || pageId === 'back-cover' || isNaN(parseInt(pageId))) return;
+          if (pageId === 'cover' || pageId === 'back-cover' || pageId === 'placeholder' || isNaN(parseInt(pageId))) return;
 
           clearTimeout(debounceTimeout);
           debounceTimeout = setTimeout(() => {
@@ -790,8 +943,8 @@
       }
       
       function updateButtons() {
-        if (!book || !book.pages) return;
-        const numSheets = Math.ceil((book.pages.length + 2) / 2); // +2 for covers
+        if (!book) return;
+        const numSheets = bookContainer.children.length;
         prevBtn.disabled = currentSpread === 0 || isFlipping;
         nextBtn.disabled = currentSpread >= numSheets || isFlipping;
 
@@ -843,22 +996,51 @@
       }
 
       async function handleAddPage() {
+        // Check authentication first
+        if (!isAuthenticated) {
+            alert("Vui lòng đăng nhập để thêm trang mới!");
+            return;
+        }
+        
         addPageBtn.disabled = true;
-        const lastPageNum = book.pages.length > 0 ? book.pages[book.pages.length - 1].page_number : 0;
         
-        // Always add two pages to maintain layout
-        const newPage1Data = { page_number: lastPageNum + 1, title: `Page ${lastPageNum + 1}`, content: '' };
-        const newPage2Data = { page_number: lastPageNum + 2, title: `Page ${lastPageNum + 2}`, content: '' };
-        
-        const createdPage1 = await createPage(newPage1Data);
-        if (createdPage1) book.pages.push(createdPage1);
+        try {
+            // The actual last page number is the count of pages from the original book data
+            const lastPageNum = book.pages.length > 0 ? Math.max(...book.pages.map(p => p.page_number)) : 0;
+            
+            // We always add two pages to maintain the even layout
+            const newPage1Data = { page_number: lastPageNum + 1, title: `Page ${lastPageNum + 1}`, content: '' };
+            const newPage2Data = { page_number: lastPageNum + 2, title: `Page ${lastPageNum + 2}`, content: '' };
+            
+            const createdPage1 = await createPage(newPage1Data);
+            if (createdPage1) {
+                book.pages.push(createdPage1);
+                console.log("Page 1 added:", createdPage1);
+            }
 
-        const createdPage2 = await createPage(newPage2Data);
-        if (createdPage2) book.pages.push(createdPage2);
-        
-        book.pages.sort((a, b) => a.page_number - b.page_number);
-        renderBook();
-        addPageBtn.disabled = false;
+            const createdPage2 = await createPage(newPage2Data);
+            if (createdPage2) {
+                book.pages.push(createdPage2);
+                console.log("Page 2 added:", createdPage2);
+            }
+            
+            // Sort and re-render immediately for live update
+            book.pages.sort((a, b) => a.page_number - b.page_number);
+            renderBook();
+            
+            // Auto-flip to the new pages
+            setTimeout(() => {
+                const numSheets = bookContainer.children.length;
+                if (currentSpread < numSheets - 1) {
+                    goToNextSpread();
+                }
+            }, 300);
+        } catch (error) {
+            console.error("Error adding pages:", error);
+            alert("Không thể thêm trang. Vui lòng đăng nhập và thử lại.");
+        } finally {
+            addPageBtn.disabled = false;
+        }
       }
 
       function formatDoc(cmd, value = null) {
@@ -1013,6 +1195,11 @@
       
       document.addEventListener('mouseup', (e) => {
           setTimeout(() => {
+            // Don't show highlight popover if not authenticated
+            if (!isAuthenticated) {
+                return;
+            }
+            
             const selection = window.getSelection();
             if (selection.isCollapsed || isFlipping || highlightModal.style.display === 'block' || inputModal.style.display === 'block') {
                 hideHighlightPopover();
@@ -1060,17 +1247,28 @@
           }
       });
 
-      popoverRemoveHighlightBtn.addEventListener('click', () => {
+      popoverRemoveHighlightBtn.addEventListener('click', async () => {
         if(currentSelection) {
             const ancestor = currentSelection.commonAncestorContainer;
             const mark = ancestor.nodeType === Node.ELEMENT_NODE ? ancestor.closest('mark') : ancestor.parentElement.closest('mark');
             if(mark) {
+                const highlightId = mark.getAttribute('data-highlight-id');
+                const editableArea = mark.closest('.editable-area');
+                const pageId = editableArea ? editableArea.dataset.pageId : null;
+                
+                // Remove from DOM
                 const parent = mark.parentNode;
                 while (mark.firstChild) {
                     parent.insertBefore(mark.firstChild, mark);
                 }
                 parent.removeChild(mark);
                 parent.normalize(); // Merges adjacent text nodes
+                
+                // Delete from database if it has an ID
+                if (highlightId && highlightId !== 'pending' && pageId) {
+                    await deleteHighlight(pageId, highlightId);
+                }
+                
                 triggerSave(parent.closest('.editable-area'));
             }
             hideHighlightPopover();
@@ -1088,15 +1286,44 @@
 
       highlightModalCancelBtn.addEventListener('click', hideHighlightModal);
 
-      highlightModalSaveBtn.addEventListener('click', () => {
+      highlightModalSaveBtn.addEventListener('click', async () => {
         if (!currentSelection) return;
 
         const noteText = noteInput.value;
         const selectedColorEl = colorPicker.querySelector('.selected');
         const color = selectedColorEl.dataset.color;
+        const highlightedText = currentSelection.toString();
 
+        // Get the editable area and page ID
+        const editableArea = currentSelection.commonAncestorContainer.nodeType === Node.ELEMENT_NODE
+            ? currentSelection.commonAncestorContainer.closest('.editable-area')
+            : currentSelection.commonAncestorContainer.parentElement.closest('.editable-area');
+        
+        if (!editableArea) {
+            console.error("Could not find editable area");
+            hideHighlightModal();
+            return;
+        }
+
+        const pageId = editableArea.dataset.pageId;
+        if (pageId === 'cover' || pageId === 'back-cover' || pageId === 'placeholder' || isNaN(parseInt(pageId))) {
+            console.warn("Cannot highlight on special pages");
+            hideHighlightModal();
+            return;
+        }
+
+        // Calculate offsets relative to the editable area's text content
+        const range = currentSelection.cloneRange();
+        const preRange = document.createRange();
+        preRange.selectNodeContents(editableArea);
+        preRange.setEnd(range.startContainer, range.startOffset);
+        const startOffset = preRange.toString().length;
+        const endOffset = startOffset + highlightedText.length;
+
+        // Apply visual highlight
         const mark = document.createElement('mark');
         mark.style.backgroundColor = color;
+        mark.setAttribute('data-highlight-id', 'pending'); // Will be updated after save
         
         if (noteText) {
             const noteSpan = document.createElement('span');
@@ -1112,6 +1339,21 @@
             console.error("Could not apply highlight:", e);
             hideHighlightModal();
             return;
+        }
+
+        // Save to database
+        const highlightData = {
+            color: color,
+            highlighted_text: highlightedText,
+            note: noteText,
+            start_offset: startOffset,
+            end_offset: endOffset
+        };
+
+        const savedHighlight = await saveHighlight(pageId, highlightData);
+        if (savedHighlight) {
+            mark.setAttribute('data-highlight-id', savedHighlight.id);
+            console.log("Highlight saved with ID:", savedHighlight.id);
         }
 
         triggerSave(mark.closest('.editable-area'));

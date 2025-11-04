@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"encoding/json"
+	"log"
 	"strconv"
 	"strings"
 
@@ -33,6 +34,10 @@ func BooksPage() fiber.Handler {
 		db := database.Get()
 		user := getUserForBooks(c)
 
+		// One-time migration: Update all existing books to published = true
+		// This can be removed after first run
+		db.Model(&models.Book{}).Where("published = ?", false).Update("published", true)
+
 		var books []models.Book
 		query := db.Order("created_at DESC")
 		
@@ -46,6 +51,11 @@ func BooksPage() fiber.Handler {
 		if err := query.Find(&books).Error; err != nil {
 			return c.Status(500).SendString("Lỗi tải danh sách sách")
 		}
+		
+		// Debug log
+		if user == nil {
+			log.Printf("Guest user viewing books page. Found %d published books", len(books))
+		}
 
 		// Load author names
 		for i := range books {
@@ -55,9 +65,13 @@ func BooksPage() fiber.Handler {
 			}
 		}
 
+		isAuthenticated := user != nil
+		
 		return render(c, "pages/books", fiber.Map{
-			"Title": "Sách",
-			"Books": books,
+			"Title":           "Sách",
+			"Books":           books,
+			"IsAuthenticated": isAuthenticated,
+			"CurrentUser":     user,
 		}, "main")
 	}
 }
@@ -148,6 +162,7 @@ func BookReadPage() fiber.Handler {
 				"author_name": book.AuthorName,
 				"published":   book.Published,
 				"pages":       book.Pages,
+				"is_author":   isAuthor,
 			})
 		}
 
@@ -195,7 +210,7 @@ func CreateBook() fiber.Handler {
 			CoverURL:    strings.TrimSpace(req.CoverURL),
 			CoverColor:  coverColor,
 			AuthorID:    user.ID,
-			Published:   false,
+			Published:   true, // Mặc định publish sách mới để mọi người có thể xem
 		}
 
 		if err := db.Create(&book).Error; err != nil {
@@ -343,7 +358,7 @@ func CreateBookPage() fiber.Handler {
 			}
 		}
 
-		return c.JSON(fiber.Map{"success": true, "page_id": page.ID})
+		return c.JSON(page)
 	}
 }
 
@@ -438,6 +453,132 @@ func DeleteBookPage() fiber.Handler {
 
 		if err := db.Delete(&models.BookPage{}, pageID).Error; err != nil {
 			return c.Status(500).JSON(fiber.Map{"error": "Lỗi xóa trang"})
+		}
+
+		return c.JSON(fiber.Map{"success": true})
+	}
+}
+
+// SaveHighlight lưu highlight mới
+func SaveHighlight() fiber.Handler {
+	return func(c *fiber.Ctx) error {
+		user := getUserForBooks(c)
+		if user == nil {
+			return c.Status(401).JSON(fiber.Map{"error": "Chưa đăng nhập"})
+		}
+
+		db := database.Get()
+		bookID, _ := strconv.Atoi(c.Params("bookId"))
+		pageID, _ := strconv.Atoi(c.Params("pageId"))
+
+		// Verify book ownership/access
+		var book models.Book
+		if err := db.First(&book, bookID).Error; err != nil {
+			return c.Status(404).JSON(fiber.Map{"error": "Không tìm thấy sách"})
+		}
+
+		// Verify page belongs to book
+		var page models.BookPage
+		if err := db.Where("id = ? AND book_id = ?", pageID, bookID).First(&page).Error; err != nil {
+			return c.Status(404).JSON(fiber.Map{"error": "Không tìm thấy trang"})
+		}
+
+		var payload struct {
+			Color           string `json:"color"`
+			HighlightedText string `json:"highlighted_text"`
+			Note            string `json:"note"`
+			StartOffset     int    `json:"start_offset"`
+			EndOffset       int    `json:"end_offset"`
+		}
+
+		if err := c.BodyParser(&payload); err != nil {
+			return c.Status(400).JSON(fiber.Map{"error": "Dữ liệu không hợp lệ"})
+		}
+
+		highlight := models.Highlight{
+			BookPageID:      page.ID,
+			UserID:          user.ID,
+			Color:           payload.Color,
+			HighlightedText: payload.HighlightedText,
+			Note:            payload.Note,
+			StartOffset:     payload.StartOffset,
+			EndOffset:       payload.EndOffset,
+		}
+
+		if err := db.Create(&highlight).Error; err != nil {
+			return c.Status(500).JSON(fiber.Map{"error": "Lỗi lưu highlight"})
+		}
+
+		return c.JSON(highlight)
+	}
+}
+
+// GetHighlights lấy tất cả highlights của một page (public - không cần auth)
+func GetHighlights() fiber.Handler {
+	return func(c *fiber.Ctx) error {
+		db := database.Get()
+		pageID, _ := strconv.Atoi(c.Params("pageId"))
+
+		// Load all highlights for this page from all users
+		var highlights []models.Highlight
+		if err := db.Where("book_page_id = ?", pageID).Preload("User").Find(&highlights).Error; err != nil {
+			return c.Status(500).JSON(fiber.Map{"error": "Lỗi tải highlights"})
+		}
+
+		// Return highlights with user info
+		type HighlightResponse struct {
+			ID              uint   `json:"id"`
+			Color           string `json:"color"`
+			HighlightedText string `json:"highlighted_text"`
+			Note            string `json:"note"`
+			StartOffset     int    `json:"start_offset"`
+			EndOffset       int    `json:"end_offset"`
+			UserName        string `json:"user_name"`
+		}
+
+		var response []HighlightResponse
+		for _, h := range highlights {
+			userName := "Anonymous"
+			if h.User.ID != 0 {
+				userName = h.User.Name
+			}
+			response = append(response, HighlightResponse{
+				ID:              h.ID,
+				Color:           h.Color,
+				HighlightedText: h.HighlightedText,
+				Note:            h.Note,
+				StartOffset:     h.StartOffset,
+				EndOffset:       h.EndOffset,
+				UserName:        userName,
+			})
+		}
+
+		return c.JSON(response)
+	}
+}
+
+// DeleteHighlight xóa highlight
+func DeleteHighlight() fiber.Handler {
+	return func(c *fiber.Ctx) error {
+		user := getUserForBooks(c)
+		if user == nil {
+			return c.Status(401).JSON(fiber.Map{"error": "Chưa đăng nhập"})
+		}
+
+		db := database.Get()
+		highlightID, _ := strconv.Atoi(c.Params("highlightId"))
+
+		var highlight models.Highlight
+		if err := db.First(&highlight, highlightID).Error; err != nil {
+			return c.Status(404).JSON(fiber.Map{"error": "Không tìm thấy highlight"})
+		}
+
+		if highlight.UserID != user.ID {
+			return c.Status(403).JSON(fiber.Map{"error": "Không có quyền"})
+		}
+
+		if err := db.Delete(&highlight).Error; err != nil {
+			return c.Status(500).JSON(fiber.Map{"error": "Lỗi xóa highlight"})
 		}
 
 		return c.JSON(fiber.Map{"success": true})
