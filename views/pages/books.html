@@ -23,7 +23,7 @@
 {{if .Books}}
 <div class="books-grid">
     {{range .Books}}
-    <article class="card book-card" style="background-color: {{if .CoverColor}}{{.CoverColor}}{{else}}#1e293b{{end}};">
+    <article class="card book-card" style="background-color: {{if .CoverColor}}{{.CoverColor}}{{else}}#1e293b{{end}}; width: 320px; max-width: 320px; padding: 0; display: flex; flex-direction: column; gap: 0;">
         <div class="book-cover-layout">
             <div class="book-author-top">{{.AuthorName}}</div>
             <h3 class="book-title-center">{{.Title}}</h3>
@@ -52,60 +52,6 @@
     <p>Chưa có sách nào. {{if .IsAuthenticated}}Hãy tạo sách đầu tiên!{{end}}</p>
 </div>
 {{end}}
-
-<!-- Create Book Modal -->
-{{if .IsAuthenticated}}
-<div id="create-book-modal" class="modal" style="display: none;">
-    <div class="modal-content modal-large">
-        <div class="modal-header">
-            <h2>📚 Tạo sách mới</h2>
-            <button type="button" class="modal-close" data-action="close-modal">×</button>
-        </div>
-        <div class="book-creator-grid">
-            <form id="create-book-form" class="stack">
-                <label>
-                    Tiêu đề sách
-                    <input type="text" name="title" id="book-title-input" placeholder="Nhập tiêu đề sách" required>
-                </label>
-                <label>
-                    Mô tả ngắn
-                    <textarea name="description" id="book-desc-input" rows="4" placeholder="Tóm tắt nội dung sách..."></textarea>
-                </label>
-                <label>
-                    Ảnh bìa (URL)
-                    <input type="url" name="cover_url" id="book-cover-input" placeholder="https://example.com/cover.jpg">
-                    <small style="color: #94a3b8; font-size: 0.85rem;">Để trống nếu muốn dùng màu nền</small>
-                </label>
-                <label>
-                    Màu bìa sách
-                    <div class="color-picker-container">
-                        <input type="color" name="cover_color" id="book-color-input" value="#1e293b">
-                        <input type="text" id="book-color-text" value="#1e293b" placeholder="#1e293b" pattern="^#[0-9A-Fa-f]{6}$">
-                    </div>
-                    <small style="color: #94a3b8; font-size: 0.85rem;">Chọn màu nền cho bìa sách khi không có ảnh</small>
-                </label>
-                <div class="form-actions">
-                    <button type="button" class="btn ghost" data-action="close-modal">Hủy</button>
-                    <button type="submit" class="btn primary">Tạo sách & Viết nội dung</button>
-                </div>
-            </form>
-            <div class="book-cover-preview">
-                <h3 style="margin-top: 0; font-size: 1rem; color: #94a3b8;">Preview bìa sách</h3>
-                <div class="preview-book-card">
-                    <div class="preview-author-top">Tác giả: {{.CurrentUser.Name}}</div>
-                    <div class="preview-cover" id="preview-cover">
-                        <span class="preview-placeholder">📖</span>
-                        <img id="preview-cover-img" style="display: none;" alt="Book cover">
-                    </div>
-                    <div class="preview-info">
-                        <h4 id="preview-title">Tiêu đề sách</h4>
-                        <p id="preview-description">Mô tả sẽ hiển thị ở đây...</p>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
 
 <style>
 .hero-header {
@@ -226,7 +172,63 @@
     color: #94a3b8;
     font-size: 1.1rem;
 }
+</style>
 
+<!-- Create Book Modal -->
+{{if .IsAuthenticated}}
+<div id="create-book-modal" class="modal" style="display: none;">
+    <div class="modal-content modal-large">
+        <div class="modal-header">
+            <h2>📚 Tạo sách mới</h2>
+            <button type="button" class="modal-close" data-action="close-modal">×</button>
+        </div>
+        <div class="book-creator-grid">
+            <form id="create-book-form" class="stack">
+                <label>
+                    Tiêu đề sách
+                    <input type="text" name="title" id="book-title-input" placeholder="Nhập tiêu đề sách" required>
+                </label>
+                <label>
+                    Mô tả ngắn
+                    <textarea name="description" id="book-desc-input" rows="4" placeholder="Tóm tắt nội dung sách..."></textarea>
+                </label>
+                <label>
+                    Ảnh bìa (URL)
+                    <input type="url" name="cover_url" id="book-cover-input" placeholder="https://example.com/cover.jpg">
+                    <small style="color: #94a3b8; font-size: 0.85rem;">Để trống nếu muốn dùng màu nền</small>
+                </label>
+                <label>
+                    Màu bìa sách
+                    <div class="color-picker-container">
+                        <input type="color" name="cover_color" id="book-color-input" value="#1e293b">
+                        <input type="text" id="book-color-text" value="#1e293b" placeholder="#1e293b" pattern="^#[0-9A-Fa-f]{6}$">
+                    </div>
+                    <small style="color: #94a3b8; font-size: 0.85rem;">Chọn màu nền cho bìa sách khi không có ảnh</small>
+                </label>
+                <div class="form-actions">
+                    <button type="button" class="btn ghost" data-action="close-modal">Hủy</button>
+                    <button type="submit" class="btn primary">Tạo sách & Viết nội dung</button>
+                </div>
+            </form>
+            <div class="book-cover-preview">
+                <h3 style="margin-top: 0; font-size: 1rem; color: #94a3b8;">Preview bìa sách</h3>
+                <div class="preview-book-card">
+                    <div class="preview-author-top">Tác giả: {{.CurrentUser.Name}}</div>
+                    <div class="preview-cover" id="preview-cover">
+                        <span class="preview-placeholder">📖</span>
+                        <img id="preview-cover-img" style="display: none;" alt="Book cover">
+                    </div>
+                    <div class="preview-info">
+                        <h4 id="preview-title">Tiêu đề sách</h4>
+                        <p id="preview-description">Mô tả sẽ hiển thị ở đây...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
 .modal {
     position: fixed;
     top: 0;
