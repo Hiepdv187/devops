@@ -472,8 +472,26 @@
                 button.addEventListener('click', (event) => {
                     if (window.location.pathname === '/books') {
                         event.preventDefault();
-                        // Trigger #create hash to open modal
-                        window.location.hash = '#create';
+                        // Trigger modal open event
+                        const modal = document.getElementById('create-book-modal');
+                        if (modal) {
+                            modal.style.display = 'flex';
+                            // Reset preview
+                            const previewTitle = document.getElementById('preview-title');
+                            const previewDesc = document.getElementById('preview-description');
+                            const previewCoverImg = document.getElementById('preview-cover-img');
+                            const previewPlaceholder = document.querySelector('.preview-placeholder');
+                            const previewCover = document.getElementById('preview-cover');
+                            const colorInput = document.getElementById('book-color-input');
+                            
+                            if (previewTitle) previewTitle.textContent = 'Tiêu đề sách';
+                            if (previewDesc) previewDesc.textContent = 'Mô tả sẽ hiển thị ở đây...';
+                            if (previewCoverImg) previewCoverImg.style.display = 'none';
+                            if (previewPlaceholder) previewPlaceholder.style.display = 'flex';
+                            if (previewCover && colorInput) {
+                                previewCover.style.backgroundColor = colorInput.value;
+                            }
+                        }
                     }
                 });
             });

@@ -1,0 +1,550 @@
+<!-- Quill CSS -->
+<link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet">
+
+<div class="book-reader-container">
+    <div class="book-header">
+        <a href="/books/{{.Book.ID}}" class="btn ghost">← Quay lại</a>
+        <h1 class="book-title">{{.Book.Title}}</h1>
+        {{if .IsAuthor}}
+        <button type="button" class="btn ghost btn-sm" id="save-page-btn" style="display: none;">💾 Lưu</button>
+        {{end}}
+    </div>
+
+    <div class="sprite-wrapper">
+        <div class="book" style="--slides: {{if .Book.Pages}}{{len .Book.Pages}}{{else}}1{{end}};">
+            <!-- Carousel container -->
+            <div class="carousel" id="book-carousel">
+                <!-- Bg sprite -->
+                <div class="sprite" style="{{if .Book.CoverColor}}--book-cover-color: {{.Book.CoverColor}};{{end}}"></div>
+                
+                {{if .Book.Pages}}
+                {{range $index, $page := .Book.Pages}}
+                <!-- Carousel item -->
+                <div class="carousel-item" data-page-id="{{$page.ID}}" data-page-number="{{$page.PageNumber}}">
+                    <div class="page-container">
+                        <div class="page left-page">
+                            <div class="page-content" id="left-content-{{$page.ID}}">
+                                {{$page.Content | safeHTML}}
+                            </div>
+                            <div class="page-number"></div>
+                        </div>
+                        <div class="page right-page">
+                            <div class="page-content" id="right-content-{{$page.ID}}">
+                                <!-- Right page content if exists -->
+                            </div>
+                            <div class="page-number"></div>
+                        </div>
+                    </div>
+                </div>
+                {{end}}
+                {{else}}
+                <!-- Empty book -->
+                <div class="carousel-item">
+                    <div class="page-container">
+                        <div class="page left-page">
+                            <div class="page-content empty-page">
+                                {{if .IsAuthor}}
+                                <p>📖 Cuốn sách chưa có trang nào.</p>
+                                <button type="button" class="btn primary" onclick="createPage(1)">+ Thêm trang đầu tiên</button>
+                                {{else}}
+                                <p>Cuốn sách chưa có nội dung.</p>
+                                {{end}}
+                            </div>
+                        </div>
+                        <div class="page right-page">
+                            <div class="page-content"></div>
+                        </div>
+                    </div>
+                </div>
+                {{end}}
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+:root {
+    font-optical-sizing: auto;
+    line-height: 1.5;
+    font-weight: 400;
+    color-scheme: light dark;
+    overflow: hidden;
+
+    /* sprite image - using book flip animation */
+    --sprite-image: url(https://assets.codepen.io/36869/book.webp);
+    
+    /* sprite animation settings */
+    --sprite-as: .8s;
+    --sprite-ad: normal;
+    --sprite-af: none;
+    --sprite-ap: running;
+    --sprite-ai: infinite;
+    --sprite-at: linear;
+    --sprite-fr: 12;
+}
+
+.book-reader-container {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+    overflow: hidden;
+}
+
+.book-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1.5rem 2rem;
+    background: rgba(15, 23, 42, 0.8);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid rgba(148, 163, 184, 0.2);
+    gap: 1rem;
+    flex-wrap: wrap;
+    z-index: 100;
+}
+
+.book-title {
+    margin: 0;
+    font-size: 1.5rem;
+    color: #e2e8f0;
+    flex: 1;
+    text-align: center;
+}
+
+.sprite-wrapper {
+    position: relative;
+    width: 100%;
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem;
+}
+
+/* Sprite animation properties */
+@property --sprite-fs {
+    syntax: "<integer>";
+    initial-value: 0;
+    inherits: true;
+}
+
+@property --_progress {
+    syntax: "<percentage>";
+    inherits: false;
+    initial-value: 0%;
+}
+
+.nav-btn {
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    background: rgba(56, 189, 248, 0.15);
+    border: 2px solid rgba(56, 189, 248, 0.3);
+    color: #38bdf8;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    flex-shrink: 0;
+}
+
+.nav-btn:hover:not(:disabled) {
+    background: rgba(56, 189, 248, 0.25);
+    border-color: #38bdf8;
+    transform: scale(1.1);
+}
+
+.nav-btn:disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+}
+
+.open-book {
+    display: flex;
+    gap: 0;
+    max-width: 1400px;
+    height: 700px;
+    position: relative;
+    perspective: 2000px;
+}
+
+.book-spine {
+    width: 40px;
+    background: linear-gradient(90deg, #64748b 0%, #475569 50%, #64748b 100%);
+    box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.5);
+    position: relative;
+    z-index: 5;
+}
+
+.book-page {
+    flex: 1;
+    background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+    position: relative;
+    overflow: hidden;
+}
+
+.left-page {
+    border-radius: 12px 0 0 12px;
+    box-shadow: -5px 0 15px rgba(0, 0, 0, 0.1), 0 10px 40px rgba(0, 0, 0, 0.3);
+}
+
+.right-page {
+    border-radius: 0 12px 12px 0;
+    box-shadow: 5px 0 15px rgba(0, 0, 0, 0.1), 0 10px 40px rgba(0, 0, 0, 0.3);
+}
+
+.page-inner {
+    height: 100%;
+    padding: 3rem 2.5rem;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+}
+
+.page-number-top {
+    text-align: center;
+    color: #64748b;
+    font-size: 0.9rem;
+    margin-bottom: 1.5rem;
+    font-weight: 500;
+}
+
+.page-content {
+    color: #1e293b;
+    line-height: 1.8;
+}
+
+.page-title {
+    margin: 0 0 1.5rem 0;
+    font-size: 2rem;
+    color: #0f172a;
+    border-bottom: 2px solid #38bdf8;
+    padding-bottom: 0.75rem;
+}
+
+.page-body {
+    font-size: 1.05rem;
+}
+
+.page-body p,
+.page-body h1,
+.page-body h2,
+.page-body h3,
+.page-body h4,
+.page-body h5,
+.page-body h6,
+.page-body li {
+    line-height: 1.8;
+    margin: 0.75em 0;
+    color: #1e293b;
+}
+
+.page-body h1 { font-size: 1.8rem; color: #0f172a; }
+.page-body h2 { font-size: 1.5rem; color: #0f172a; }
+.page-body h3 { font-size: 1.3rem; color: #0f172a; }
+
+.page-number-display {
+    position: absolute;
+    bottom: 1.5rem;
+    right: 2rem;
+    color: #64748b;
+    font-size: 0.9rem;
+    font-style: italic;
+}
+
+/* Quill Editor Styles */
+.ql-container {
+    font-family: inherit;
+    font-size: 1.05rem;
+}
+
+.ql-editor {
+    min-height: 400px;
+    color: #1e293b;
+    line-height: 1.8;
+}
+
+.ql-editor.ql-blank::before {
+    color: #94a3b8;
+    font-style: italic;
+}
+
+.page-content.readonly .ql-toolbar {
+    display: none;
+}
+
+.page-content.readonly .ql-container {
+    border: none;
+}
+
+.page-content.readonly .ql-editor {
+    padding: 0;
+}
+
+@media (max-width: 900px) {
+    .book-container {
+        padding: 1rem;
+        gap: 1rem;
+    }
+
+    .nav-btn {
+        width: 48px;
+        height: 48px;
+    }
+
+    .book-pages {
+        height: 500px;
+    }
+
+    .book-page {
+        padding: 2rem 1.5rem;
+    }
+
+    .page-title {
+        font-size: 1.5rem;
+    }
+
+    .page-body {
+        font-size: 1rem;
+    }
+}
+
+@media (max-width: 640px) {
+    .book-header {
+        padding: 1rem;
+    }
+
+    .book-title {
+        font-size: 1.2rem;
+    }
+
+    .book-pages {
+        height: 400px;
+    }
+
+    .book-page {
+        padding: 1.5rem 1rem;
+    }
+}
+</style>
+
+<!-- Quill JS -->
+<script src="https://cdn.quilljs.com/1.3.6/quill.js"></script>
+
+<script>
+const BOOK_ID = {{.Book.ID}};
+const IS_AUTHOR = {{if .IsAuthor}}true{{else}}false{{end}};
+const PAGES_DATA = [
+    {{range .Book.Pages}}
+    {
+        id: {{.ID}},
+        pageNumber: {{.PageNumber}},
+        title: {{.Title | json}},
+        content: {{.Content | json}}
+    },
+    {{end}}
+];
+
+document.addEventListener('DOMContentLoaded', () => {
+    const prevBtn = document.getElementById('prev-btn');
+    const nextBtn = document.getElementById('next-btn');
+    const currentPageEl = document.getElementById('current-page');
+    const saveBtn = document.getElementById('save-page-btn');
+    const addFirstPageBtn = document.getElementById('add-first-page-btn');
+    
+    let currentPageIndex = 0;
+    let leftEditor = null;
+    let rightEditor = null;
+    let hasUnsavedChanges = false;
+
+    // Initialize
+    if (PAGES_DATA.length > 0) {
+        renderPages();
+    }
+
+    // Render current pages
+    function renderPages() {
+        const leftPageNum = currentPageIndex * 2 + 1;
+        const rightPageNum = currentPageIndex * 2 + 2;
+        
+        const leftPageData = PAGES_DATA.find(p => p.pageNumber === leftPageNum);
+        const rightPageData = PAGES_DATA.find(p => p.pageNumber === rightPageNum);
+
+        // Left page
+        renderPage('left', leftPageData, leftPageNum);
+        
+        // Right page
+        renderPage('right', rightPageData, rightPageNum);
+
+        // Update UI
+        currentPageEl.textContent = leftPageNum;
+        prevBtn.disabled = currentPageIndex === 0;
+        nextBtn.disabled = rightPageNum >= PAGES_DATA.length && !leftPageData;
+    }
+
+    function renderPage(side, pageData, pageNumber) {
+        const pageNumberEl = document.getElementById(`${side}-page-number`);
+        const pageContentEl = document.getElementById(`${side}-page-content`);
+        
+        if (pageData) {
+            pageNumberEl.textContent = `Trang ${pageNumber}`;
+            pageContentEl.innerHTML = `<div id="${side}-editor"></div>`;
+            
+            const editor = new Quill(`#${side}-editor`, {
+                theme: 'snow',
+                readOnly: !IS_AUTHOR,
+                placeholder: IS_AUTHOR ? 'Viết nội dung trang...' : '',
+                modules: {
+                    toolbar: IS_AUTHOR ? [
+                        [{ 'header': [1, 2, 3, false] }],
+                        ['bold', 'italic', 'underline'],
+                        ['blockquote', 'code-block'],
+                        [{ 'list': 'ordered'}, { 'list': 'bullet' }],
+                        ['link'],
+                        ['clean']
+                    ] : false
+                }
+            });
+
+            // Set content
+            if (pageData.content) {
+                editor.root.innerHTML = pageData.content;
+            }
+
+            // Track changes
+            if (IS_AUTHOR) {
+                editor.on('text-change', () => {
+                    hasUnsavedChanges = true;
+                    if (saveBtn) saveBtn.style.display = 'block';
+                });
+            }
+
+            // Store editor reference
+            if (side === 'left') {
+                leftEditor = { editor, pageData };
+            } else {
+                rightEditor = { editor, pageData };
+            }
+
+            // Add readonly class if not author
+            if (!IS_AUTHOR) {
+                pageContentEl.classList.add('readonly');
+            }
+        } else {
+            pageNumberEl.textContent = '';
+            pageContentEl.innerHTML = IS_AUTHOR ? 
+                `<div style="text-align: center; padding: 3rem; color: #94a3b8;">
+                    <p>Trang ${pageNumber} chưa tồn tại</p>
+                    <button type="button" class="btn primary" onclick="createPage(${pageNumber})">+ Tạo trang ${pageNumber}</button>
+                </div>` : '';
+        }
+    }
+
+    // Navigation
+    nextBtn.addEventListener('click', () => {
+        if (hasUnsavedChanges) {
+            if (!confirm('Bạn có thay đổi chưa lưu. Tiếp tục?')) return;
+        }
+        currentPageIndex++;
+        renderPages();
+        hasUnsavedChanges = false;
+        if (saveBtn) saveBtn.style.display = 'none';
+    });
+
+    prevBtn.addEventListener('click', () => {
+        if (hasUnsavedChanges) {
+            if (!confirm('Bạn có thay đổi chưa lưu. Tiếp tục?')) return;
+        }
+        currentPageIndex--;
+        renderPages();
+        hasUnsavedChanges = false;
+        if (saveBtn) saveBtn.style.display = 'none';
+    });
+
+    // Keyboard navigation
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'ArrowRight' && !nextBtn.disabled) {
+            nextBtn.click();
+        } else if (e.key === 'ArrowLeft' && !prevBtn.disabled) {
+            prevBtn.click();
+        }
+    });
+
+    // Save page
+    if (saveBtn) {
+        saveBtn.addEventListener('click', async () => {
+            const updates = [];
+            
+            if (leftEditor && leftEditor.pageData) {
+                updates.push({
+                    pageId: leftEditor.pageData.id,
+                    content: leftEditor.editor.root.innerHTML
+                });
+            }
+            
+            if (rightEditor && rightEditor.pageData) {
+                updates.push({
+                    pageId: rightEditor.pageData.id,
+                    content: rightEditor.editor.root.innerHTML
+                });
+            }
+
+            for (const update of updates) {
+                try {
+                    const response = await fetch(`/books/${BOOK_ID}/pages/${update.pageId}/edit`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            title: '',
+                            content: update.content
+                        })
+                    });
+
+                    if (!response.ok) {
+                        throw new Error('Lỗi lưu trang');
+                    }
+                } catch (error) {
+                    alert('Lỗi: ' + error.message);
+                    return;
+                }
+            }
+
+            alert('Đã lưu thành công!');
+            hasUnsavedChanges = false;
+            saveBtn.style.display = 'none';
+            location.reload();
+        });
+    }
+
+    // Create first page
+    if (addFirstPageBtn) {
+        addFirstPageBtn.addEventListener('click', () => createPage(1));
+    }
+
+    // Create page function
+    window.createPage = async (pageNumber) => {
+        try {
+            const response = await fetch(`/books/${BOOK_ID}/pages`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    title: `Trang ${pageNumber}`,
+                    content: '<p>Nội dung trang...</p>',
+                    page_number: pageNumber
+                })
+            });
+
+            if (!response.ok) {
+                throw new Error('Lỗi tạo trang');
+            }
+
+            location.reload();
+        } catch (error) {
+            alert('Lỗi: ' + error.message);
+        }
+    };
+});
+</script>

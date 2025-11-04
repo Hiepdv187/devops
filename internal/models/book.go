@@ -14,6 +14,7 @@ type Book struct {
 	Title       string         `gorm:"not null" json:"title"`
 	Description string         `json:"description"`
 	CoverURL    string         `json:"cover_url"`
+	CoverColor  string         `gorm:"default:#1e293b" json:"cover_color"`
 	AuthorID    uint           `gorm:"not null" json:"author_id"`
 	AuthorName  string         `gorm:"-" json:"author_name"`
 	Published   bool           `gorm:"default:false" json:"published"`

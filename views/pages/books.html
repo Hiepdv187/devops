@@ -4,12 +4,20 @@
             <h1>📚 Sách</h1>
             <p>Khám phá và tạo sách kỹ thuật với tính năng lật trang</p>
         </div>
+        {{if .IsAuthenticated}}
+        <div style="margin-top: 1.5rem;">
+            <button type="button" class="btn primary" id="create-book-btn" style="font-size: 1rem; padding: 0.75rem 1.5rem;">
+                ✍️ Tạo sách mới
+            </button>
+        </div>
+        {{else}}
+        <div style="margin-top: 1.5rem;">
+            <a href="/auth/login?next=/books#create" class="btn ghost" style="font-size: 1rem; padding: 0.75rem 1.5rem;">
+                🔐 Đăng nhập để tạo sách
+            </a>
+        </div>
+        {{end}}
     </div>
-    {{if .User}}
-    <div class="hero-actions">
-        <button type="button" class="btn primary" id="create-book-btn">+ Tạo sách mới</button>
-    </div>
-    {{end}}
 </section>
 
 {{if .Books}}
@@ -21,7 +29,7 @@
             <img src="{{.CoverURL}}" alt="{{.Title}}" loading="lazy">
         </figure>
         {{else}}
-        <figure class="book-cover book-cover-placeholder">
+        <figure class="book-cover book-cover-placeholder" style="background-color: {{if .CoverColor}}{{.CoverColor}}{{else}}#1e293b{{end}};">
             <span>📖</span>
         </figure>
         {{end}}
@@ -34,8 +42,8 @@
         </div>
         <div class="book-actions">
             <a href="/books/{{.ID}}/read" class="btn ghost">📖 Đọc sách</a>
-            {{if $.User}}
-            {{if eq .AuthorID $.User.ID}}
+            {{if $.IsAuthenticated}}
+            {{if eq .AuthorID $.CurrentUser.ID}}
             <a href="/books/{{.ID}}" class="btn ghost">✏️ Chỉnh sửa</a>
             {{end}}
             {{end}}
@@ -45,12 +53,12 @@
 </div>
 {{else}}
 <div class="empty-state">
-    <p>Chưa có sách nào. {{if .User}}Hãy tạo sách đầu tiên!{{end}}</p>
+    <p>Chưa có sách nào. {{if .IsAuthenticated}}Hãy tạo sách đầu tiên!{{end}}</p>
 </div>
 {{end}}
 
 <!-- Create Book Modal -->
-{{if .User}}
+{{if .IsAuthenticated}}
 <div id="create-book-modal" class="modal" style="display: none;">
     <div class="modal-content modal-large">
         <div class="modal-header">
@@ -70,6 +78,15 @@
                 <label>
                     Ảnh bìa (URL)
                     <input type="url" name="cover_url" id="book-cover-input" placeholder="https://example.com/cover.jpg">
+                    <small style="color: #94a3b8; font-size: 0.85rem;">Để trống nếu muốn dùng màu nền</small>
+                </label>
+                <label>
+                    Màu bìa sách
+                    <div class="color-picker-container">
+                        <input type="color" name="cover_color" id="book-color-input" value="#1e293b">
+                        <input type="text" id="book-color-text" value="#1e293b" placeholder="#1e293b" pattern="^#[0-9A-Fa-f]{6}$">
+                    </div>
+                    <small style="color: #94a3b8; font-size: 0.85rem;">Chọn màu nền cho bìa sách khi không có ảnh</small>
                 </label>
                 <div class="form-actions">
                     <button type="button" class="btn ghost" data-action="close-modal">Hủy</button>
@@ -79,6 +96,7 @@
             <div class="book-cover-preview">
                 <h3 style="margin-top: 0; font-size: 1rem; color: #94a3b8;">Preview bìa sách</h3>
                 <div class="preview-book-card">
+                    <div class="preview-author-top">Tác giả: {{.CurrentUser.Name}}</div>
                     <div class="preview-cover" id="preview-cover">
                         <span class="preview-placeholder">📖</span>
                         <img id="preview-cover-img" style="display: none;" alt="Book cover">
@@ -86,7 +104,6 @@
                     <div class="preview-info">
                         <h4 id="preview-title">Tiêu đề sách</h4>
                         <p id="preview-description">Mô tả sẽ hiển thị ở đây...</p>
-                        <p class="preview-author">Bởi {{.User.Name}}</p>
                     </div>
                 </div>
             </div>
@@ -95,6 +112,18 @@
 </div>
 
 <style>
+.hero-header {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1rem;
+}
+
+#create-book-btn {
+    display: inline-block;
+    cursor: pointer;
+}
+
 .books-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
@@ -304,6 +333,36 @@
     margin-top: 0.5rem !important;
 }
 
+.preview-author-top {
+    color: #94a3b8;
+    font-size: 0.9rem;
+    font-weight: 500;
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid rgba(148, 163, 184, 0.2);
+}
+
+.color-picker-container {
+    display: flex;
+    gap: 0.75rem;
+    align-items: center;
+}
+
+.color-picker-container input[type="color"] {
+    width: 60px;
+    height: 40px;
+    border: 1px solid rgba(148, 163, 184, 0.3);
+    border-radius: 8px;
+    cursor: pointer;
+    background: transparent;
+    padding: 2px;
+}
+
+.color-picker-container input[type="text"] {
+    flex: 1;
+    font-family: 'Courier New', monospace;
+    text-transform: uppercase;
+}
+
 @media (max-width: 768px) {
     .book-creator-grid {
         grid-template-columns: 1fr;
@@ -328,8 +387,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const titleInput = document.getElementById('book-title-input');
     const descInput = document.getElementById('book-desc-input');
     const coverInput = document.getElementById('book-cover-input');
+    const colorInput = document.getElementById('book-color-input');
+    const colorTextInput = document.getElementById('book-color-text');
     const previewTitle = document.getElementById('preview-title');
     const previewDesc = document.getElementById('preview-description');
+    const previewCover = document.getElementById('preview-cover');
     const previewCoverImg = document.getElementById('preview-cover-img');
     const previewPlaceholder = document.querySelector('.preview-placeholder');
 
@@ -366,15 +428,40 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    // Color picker sync
+    if (colorInput && colorTextInput && previewCover) {
+        colorInput.addEventListener('input', (e) => {
+            const color = e.target.value;
+            colorTextInput.value = color;
+            previewCover.style.backgroundColor = color;
+        });
+
+        colorTextInput.addEventListener('input', (e) => {
+            const color = e.target.value.trim();
+            if (/^#[0-9A-Fa-f]{6}$/.test(color)) {
+                colorInput.value = color;
+                previewCover.style.backgroundColor = color;
+            }
+        });
+
+        // Set initial color
+        previewCover.style.backgroundColor = colorInput.value;
+    }
+
     // Open modal
     function openModal() {
         if (modal) {
             modal.style.display = 'flex';
+            // Reset form
+            form.reset();
             // Reset preview
             if (previewTitle) previewTitle.textContent = 'Tiêu đề sách';
             if (previewDesc) previewDesc.textContent = 'Mô tả sẽ hiển thị ở đây...';
             if (previewCoverImg) previewCoverImg.style.display = 'none';
             if (previewPlaceholder) previewPlaceholder.style.display = 'flex';
+            if (previewCover && colorInput) {
+                previewCover.style.backgroundColor = colorInput.value || '#1e293b';
+            }
         }
     }
 
@@ -403,6 +490,8 @@ document.addEventListener('DOMContentLoaded', () => {
         function handleHash() {
             if (window.location.hash === '#create') {
                 openModal();
+                // Clear hash after opening to allow re-triggering
+                history.replaceState(null, null, ' ');
             }
         }
 
@@ -417,7 +506,8 @@ document.addEventListener('DOMContentLoaded', () => {
             const data = {
                 title: formData.get('title'),
                 description: formData.get('description'),
-                cover_url: formData.get('cover_url')
+                cover_url: formData.get('cover_url'),
+                cover_color: formData.get('cover_color')
             };
 
             try {
@@ -429,7 +519,24 @@ document.addEventListener('DOMContentLoaded', () => {
                     body: JSON.stringify(data)
                 });
 
+                console.log('Response status:', response.status);
+                
+                // Handle authentication error
+                if (response.status === 401) {
+                    alert('Vui lòng đăng nhập để tạo sách');
+                    window.location.href = '/auth/login?next=/books#create';
+                    return;
+                }
+                
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    console.error('Server error:', errorText);
+                    alert(`Lỗi từ server (${response.status}): ${errorText}`);
+                    return;
+                }
+
                 const result = await response.json();
+                console.log('Result:', result);
 
                 if (result.success) {
                     window.location.href = `/books/${result.book_id}`;
@@ -438,7 +545,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             } catch (error) {
                 console.error('Error:', error);
-                alert('Lỗi kết nối');
+                alert('Lỗi kết nối: ' + error.message);
             }
         });
     }

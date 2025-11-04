@@ -14,12 +14,8 @@ import (
 
 // Helper function to get current user from session
 func getUserForBooks(c *fiber.Ctx) *models.User {
-	sess, err := sessionStore.Get(c)
-	if err != nil {
-		return nil
-	}
-	userID := sess.Get("user_id")
-	if userID == nil {
+	userID, err := currentUserID(c)
+	if err != nil || userID == 0 {
 		return nil
 	}
 
@@ -62,7 +58,6 @@ func BooksPage() fiber.Handler {
 		return render(c, "pages/books", fiber.Map{
 			"Title": "Sách",
 			"Books": books,
-			"User":  user,
 		}, "main")
 	}
 }
@@ -107,7 +102,7 @@ func BookReadPage() fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		db := database.Get()
 		user := getUserForBooks(c)
-		
+
 		bookID, err := strconv.Atoi(c.Params("id"))
 		if err != nil {
 			return c.Status(400).SendString("ID không hợp lệ")
@@ -124,7 +119,7 @@ func BookReadPage() fiber.Handler {
 		for i := range book.Pages {
 			var annotations []models.Annotation
 			db.Where("book_page_id = ?", book.Pages[i].ID).Find(&annotations)
-			
+
 			// Convert to map[lineNumber]content
 			annotationsMap := make(map[int]string)
 			for _, ann := range annotations {
@@ -139,10 +134,27 @@ func BookReadPage() fiber.Handler {
 			book.AuthorName = author.Name
 		}
 
+		isAuthor := user != nil && user.ID == book.AuthorID
+
+		// Check if request accepts JSON (for AJAX/fetch calls)
+		if c.Get("Accept") == "application/json" {
+			return c.JSON(fiber.Map{
+				"id":          book.ID,
+				"title":       book.Title,
+				"description": book.Description,
+				"cover_url":   book.CoverURL,
+				"cover_color": book.CoverColor,
+				"author_id":   book.AuthorID,
+				"author_name": book.AuthorName,
+				"published":   book.Published,
+				"pages":       book.Pages,
+			})
+		}
+
 		return render(c, "pages/book_read", fiber.Map{
-			"Title": book.Title,
-			"Book":  book,
-			"User":  user,
+			"Title":    book.Title,
+			"Book":     book,
+			"IsAuthor": isAuthor,
 		}, "main")
 	}
 }
@@ -152,7 +164,7 @@ func CreateBook() fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		user := getUserForBooks(c)
 		if user == nil {
-			return c.Redirect("/auth/login?next=/books")
+			return c.Status(401).JSON(fiber.Map{"error": "Chưa đăng nhập"})
 		}
 
 		db := database.Get()
@@ -161,6 +173,7 @@ func CreateBook() fiber.Handler {
 			Title       string `json:"title"`
 			Description string `json:"description"`
 			CoverURL    string `json:"cover_url"`
+			CoverColor  string `json:"cover_color"`
 		}
 
 		if err := c.BodyParser(&req); err != nil {
@@ -171,16 +184,35 @@ func CreateBook() fiber.Handler {
 			return c.Status(400).JSON(fiber.Map{"error": "Tiêu đề không được để trống"})
 		}
 
+		coverColor := strings.TrimSpace(req.CoverColor)
+		if coverColor == "" {
+			coverColor = "#1e293b"
+		}
+
 		book := models.Book{
 			Title:       strings.TrimSpace(req.Title),
 			Description: strings.TrimSpace(req.Description),
 			CoverURL:    strings.TrimSpace(req.CoverURL),
+			CoverColor:  coverColor,
 			AuthorID:    user.ID,
 			Published:   false,
 		}
 
 		if err := db.Create(&book).Error; err != nil {
 			return c.Status(500).JSON(fiber.Map{"error": "Lỗi tạo sách"})
+		}
+
+		// Tạo trang đầu tiên tự động
+		firstPage := models.BookPage{
+			BookID:     book.ID,
+			PageNumber: 1,
+			Title:      "Trang 1",
+			Content:    "<p>Bắt đầu viết nội dung của bạn ở đây...</p>",
+		}
+		
+		if err := db.Create(&firstPage).Error; err != nil {
+			// Log error but don't fail book creation
+			println("Warning: Failed to create first page:", err.Error())
 		}
 
 		return c.JSON(fiber.Map{"success": true, "book_id": book.ID})
@@ -214,6 +246,7 @@ func UpdateBook() fiber.Handler {
 			Title       string `json:"title"`
 			Description string `json:"description"`
 			CoverURL    string `json:"cover_url"`
+			CoverColor  string `json:"cover_color"`
 			Published   bool   `json:"published"`
 		}
 
@@ -224,6 +257,9 @@ func UpdateBook() fiber.Handler {
 		book.Title = strings.TrimSpace(req.Title)
 		book.Description = strings.TrimSpace(req.Description)
 		book.CoverURL = strings.TrimSpace(req.CoverURL)
+		if req.CoverColor != "" {
+			book.CoverColor = strings.TrimSpace(req.CoverColor)
+		}
 		book.Published = req.Published
 
 		if err := db.Save(&book).Error; err != nil {
@@ -260,6 +296,7 @@ func CreateBookPage() fiber.Handler {
 		var req struct {
 			Title           string `json:"title"`
 			Content         string `json:"content"`
+			PageNumber      int    `json:"page_number"`
 			LineAnnotations string `json:"line_annotations"`
 		}
 
@@ -267,13 +304,18 @@ func CreateBookPage() fiber.Handler {
 			return c.Status(400).JSON(fiber.Map{"error": "Dữ liệu không hợp lệ"})
 		}
 
-		// Get next page number
-		var maxPage int
-		db.Model(&models.BookPage{}).Where("book_id = ?", bookID).Select("COALESCE(MAX(page_number), 0)").Scan(&maxPage)
+		// Determine page number
+		pageNumber := req.PageNumber
+		if pageNumber <= 0 {
+			// Get next page number
+			var maxPage int
+			db.Model(&models.BookPage{}).Where("book_id = ?", bookID).Select("COALESCE(MAX(page_number), 0)").Scan(&maxPage)
+			pageNumber = maxPage + 1
+		}
 
 		page := models.BookPage{
 			BookID:     uint(bookID),
-			PageNumber: maxPage + 1,
+			PageNumber: pageNumber,
 			Title:      strings.TrimSpace(req.Title),
 			Content:    req.Content,
 		}

@@ -44,6 +44,10 @@
                 Ảnh bìa (URL)
                 <input type="url" name="cover_url" value="{{.Book.CoverURL}}">
             </label>
+            <label>
+                Màu bìa sách
+                <input type="color" name="cover_color" value="{{if .Book.CoverColor}}{{.Book.CoverColor}}{{else}}#1e293b{{end}}">
+            </label>
             <label style="display: flex; align-items: center; gap: 0.5rem;">
                 <input type="checkbox" name="published" {{if .Book.Published}}checked{{end}}>
                 <span>Xuất bản sách (cho phép người khác xem)</span>
@@ -294,6 +298,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 title: formData.get('title'),
                 description: formData.get('description'),
                 cover_url: formData.get('cover_url'),
+                cover_color: formData.get('cover_color'),
                 published: formData.get('published') === 'on'
             };
 
