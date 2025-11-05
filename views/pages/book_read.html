@@ -179,6 +179,26 @@
         max-width: 80%;
         text-align: center;
     }
+    .page.is-cover .book-tag {
+        position: absolute;
+        bottom: 1rem;
+        right: 1rem;
+        font-size: 0.85rem;
+        font-weight: 600;
+        padding: 0.25rem 0.75rem;
+        background: rgba(59, 130, 246, 0.2);
+        border: 1px solid rgba(59, 130, 246, 0.4);
+        border-radius: 12px;
+        color: #60a5fa;
+        backdrop-filter: blur(4px);
+        transition: all 0.3s ease;
+    }
+    .page.is-cover .book-tag:hover {
+        background: rgba(59, 130, 246, 0.3);
+        border-color: rgba(59, 130, 246, 0.6);
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(59, 130, 246, 0.2);
+    }
     .page-content {
       padding: 2rem;
       padding-bottom: 3rem; /* Space for page number */
@@ -320,25 +340,29 @@
       justify-content: center;
       gap: 0.5rem;
       white-space: nowrap;
-      border-radius: 0.375rem;
+      border-radius: 0.5rem;
       font-size: 0.875rem;
       line-height: 1.25rem;
       font-weight: 500;
-      transition: background-color 150ms;
+      transition: all 200ms ease;
       height: 2.5rem;
       padding: 0.5rem 1rem;
       cursor: pointer;
-      border: none;
-      background-color: hsl(var(--primary));
-      color: hsl(var(--primary-foreground));
-      box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+      border: 1px solid rgba(148, 163, 184, 0.3);
+      background: rgba(59, 130, 246, 0.15);
+      backdrop-filter: blur(8px);
+      color: #e2e8f0;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
     }
     .button.icon-button {
       padding: 0.5rem;
       width: 2.5rem;
     }
     .button:hover {
-      background-color: hsl(var(--primary) / 0.9);
+      background: rgba(59, 130, 246, 0.25);
+      border-color: rgba(59, 130, 246, 0.5);
+      box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+      transform: translateY(-1px);
     }
     .button:disabled {
       pointer-events: none;
@@ -349,18 +373,127 @@
       height: 1rem;
     }
     .controls {
-      margin-top: 2rem;
+      position: fixed;
+      bottom: 1.5rem;
+      left: 50%;
+      transform: translateX(-50%);
       display: flex;
       width: 90%;
       max-width: 1200px;
       justify-content: center;
       align-items: center;
       gap: 1rem;
+      z-index: 100;
     }
     .nav-buttons {
       display: flex;
       gap: 1rem;
       align-items: center;
+    }
+
+    /* Book Search */
+    .book-search-container {
+      position: relative;
+      flex: 1;
+      max-width: 400px;
+    }
+    .book-search-box {
+      position: relative;
+      display: flex;
+      align-items: center;
+      background: rgba(30, 41, 59, 0.4);
+      backdrop-filter: blur(8px);
+      border: 1px solid rgba(148, 163, 184, 0.3);
+      border-radius: 8px;
+      padding: 0.5rem 0.75rem;
+      transition: all 0.3s ease;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+    }
+    .book-search-box:focus-within {
+      border-color: rgba(59, 130, 246, 0.6);
+      background: rgba(30, 41, 59, 0.6);
+      box-shadow: 0 4px 12px rgba(59, 130, 246, 0.2);
+    }
+    .book-search-box .search-icon {
+      color: #94a3b8;
+      margin-right: 0.5rem;
+      flex-shrink: 0;
+    }
+    .book-search-box input {
+      flex: 1;
+      background: transparent;
+      border: none;
+      outline: none;
+      color: #e2e8f0;
+      font-size: 0.9rem;
+      padding: 0;
+    }
+    .book-search-box input::placeholder {
+      color: #64748b;
+    }
+    .search-clear-btn {
+      background: none;
+      border: none;
+      color: #94a3b8;
+      cursor: pointer;
+      padding: 0.25rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 4px;
+      transition: all 0.2s;
+    }
+    .search-clear-btn:hover {
+      background: rgba(148, 163, 184, 0.2);
+      color: #e2e8f0;
+    }
+    .book-search-results {
+      position: absolute;
+      bottom: calc(100% + 0.5rem);
+      left: 0;
+      right: 0;
+      background: rgba(30, 41, 59, 0.98);
+      border: 1px solid rgba(148, 163, 184, 0.3);
+      border-radius: 8px;
+      max-height: 300px;
+      overflow-y: auto;
+      z-index: 1000;
+      box-shadow: 0 8px 16px rgba(0, 0, 0, 0.3);
+    }
+    .search-result-item {
+      padding: 0.75rem;
+      border-bottom: 1px solid rgba(148, 163, 184, 0.2);
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .search-result-item:last-child {
+      border-bottom: none;
+    }
+    .search-result-item:hover {
+      background: rgba(59, 130, 246, 0.2);
+    }
+    .search-result-page {
+      font-size: 0.75rem;
+      color: #3b82f6;
+      font-weight: 600;
+      margin-bottom: 0.25rem;
+    }
+    .search-result-content {
+      font-size: 0.85rem;
+      color: #e2e8f0;
+      line-height: 1.4;
+    }
+    .search-result-content mark {
+      background: rgba(59, 130, 246, 0.3);
+      color: #60a5fa;
+      padding: 0 2px;
+      border-radius: 2px;
+    }
+    .search-no-results {
+      padding: 1rem;
+      text-align: center;
+      color: #94a3b8;
+      font-size: 0.9rem;
     }
 
     /* Highlight Popover */
@@ -603,8 +736,221 @@
         .book-settings-grid {
             grid-template-columns: 1fr;
         }
+        
+        .book-search-container {
+            max-width: 250px;
+        }
+        
+        .book-search-box {
+            padding: 0.4rem 0.6rem;
+        }
+        
+        .book-search-box input {
+            font-size: 0.85rem;
+        }
+        
+        .book-search-box .search-icon {
+            width: 16px;
+            height: 16px;
+        }
+    }
+    /* Mobile Components */
+    .mobile-top-bar {
+      display: none; /* Hidden by default on desktop */
     }
     
+    .search-container-mobile {
+      display: none; /* Hidden by default */
+      position: relative;
+      flex: 1;
+    }
+    
+    .mobile-menu-btn {
+      background: rgba(30, 41, 59, 0.4);
+      backdrop-filter: blur(8px);
+      border: 1px solid rgba(148, 163, 184, 0.3);
+      border-radius: 8px;
+      padding: 0.5rem;
+      color: #e2e8f0;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.3s ease;
+    }
+    
+    .mobile-menu-btn:hover {
+      background: rgba(30, 41, 59, 0.6);
+      border-color: rgba(59, 130, 246, 0.5);
+    }
+    
+    .mobile-menu-dropdown {
+      position: absolute;
+      top: calc(100% + 0.5rem);
+      left: 0;
+      background: rgba(30, 41, 59, 0.98);
+      border: 1px solid rgba(148, 163, 184, 0.3);
+      border-radius: 8px;
+      min-width: 200px;
+      box-shadow: 0 8px 16px rgba(0, 0, 0, 0.3);
+      z-index: 1000;
+    }
+    
+    .mobile-menu-item {
+      width: 100%;
+      padding: 0.75rem 1rem;
+      background: transparent;
+      border: none;
+      color: #e2e8f0;
+      text-align: left;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-size: 0.9rem;
+      transition: background 0.2s;
+      border-bottom: 1px solid rgba(148, 163, 184, 0.2);
+    }
+    
+    .mobile-menu-item:last-child {
+      border-bottom: none;
+    }
+    
+    .mobile-menu-item:hover {
+      background: rgba(59, 130, 246, 0.1);
+    }
+    
+    .mobile-toolbar-container {
+      display: none; /* Hidden by default on desktop */
+    }
+    
+    .mobile-toolbar-toggle {
+      width: 100%;
+      padding: 0.75rem;
+      background: rgba(30, 41, 59, 0.4);
+      backdrop-filter: blur(8px);
+      border: 1px solid rgba(148, 163, 184, 0.3);
+      border-radius: 8px;
+      color: #e2e8f0;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      font-size: 0.9rem;
+      transition: all 0.3s ease;
+    }
+    
+    .mobile-toolbar-toggle:hover {
+      background: rgba(30, 41, 59, 0.6);
+      border-color: rgba(59, 130, 246, 0.5);
+    }
+    
+    .mobile-search-box {
+      position: relative;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      flex: 1;
+    }
+    
+    .mobile-search-box input {
+      flex: 1;
+      background: rgba(30, 41, 59, 0.4);
+      backdrop-filter: blur(8px);
+      border: 1px solid rgba(148, 163, 184, 0.3);
+      border-radius: 8px;
+      padding: 0.5rem 2.5rem 0.5rem 0.75rem;
+      outline: none;
+      color: #e2e8f0;
+      font-size: 0.9rem;
+      transition: all 0.3s ease;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+    }
+    
+    .mobile-search-box input:focus {
+      border-color: rgba(59, 130, 246, 0.6);
+      background: rgba(30, 41, 59, 0.6);
+      box-shadow: 0 4px 12px rgba(59, 130, 246, 0.2);
+    }
+    
+    .mobile-search-box input::placeholder {
+      color: #94a3b8;
+    }
+    
+    .mobile-search-box button {
+      position: absolute;
+      right: 0.5rem;
+      background: transparent;
+      border: none;
+      color: #94a3b8;
+      cursor: pointer;
+      padding: 0.25rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    
+    .mobile-search-box button:hover {
+      color: #e2e8f0;
+    }
+    
+    .mobile-search-results {
+      position: absolute;
+      top: calc(100% + 0.5rem);
+      left: 0;
+      right: 0;
+      background: rgba(30, 41, 59, 0.98);
+      border: 1px solid rgba(148, 163, 184, 0.3);
+      border-radius: 8px;
+      max-height: 300px;
+      overflow-y: auto;
+      z-index: 1000;
+      box-shadow: 0 8px 16px rgba(0, 0, 0, 0.3);
+      display: none;
+    }
+    
+    .mobile-search-results .search-result-item {
+      padding: 0.75rem;
+      border-bottom: 1px solid rgba(148, 163, 184, 0.2);
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    
+    .mobile-search-results .search-result-item:last-child {
+      border-bottom: none;
+    }
+    
+    .mobile-search-results .search-result-item:hover {
+      background: rgba(59, 130, 246, 0.1);
+    }
+    
+    .mobile-search-results .search-result-page {
+      color: #3b82f6;
+      font-weight: 600;
+      font-size: 0.85rem;
+      margin-bottom: 0.25rem;
+    }
+    
+    .mobile-search-results .search-result-content {
+      color: #cbd5e1;
+      font-size: 0.85rem;
+      line-height: 1.4;
+    }
+    
+    .mobile-search-results .search-result-content mark {
+      background: rgba(59, 130, 246, 0.3);
+      color: #60a5fa;
+      padding: 0.1rem 0.2rem;
+      border-radius: 2px;
+    }
+    
+    .mobile-search-results .search-no-results {
+      padding: 1rem;
+      text-align: center;
+      color: #94a3b8;
+      font-size: 0.9rem;
+    }
     #loader {
         font-size: 1.5rem;
         color: hsl(var(--foreground));
@@ -612,6 +958,7 @@
      @media (max-width: 767px) {
       .pageflipper-container {
         padding: 0;
+        padding-top: 4.5rem; /* Space for mobile top bar - overlap a bit */
       }
 
       /* Hide desktop controls */
@@ -619,9 +966,66 @@
         display: none;
       }
       
+      /* Show mobile top bar */
+      .mobile-top-bar {
+        display: flex;
+        position: fixed;
+        top: 3rem;
+        left: 1rem;
+        right: 1rem;
+        z-index: 200;
+        gap: 0.5rem;
+        align-items: flex-start;
+      }
+      
+      /* Mobile search */
+      .search-container-mobile {
+        display: block;
+        flex: 1;
+      }
+      
+      /* Show mobile toolbar container */
+      .mobile-toolbar-container {
+        display: block;
+        position: fixed;
+        bottom: 1rem;
+        left: 1rem;
+        right: 1rem;
+        z-index: 100;
+      }
+      
+      /* Editor toolbar on mobile - dropup from bottom */
       .editor-toolbar {
-        width: 90%;
+        position: fixed;
+        bottom: 4.5rem;
+        left: 1rem;
+        right: 1rem;
+        width: auto;
+        max-width: none;
+        z-index: 99;
+        background: rgba(30, 41, 59, 0.98);
+        border: 1px solid rgba(148, 163, 184, 0.3);
+        border-radius: 8px;
+        padding: 0.5rem;
+        box-shadow: 0 8px 16px rgba(0, 0, 0, 0.3);
+        display: flex; /* Always flex for animation */
+        flex-wrap: wrap;
         justify-content: center;
+        gap: 0.25rem;
+        transform: translateY(calc(100% + 5rem));
+        opacity: 0;
+        pointer-events: none;
+        transition: transform 0.3s ease, opacity 0.3s ease;
+      }
+      
+      .editor-toolbar.active {
+        transform: translateY(0);
+        opacity: 1;
+        pointer-events: auto;
+      }
+      
+      .editor-toolbar .toolbar-button {
+        padding: 0.5rem;
       }
 
       /* Convert the book to a horizontal scroll container */
@@ -712,16 +1116,89 @@
         </button>
         <input type="file" id="image-upload" accept="image/*" style="display: none;" />
       </div>
-
+      <!-- Mobile Top Bar -->
+      <div class="mobile-top-bar">
+        <!-- Hamburger Menu Button - Only for Author, Left-most -->
+        {{if .IsAuthor}}
+        <button id="mobile-menu-btn" class="mobile-menu-btn">
+          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="3" y1="12" x2="21" y2="12"></line>
+            <line x1="3" y1="6" x2="21" y2="6"></line>
+            <line x1="3" y1="18" x2="21" y2="18"></line>
+          </svg>
+        </button>
+        
+        <!-- Mobile Menu Dropdown -->
+        <div id="mobile-menu-dropdown" class="mobile-menu-dropdown" style="display: none;">
+          <button id="mobile-settings-btn" class="mobile-menu-item">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M12 1v6m0 6v6m-6-6h6m6 0h6"></path></svg>
+            Cài đặt sách
+          </button>
+          <button id="mobile-add-page-btn" class="mobile-menu-item">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+            Thêm trang
+          </button>
+        </div>
+        {{end}}
+        
+        <div class="search-container-mobile">
+          <div class="mobile-search-box">
+            <input type="text" id="mobile-search-input" placeholder="Tìm trong sách..." autocomplete="off" />
+            <button id="mobile-search-clear" class="search-clear-btn" style="display: none;">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="18" y1="6" x2="6" y2="18"></line>
+                <line x1="6" y1="6" x2="18" y2="18"></line>
+              </svg>
+            </button>
+          </div>
+          <div id="mobile-search-results" class="mobile-search-results"></div>
+        </div>
+      </div>
       <div id="book-container" class="book-container">
         <!-- Sheets will be generated here by JavaScript -->
       </div>
+      
+      <!-- Mobile Toolbar Toggle - Only for Author -->
+      {{if .IsAuthor}}
+      <div class="mobile-toolbar-container">
+        <button id="mobile-toolbar-toggle" class="mobile-toolbar-toggle">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z"></path>
+            <path d="m15 5 4 4"></path>
+          </svg>
+          Công cụ chỉnh sửa
+        </button>
+      </div>
+      {{end}}
       <div class="controls">
         <div class="nav-buttons">
           <button id="prev-btn" class="button">
             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg>
             Trang trước
           </button>
+          
+          <!-- Search Box -->
+          <div class="book-search-container">
+            <div class="book-search-box">
+              <svg class="search-icon" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="11" cy="11" r="8"></circle>
+                <path d="m21 21-4.35-4.35"></path>
+              </svg>
+              <input
+                type="text"
+                id="book-search-input"
+                placeholder="Tìm trong sách..."
+                autocomplete="off"
+              />
+              <button id="book-search-clear" class="search-clear-btn" style="display: none;">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <line x1="18" y1="6" x2="6" y2="18"></line>
+                  <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
+              </button>
+            </div>
+            <div id="book-search-results" class="book-search-results" style="display: none;"></div>
+          </div>
           
           <button id="next-btn" class="button">
             Trang sau
@@ -810,6 +1287,16 @@
                   </div>
                   <small style="color: #94a3b8; font-size: 0.85rem;">Chọn màu nền cho bìa sách khi không có ảnh</small>
               </label>
+              <label>
+                  Tag sách
+                  <input type="text" name="book_tag" value="{{.Book.BookTag}}" placeholder="linux, golang, devops..." maxlength="50">
+                  <small style="color: #94a3b8; font-size: 0.85rem;">Tag chính của sách (hiển thị dạng @tag ở góc bìa)</small>
+              </label>
+              <label>
+                  Danh mục
+                  <input type="text" name="book_category" value="{{.Book.BookCategory}}" placeholder="Lập trình, Hệ điều hành..." maxlength="50">
+                  <small style="color: #94a3b8; font-size: 0.85rem;">Danh mục để phân loại và lọc sách</small>
+              </label>
               <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
                   <input type="checkbox" name="published" {{if .Book.Published}}checked{{end}} style="cursor: pointer;">
                   <span>Xuất bản sách (cho phép người khác xem)</span>
@@ -862,6 +1349,16 @@
       const nextBtn = document.getElementById('next-btn');
       const addPageBtn = document.getElementById('add-page-btn');
       const editorToolbar = document.querySelector('.editor-toolbar');
+      
+      // Search elements (Desktop)
+      const bookSearchInput = document.getElementById('book-search-input');
+      const bookSearchClear = document.getElementById('book-search-clear');
+      const bookSearchResults = document.getElementById('book-search-results');
+      
+      // Search elements (Mobile)
+      const mobileSearchInput = document.getElementById('mobile-search-input');
+      const mobileSearchClear = document.getElementById('mobile-search-clear');
+      const mobileSearchResults = document.getElementById('mobile-search-results');
       
       // Popovers and Modals
       const highlightPopover = document.getElementById('highlight-popover');
@@ -1132,6 +1629,7 @@
             <h1 class="cover-title">${book.title || 'Book Title'}</h1>
             ${book.cover_url ? `<img class="cover-image" src="${book.cover_url}" alt="Cover Image" onerror="this.style.display='none'">` : ''}
             ${book.description ? `<div class="cover-description">${book.description}</div>` : ''}
+            ${book.book_tag ? `<div class="book-tag">@${book.book_tag}</div>` : ''}
         `;
         finalPages.unshift({id: 'cover', page_number: 0, content: coverContent});
         
@@ -1349,6 +1847,318 @@
             flip(sheetToFlip, 'prev');
           }
         }
+      }
+      
+      // --- SEARCH FUNCTIONALITY ---
+      function searchInBook(query) {
+        if (!book || !book.pages || !query.trim()) {
+          return [];
+        }
+        
+        const searchTerm = query.toLowerCase().trim();
+        const results = [];
+        
+        book.pages.forEach((page, index) => {
+          const content = page.content || '';
+          const plainText = content.replace(/<[^>]*>/g, ''); // Strip HTML
+          const lowerContent = plainText.toLowerCase();
+          
+          if (lowerContent.includes(searchTerm)) {
+            // Find context around the match
+            const matchIndex = lowerContent.indexOf(searchTerm);
+            const start = Math.max(0, matchIndex - 50);
+            const end = Math.min(plainText.length, matchIndex + searchTerm.length + 50);
+            let snippet = plainText.substring(start, end);
+            
+            // Add ellipsis
+            if (start > 0) snippet = '...' + snippet;
+            if (end < plainText.length) snippet = snippet + '...';
+            
+            // Highlight the search term
+            const regex = new RegExp(`(${searchTerm})`, 'gi');
+            snippet = snippet.replace(regex, '<mark>$1</mark>');
+            
+            results.push({
+              pageIndex: index,
+              pageNumber: page.page_number,
+              snippet: snippet
+            });
+          }
+        });
+        
+        return results;
+      }
+      
+      function displaySearchResults(results, query) {
+        bookSearchResults.innerHTML = '';
+        
+        if (results.length === 0) {
+          bookSearchResults.innerHTML = '<div class="search-no-results">Không tìm thấy kết quả</div>';
+          bookSearchResults.style.display = 'block';
+          return;
+        }
+        
+        results.forEach(result => {
+          const item = document.createElement('div');
+          item.className = 'search-result-item';
+          item.innerHTML = `
+            <div class="search-result-page">Trang ${result.pageNumber}</div>
+            <div class="search-result-content">${result.snippet}</div>
+          `;
+          
+          item.addEventListener('click', async () => {
+            bookSearchResults.style.display = 'none';
+            bookSearchInput.blur();
+            await goToPageByIndex(result.pageIndex);
+          });
+          
+          bookSearchResults.appendChild(item);
+        });
+        
+        bookSearchResults.style.display = 'block';
+      }
+      
+      async function goToPageByIndex(pageIndex) {
+        if (!book || !book.pages || isFlipping) return;
+        
+        // Calculate which spread contains this page
+        // Page index starts at 0, each spread shows 2 pages
+        // Spread 0: cover (page -1) and page 0
+        // Spread 1: page 1 and page 2
+        // Spread 2: page 3 and page 4
+        // So: targetSpread = Math.ceil((pageIndex + 1) / 2)
+        const targetSpread = Math.ceil((pageIndex + 1) / 2);
+        
+        // Flip to target spread with animation delay
+        if (currentSpread < targetSpread) {
+          // Flip forward
+          while (currentSpread < targetSpread && currentSpread < bookContainer.children.length) {
+            goToNextSpread();
+            await new Promise(resolve => setTimeout(resolve, FLIP_DURATION));
+          }
+        } else if (currentSpread > targetSpread) {
+          // Flip backward
+          while (currentSpread > targetSpread && currentSpread > 0) {
+            goToPrevSpread();
+            await new Promise(resolve => setTimeout(resolve, FLIP_DURATION));
+          }
+        }
+      }
+      
+      // Search event listeners
+      if (bookSearchInput) {
+        let searchTimeout;
+        
+        bookSearchInput.addEventListener('input', (e) => {
+          const query = e.target.value.trim();
+          
+          // Show/hide clear button
+          if (query) {
+            bookSearchClear.style.display = 'flex';
+          } else {
+            bookSearchClear.style.display = 'none';
+            bookSearchResults.style.display = 'none';
+            return;
+          }
+          
+          // Debounce search
+          clearTimeout(searchTimeout);
+          searchTimeout = setTimeout(() => {
+            const results = searchInBook(query);
+            displaySearchResults(results, query);
+          }, 300);
+        });
+        
+        bookSearchInput.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter') {
+            e.preventDefault();
+            const query = bookSearchInput.value.trim();
+            if (query) {
+              const results = searchInBook(query);
+              displaySearchResults(results, query);
+            }
+          } else if (e.key === 'Escape') {
+            bookSearchResults.style.display = 'none';
+            bookSearchInput.blur();
+          }
+        });
+        
+        if (bookSearchClear) {
+          bookSearchClear.addEventListener('click', () => {
+            bookSearchInput.value = '';
+            bookSearchClear.style.display = 'none';
+            bookSearchResults.style.display = 'none';
+            bookSearchInput.focus();
+          });
+        }
+        
+        // Close search results when clicking outside
+        document.addEventListener('click', (e) => {
+          if (!e.target.closest('.book-search-container')) {
+            bookSearchResults.style.display = 'none';
+          }
+        });
+      }
+      
+      // Mobile Search event listeners
+      if (mobileSearchInput) {
+        let mobileSearchTimeout;
+        
+        mobileSearchInput.addEventListener('input', (e) => {
+          const query = e.target.value.trim();
+          
+          // Show/hide clear button
+          if (query) {
+            mobileSearchClear.style.display = 'flex';
+          } else {
+            mobileSearchClear.style.display = 'none';
+            mobileSearchResults.style.display = 'none';
+            return;
+          }
+          
+          // Debounce search
+          clearTimeout(mobileSearchTimeout);
+          mobileSearchTimeout = setTimeout(() => {
+            const results = searchInBook(query);
+            displayMobileSearchResults(results, query);
+          }, 300);
+        });
+        
+        mobileSearchInput.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter') {
+            e.preventDefault();
+            const query = mobileSearchInput.value.trim();
+            if (query) {
+              const results = searchInBook(query);
+              displayMobileSearchResults(results, query);
+            }
+          } else if (e.key === 'Escape') {
+            mobileSearchResults.style.display = 'none';
+            mobileSearchInput.blur();
+          }
+        });
+        
+        if (mobileSearchClear) {
+          mobileSearchClear.addEventListener('click', () => {
+            mobileSearchInput.value = '';
+            mobileSearchClear.style.display = 'none';
+            mobileSearchResults.style.display = 'none';
+            mobileSearchInput.focus();
+          });
+        }
+        
+        // Close search results when clicking outside
+        document.addEventListener('click', (e) => {
+          if (!e.target.closest('.search-container-mobile')) {
+            mobileSearchResults.style.display = 'none';
+          }
+        });
+      }
+      
+      // Display mobile search results
+      function displayMobileSearchResults(results, query) {
+        mobileSearchResults.innerHTML = '';
+        
+        if (results.length === 0) {
+          mobileSearchResults.innerHTML = '<div class="search-no-results">Không tìm thấy kết quả</div>';
+          mobileSearchResults.style.display = 'block';
+          return;
+        }
+        
+        results.forEach(result => {
+          const item = document.createElement('div');
+          item.className = 'search-result-item';
+          item.innerHTML = `
+            <div class="search-result-page">Trang ${result.pageNumber}</div>
+            <div class="search-result-content">${result.snippet}</div>
+          `;
+          
+          item.addEventListener('click', async () => {
+            mobileSearchResults.style.display = 'none';
+            mobileSearchInput.blur();
+            
+            // On mobile, find the sheet containing this page and scroll to it
+            // Each sheet has 2 pages, so sheet index = floor(pageIndex / 2)
+            const sheetIndex = Math.floor((result.pageIndex + 1) / 2); // +1 because cover is at index 0
+            const sheets = bookContainer.querySelectorAll('.sheet');
+            if (sheets[sheetIndex]) {
+              sheets[sheetIndex].scrollIntoView({ behavior: 'smooth', block: 'start', inline: 'start' });
+            }
+          });
+          
+          mobileSearchResults.appendChild(item);
+        });
+        
+        mobileSearchResults.style.display = 'block';
+      }
+      
+      // Mobile Menu Toggle
+      const mobileMenuBtn = document.getElementById('mobile-menu-btn');
+      const mobileMenuDropdown = document.getElementById('mobile-menu-dropdown');
+      const mobileSettingsBtn = document.getElementById('mobile-settings-btn');
+      const mobileAddPageBtn = document.getElementById('mobile-add-page-btn');
+      
+      if (mobileMenuBtn) {
+        mobileMenuBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const isVisible = mobileMenuDropdown.style.display === 'block';
+          mobileMenuDropdown.style.display = isVisible ? 'none' : 'block';
+        });
+        
+        // Close menu when clicking outside
+        document.addEventListener('click', (e) => {
+          if (!e.target.closest('.mobile-top-bar')) {
+            mobileMenuDropdown.style.display = 'none';
+          }
+        });
+        
+        // Mobile settings button
+        if (mobileSettingsBtn) {
+          mobileSettingsBtn.addEventListener('click', () => {
+            mobileMenuDropdown.style.display = 'none';
+            // Trigger desktop settings button
+            const desktopSettingsBtn = document.getElementById('book-settings-btn');
+            if (desktopSettingsBtn) {
+              desktopSettingsBtn.click();
+            }
+          });
+        }
+        
+        // Mobile add page button
+        if (mobileAddPageBtn) {
+          mobileAddPageBtn.addEventListener('click', () => {
+            mobileMenuDropdown.style.display = 'none';
+            handleAddPage();
+          });
+        }
+      }
+      
+      // Mobile Toolbar Toggle
+      const mobileToolbarToggle = document.getElementById('mobile-toolbar-toggle');
+      
+      if (mobileToolbarToggle) {
+        mobileToolbarToggle.addEventListener('click', () => {
+          editorToolbar.classList.toggle('active');
+          
+          // Update button text
+          if (editorToolbar.classList.contains('active')) {
+            mobileToolbarToggle.innerHTML = `
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="18" y1="6" x2="6" y2="18"></line>
+                <line x1="6" y1="6" x2="18" y2="18"></line>
+              </svg>
+              Đóng công cụ
+            `;
+          } else {
+            mobileToolbarToggle.innerHTML = `
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z"></path>
+                <path d="m15 5 4 4"></path>
+              </svg>
+              Công cụ chỉnh sửa
+            `;
+          }
+        });
       }
       
       // Keyboard navigation
@@ -2011,7 +2821,9 @@
                       description: formData.get('description'),
                       cover_url: formData.get('cover_url'),
                       cover_color: formData.get('cover_color'),
-                      published: formData.get('published') === 'on'
+                      published: formData.get('published') === 'on',
+                      book_tag: formData.get('book_tag'),
+                      book_category: formData.get('book_category')
                   };
 
                   try {
@@ -2029,6 +2841,8 @@
                           book.cover_url = data.cover_url;
                           book.cover_color = data.cover_color;
                           book.published = data.published;
+                          book.book_tag = data.book_tag;
+                          book.book_category = data.book_category;
                           
                           bookSettingsModal.style.display = 'none';
                           await renderBook(); // Re-render to show updated cover

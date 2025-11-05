@@ -32,16 +32,18 @@ func Init() *gorm.DB {
 		database := getEnv("DB_NAME", "wedevops")
 		sslmode := getEnv("DB_SSLMODE", "require")
 
-		// Tạo PostgreSQL DSN
-		defaultDSN := "host=" + host + " user=" + user + " password=" + password + " dbname=" + database + " port=" + port + " sslmode=" + sslmode
+		// Tạo PostgreSQL DSN with prefer_simple_protocol to avoid prepared statement issues
+		defaultDSN := "host=" + host + " user=" + user + " password=" + password + " dbname=" + database + " port=" + port + " sslmode=" + sslmode + " prefer_simple_protocol=true"
 		dsn := strings.TrimSpace(getEnv("DATABASE_DSN", defaultDSN))
 		if dsn == "" {
 			dsn = defaultDSN
 		}
 
 		dbConfig := &gorm.Config{
-			Logger:         logger.Default.LogMode(logger.Warn),
-			NamingStrategy: schema.NamingStrategy{SingularTable: false},
+			Logger:                                   logger.Default.LogMode(logger.Warn),
+			NamingStrategy:                           schema.NamingStrategy{SingularTable: false},
+			PrepareStmt:                              false, // Disable prepared statement cache to avoid schema mismatch
+			DisableForeignKeyConstraintWhenMigrating: true,
 		}
 
 		var err error
@@ -54,9 +56,16 @@ func Init() *gorm.DB {
 		if err != nil {
 			log.Fatalf("failed to retrieve sql DB instance: %v", err)
 		}
+		
+		// Close all existing connections to clear prepared statements
+		sqlDB.SetMaxOpenConns(0)
+		sqlDB.SetMaxIdleConns(0)
+		time.Sleep(100 * time.Millisecond) // Wait for connections to close
+		
+		// Set new connection pool settings
 		sqlDB.SetMaxOpenConns(25)
 		sqlDB.SetMaxIdleConns(10)
-		sqlDB.SetConnMaxLifetime(15 * time.Minute)
+		sqlDB.SetConnMaxLifetime(5 * time.Minute) // Shorter lifetime to avoid stale connections
 
 		if err = db.AutoMigrate(&models.User{}, &models.Post{}, &models.Comment{}, &models.Annotation{}, &models.Book{}, &models.BookPage{}, &models.Highlight{}); err != nil {
 			log.Fatalf("failed to migrate database: %v", err)

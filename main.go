@@ -231,6 +231,7 @@ func main() {
 	app.Get("/posts/preview", handlers.PostPreviewPage())
 	app.Get("/posts/:id", handlers.PostDetailPage())
 	app.Get("/books", handlers.BooksPage())
+	app.Get("/api/books/search", handlers.SearchBooks())
 	app.Get("/books/:id", handlers.BookDetailPage())
 	app.Get("/books/:id/read", handlers.BookReadPage())
 	app.Get("/auth/register", handlers.RegisterPage())

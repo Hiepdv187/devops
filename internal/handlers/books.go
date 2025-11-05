@@ -171,10 +171,12 @@ func CreateBook() fiber.Handler {
 		db := database.Get()
 
 		var req struct {
-			Title       string `json:"title"`
-			Description string `json:"description"`
-			CoverURL    string `json:"cover_url"`
-			CoverColor  string `json:"cover_color"`
+			Title        string `json:"title"`
+			Description  string `json:"description"`
+			CoverURL     string `json:"cover_url"`
+			CoverColor   string `json:"cover_color"`
+			BookTag      string `json:"book_tag"`
+			BookCategory string `json:"book_category"`
 		}
 
 		if err := c.BodyParser(&req); err != nil {
@@ -191,12 +193,14 @@ func CreateBook() fiber.Handler {
 		}
 
 		book := models.Book{
-			Title:       strings.TrimSpace(req.Title),
-			Description: strings.TrimSpace(req.Description),
-			CoverURL:    strings.TrimSpace(req.CoverURL),
-			CoverColor:  coverColor,
-			AuthorID:    user.ID,
-			Published:   true, // Mặc định publish sách mới để mọi người có thể xem
+			Title:        strings.TrimSpace(req.Title),
+			Description:  strings.TrimSpace(req.Description),
+			CoverURL:     strings.TrimSpace(req.CoverURL),
+			CoverColor:   coverColor,
+			AuthorID:     user.ID,
+			Published:    true, // Mặc định publish sách mới để mọi người có thể xem
+			BookTag:      strings.TrimSpace(req.BookTag),
+			BookCategory: strings.TrimSpace(req.BookCategory),
 		}
 
 		if err := db.Create(&book).Error; err != nil {
@@ -244,11 +248,13 @@ func UpdateBook() fiber.Handler {
 		}
 
 		var req struct {
-			Title       string `json:"title"`
-			Description string `json:"description"`
-			CoverURL    string `json:"cover_url"`
-			CoverColor  string `json:"cover_color"`
-			Published   bool   `json:"published"`
+			Title        string `json:"title"`
+			Description  string `json:"description"`
+			CoverURL     string `json:"cover_url"`
+			CoverColor   string `json:"cover_color"`
+			Published    bool   `json:"published"`
+			BookTag      string `json:"book_tag"`
+			BookCategory string `json:"book_category"`
 		}
 
 		if err := c.BodyParser(&req); err != nil {
@@ -262,6 +268,8 @@ func UpdateBook() fiber.Handler {
 			book.CoverColor = strings.TrimSpace(req.CoverColor)
 		}
 		book.Published = req.Published
+		book.BookTag = strings.TrimSpace(req.BookTag)
+		book.BookCategory = strings.TrimSpace(req.BookCategory)
 
 		if err := db.Save(&book).Error; err != nil {
 			return c.Status(500).JSON(fiber.Map{"error": "Lỗi cập nhật sách"})
@@ -589,5 +597,78 @@ func DeleteHighlight() fiber.Handler {
 		}
 
 		return c.JSON(fiber.Map{"success": true})
+	}
+}
+
+// SearchBooks API endpoint for searching books
+func SearchBooks() fiber.Handler {
+	return func(c *fiber.Ctx) error {
+		db := database.Get()
+		user := getUserForBooks(c)
+
+		query := c.Query("q")
+		if query == "" {
+			return c.Status(400).JSON(fiber.Map{"error": "Query parameter 'q' is required"})
+		}
+
+		page, _ := strconv.Atoi(c.Query("page", "1"))
+		limit, _ := strconv.Atoi(c.Query("limit", "20"))
+		if page < 1 {
+			page = 1
+		}
+		if limit < 1 || limit > 100 {
+			limit = 20
+		}
+		offset := (page - 1) * limit
+
+		searchTerm := "%" + strings.ToLower(query) + "%"
+
+		// Build query với full-text search
+		var books []models.Book
+		var total int64
+
+		baseQuery := db.Model(&models.Book{})
+
+		// Chỉ tìm sách published hoặc sách của mình
+		if user != nil {
+			baseQuery = baseQuery.Where("(published = ? OR author_id = ?)", true, user.ID)
+		} else {
+			baseQuery = baseQuery.Where("published = ?", true)
+		}
+
+		// Search trong title, description, và author name
+		searchQuery := baseQuery.
+			Joins("LEFT JOIN users ON users.id = books.author_id").
+			Where("LOWER(books.title) LIKE ? OR LOWER(books.description) LIKE ? OR LOWER(users.name) LIKE ?",
+				searchTerm, searchTerm, searchTerm)
+
+		// Count total results
+		searchQuery.Count(&total)
+
+		// Get paginated results
+		if err := searchQuery.
+			Order("books.created_at DESC").
+			Limit(limit).
+			Offset(offset).
+			Find(&books).Error; err != nil {
+			return c.Status(500).JSON(fiber.Map{"error": "Lỗi tìm kiếm"})
+		}
+
+		// Load author names
+		for i := range books {
+			var author models.User
+			if err := db.First(&author, books[i].AuthorID).Error; err == nil {
+				books[i].AuthorName = author.Name
+			}
+		}
+
+		return c.JSON(fiber.Map{
+			"success": true,
+			"results": books,
+			"total":   total,
+			"page":    page,
+			"limit":   limit,
+			"query":   query,
+		})
 	}
 }
