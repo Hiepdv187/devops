@@ -262,6 +262,10 @@ func render(c *fiber.Ctx, view string, data fiber.Map, layout string) error {
 		base[k] = v
 	}
 
+	// If layout is specified, use it; if empty, render without layout
+	if layout != "" {
+		return c.Render(view, base, "layouts/"+layout)
+	}
 	return c.Render(view, base)
 }
 

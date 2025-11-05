@@ -40,18 +40,18 @@ func BooksPage() fiber.Handler {
 
 		var books []models.Book
 		query := db.Order("created_at DESC")
-		
+
 		// Chỉ hiển thị sách published hoặc sách của mình
 		if user != nil {
 			query = query.Where("published = ? OR author_id = ?", true, user.ID)
 		} else {
 			query = query.Where("published = ?", true)
 		}
-		
+
 		if err := query.Find(&books).Error; err != nil {
 			return c.Status(500).SendString("Lỗi tải danh sách sách")
 		}
-		
+
 		// Debug log
 		if user == nil {
 			log.Printf("Guest user viewing books page. Found %d published books", len(books))
@@ -66,7 +66,7 @@ func BooksPage() fiber.Handler {
 		}
 
 		isAuthenticated := user != nil
-		
+
 		return render(c, "pages/books", fiber.Map{
 			"Title":           "Sách",
 			"Books":           books,
@@ -81,7 +81,7 @@ func BookDetailPage() fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		db := database.Get()
 		user := getUserForBooks(c)
-		
+
 		bookID, err := strconv.Atoi(c.Params("id"))
 		if err != nil {
 			return c.Status(400).SendString("ID không hợp lệ")
@@ -170,7 +170,7 @@ func BookReadPage() fiber.Handler {
 			"Title":    book.Title,
 			"Book":     book,
 			"IsAuthor": isAuthor,
-		}, "main")
+		}, "empty")
 	}
 }
 
@@ -224,7 +224,7 @@ func CreateBook() fiber.Handler {
 			Title:      "Trang 1",
 			Content:    "<p>Bắt đầu viết nội dung của bạn ở đây...</p>",
 		}
-		
+
 		if err := db.Create(&firstPage).Error; err != nil {
 			// Log error but don't fail book creation
 			println("Warning: Failed to create first page:", err.Error())
@@ -407,7 +407,7 @@ func UpdateBookPage() fiber.Handler {
 
 		// Update annotations
 		db.Where("book_page_id = ?", page.ID).Delete(&models.Annotation{})
-		
+
 		if req.LineAnnotations != "" {
 			var annotationsMap map[string]string
 			if err := json.Unmarshal([]byte(req.LineAnnotations), &annotationsMap); err == nil {
@@ -427,6 +427,69 @@ func UpdateBookPage() fiber.Handler {
 		}
 
 		return c.JSON(fiber.Map{"success": true})
+	}
+}
+
+// DeleteBook xóa cứng sách và tất cả nội dung liên quan
+func DeleteBook() fiber.Handler {
+	return func(c *fiber.Ctx) error {
+		user := getUserForBooks(c)
+		if user == nil {
+			return c.Status(401).JSON(fiber.Map{"error": "Chưa đăng nhập"})
+		}
+
+		db := database.Get()
+		bookID, _ := strconv.Atoi(c.Params("id"))
+
+		// Tìm sách
+		var book models.Book
+		if err := db.First(&book, bookID).Error; err != nil {
+			return c.Status(404).JSON(fiber.Map{"error": "Không tìm thấy sách"})
+		}
+
+		// Kiểm tra quyền - chỉ author mới được xóa
+		if book.AuthorID != user.ID {
+			return c.Status(403).JSON(fiber.Map{"error": "Bạn không có quyền xóa sách này"})
+		}
+
+		// Xóa trong transaction để đảm bảo data integrity
+		err := db.Transaction(func(tx *gorm.DB) error {
+			// 1. Lấy tất cả pages của sách
+			var pages []models.BookPage
+			if err := tx.Where("book_id = ?", bookID).Find(&pages).Error; err != nil {
+				return err
+			}
+
+			// 2. Xóa tất cả highlights và annotations của từng page
+			for _, page := range pages {
+				// Xóa highlights
+				if err := tx.Unscoped().Where("book_page_id = ?", page.ID).Delete(&models.Highlight{}).Error; err != nil {
+					return err
+				}
+			}
+
+			// 3. Xóa tất cả pages
+			if err := tx.Unscoped().Where("book_id = ?", bookID).Delete(&models.BookPage{}).Error; err != nil {
+				return err
+			}
+
+			// 4. Xóa sách
+			if err := tx.Unscoped().Delete(&book).Error; err != nil {
+				return err
+			}
+
+			return nil
+		})
+
+		if err != nil {
+			log.Printf("Error deleting book %d: %v", bookID, err)
+			return c.Status(500).JSON(fiber.Map{"error": "Lỗi khi xóa sách"})
+		}
+
+		return c.JSON(fiber.Map{
+			"success": true,
+			"message": "Đã xóa sách thành công",
+		})
 	}
 }
 

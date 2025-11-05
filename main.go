@@ -244,6 +244,7 @@ func main() {
 	app.Post("/posts/:id/edit", handlers.UpdatePost())
 	app.Post("/books", handlers.CreateBook())
 	app.Post("/books/:id/edit", handlers.UpdateBook())
+	app.Delete("/books/:id", handlers.DeleteBook())
 	app.Post("/books/:id/pages", handlers.CreateBookPage())
 	app.Post("/books/:bookId/pages/:pageId/edit", handlers.UpdateBookPage())
 	app.Delete("/books/:bookId/pages/:pageId", handlers.DeleteBookPage())

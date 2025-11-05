@@ -2,50 +2,62 @@
     <div class="hero-header">
         <div class="hero-text">
             <h1>📚 Sách</h1>
-            <p>Khám phá và tạo sách kỹ thuật với tính năng lật trang</p>
+            <p>Hãy cùng viết các cuốn sách mà bạn sẽ không thể mua được ở đâu, để chia sẻ kiến thức cùng cộng đồng. Tạo nên một kho tàng kiến thức để xây dựng nền tảng Devops vững chắc</p>
         </div>
         {{if .IsAuthenticated}}
         <div style="margin-top: 1.5rem;">
             <button type="button" class="btn primary" id="create-book-btn" style="font-size: 1rem; padding: 0.75rem 1.5rem;">
-                ✍️ Tạo sách mới
+                Viết sách mới
             </button>
         </div>
         {{else}}
         <div style="margin-top: 1.5rem;">
             <a href="/auth/login?next=/books#create" class="btn ghost" style="font-size: 1rem; padding: 0.75rem 1.5rem;">
-                🔐 Đăng nhập để tạo sách
+                Đăng nhập để viết sách
             </a>
         </div>
         {{end}}
     </div>
 </section>
 
+<!-- Loading Overlay -->
+<div class="loading-overlay" id="loading-overlay">
+    <div class="loading-spinner"></div>
+</div>
+
 {{if .Books}}
-<div class="books-grid">
+<div class="books-grid" id="books-grid">
     {{range .Books}}
     <article class="card book-card" style="background-color: {{if .CoverColor}}{{.CoverColor}}{{else}}#1e293b{{end}}; width: 320px; max-width: 320px; padding: 0; display: flex; flex-direction: column; gap: 0;">
         <div class="book-cover-layout">
             <div class="book-author-top">{{.AuthorName}}</div>
-            <h3 class="book-title-center">{{.Title}}</h3>
-            {{if .CoverURL}}
-            <div class="book-cover-image">
-                <img src="{{.CoverURL}}" alt="{{.Title}}" loading="lazy" onerror="this.style.display='none'">
+            <div class="book-content-center">
+                <h1 class="book-title-center">{{.Title}}</h1>
+                {{if .CoverURL}}
+                <div class="book-cover-image">
+                    <img src="{{.CoverURL}}" alt="{{.Title}}" loading="lazy" onerror="this.style.display='none'">
+                </div>
+                {{end}}
+                {{if .Description}}
+                <p class="book-description-bottom">{{.Description}}</p>
+                {{end}}
             </div>
-            {{end}}
-            {{if .Description}}
-            <p class="book-description-bottom">{{.Description}}</p>
-            {{end}}
         </div>
-        <div class="book-actions">
-            <a href="/books/{{.ID}}/read" class="btn ghost">📖 Đọc sách</a>
-            {{if $.IsAuthenticated}}
-            {{if eq .AuthorID $.CurrentUser.ID}}
-            <a href="/books/{{.ID}}" class="btn ghost">✏️ Chỉnh sửa</a>
-            {{end}}
+        <div class="book-hover-icons">
+            <a href="javascript:void(0)" data-book-id="{{.ID}}" class="read-icon book-read-link" title="Đọc sách"></a>
+            {{if and $.IsAuthenticated (eq .AuthorID $.CurrentUser.ID)}}
+            <a href="javascript:void(0)" data-book-id="{{.ID}}" data-book-title="{{.Title}}" class="delete-icon book-delete-link" title="Xóa sách"></a>
             {{end}}
         </div>
     </article>
     {{end}}
+</div>
+
+<!-- Pagination -->
+<div class="pagination" id="pagination" style="display: none;">
+    <button id="prev-page" disabled>← Trước</button>
+    <span class="page-info" id="page-info">Trang 1</span>
+    <button id="next-page">Sau →</button>
 </div>
 {{else}}
 <div class="empty-state">
@@ -68,10 +80,13 @@
 
 .books-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, 320px);
+    grid-template-columns: repeat(3, 1fr);
     gap: 1.5rem;
-    margin-top: 2rem;
-    justify-content: start;
+    justify-content: center;
+    margin-bottom: 2rem;
+    max-width: 1200px;
+    margin-left: auto;
+    margin-right: auto;
 }
 
 .book-card {
@@ -79,13 +94,87 @@
     flex-direction: column !important;
     gap: 0 !important;
     padding: 0 !important;
-    transition: transform 0.2s, box-shadow 0.2s;
     overflow: hidden;
-    border: none !important;
-    border-radius: 12px !important;
-    max-width: 320px !important;
-    width: 320px !important;
+    transition: all 0.3s ease;
+    width: 320px;
+    max-width: 320px;
+    height: 480px;
+    border-radius: 12px;
+    position: relative;
 }
+
+.book-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    opacity: 0;
+    transition: opacity 0.3s ease;
+    z-index: 1;
+    pointer-events: none;
+}
+
+.book-card:hover::before {
+    opacity: 1;
+}
+
+.book-card .book-hover-icons {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    display: flex;
+    gap: 1rem;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+    z-index: 100;
+    pointer-events: auto !important;
+}
+
+.book-card:hover .book-hover-icons {
+    opacity: 1;
+}
+
+.book-card .book-hover-icons a {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 50px;
+    height: 50px;
+    background: rgba(255, 255, 255, 0.95);
+    border-radius: 50%;
+    color: #1e293b;
+    text-decoration: none;
+    font-size: 1.2rem;
+    transition: all 0.2s ease;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    pointer-events: auto !important;
+    cursor: pointer !important;
+}
+
+.book-card .book-hover-icons a:hover {
+    background: #ffffff;
+    transform: scale(1.1);
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.3);
+}
+
+.book-card .book-hover-icons .read-icon::before {
+    content: '📖';
+    font-size: 1.5rem;
+}
+
+.book-card .book-hover-icons .delete-icon::before {
+    content: '🗑️';
+    font-size: 1.5rem;
+}
+
+.book-card .book-hover-icons .delete-icon:hover {
+    background: #ef4444 !important;
+}
+
 
 .book-card:hover {
     transform: translateY(-4px);
@@ -97,34 +186,56 @@
     flex-direction: column;
     align-items: center;
     justify-content: flex-start;
-    gap: 0.8rem;
-    padding: 1rem;
-    min-height: 280px;
+    gap: 0.5rem;
+    padding: 5px 1rem 1rem 1rem;
+    height: 480px;
     text-align: center;
+    position: relative;
+}
+
+.book-content-center {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 95%;
 }
 
 .book-author-top {
-    font-size: 0.85rem;
+    font-size: 0.9rem;
     opacity: 0.85;
+    margin-bottom: 0.5rem;
     align-self: flex-start;
-    margin-left: 0.5rem;
+    margin-left: 1rem;
     color: rgba(255, 255, 255, 0.9);
 }
 
 .book-title-center {
-    font-size: 1.5rem;
+    font-size: 1.2rem;
     font-weight: 700;
-    margin: 0;
+    margin: 0 0 0.5rem 0;
     text-align: center;
     width: 100%;
     color: rgba(255, 255, 255, 0.95);
     line-height: 1.3;
+    text-transform: uppercase;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    hyphens: auto;
+    max-height: 3.9rem;
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
 }
 
 .book-cover-image {
     width: 100%;
-    max-width: 200px;
-    aspect-ratio: 1 / 1;
+    height: 200px;
     border-radius: 8px;
     overflow: hidden;
     box-shadow: 0 8px 20px rgba(15, 23, 42, 0.3);
@@ -137,40 +248,53 @@
 }
 
 .book-description-bottom {
-    font-size: 0.75rem;
+    font-size: 0.8rem;
     line-height: 1.4;
     opacity: 0.9;
-    max-width: 90%;
+    max-width: 80%;
     text-align: center;
     margin: 0;
-    color: rgba(255, 255, 255, 0.85);
+    color: rgba(255, 255, 255, 0.8);
     display: -webkit-box;
     -webkit-line-clamp: 2;
     -webkit-box-orient: vertical;
     overflow: hidden;
 }
 
-.book-actions {
-    display: flex;
-    gap: 0.5rem;
-    flex-wrap: wrap;
-    padding: 0.75rem 1rem;
-    background: rgba(15, 23, 42, 0.4);
-    border-top: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-.book-actions .btn {
-    font-size: 0.85rem;
-    padding: 0.4rem 0.8rem;
-    flex: 1;
-    justify-content: center;
-}
 
 .empty-state {
     text-align: center;
     padding: 3rem;
     color: #94a3b8;
     font-size: 1.1rem;
+}
+
+.pagination {
+    display: flex;
+    justify-content: center;
+    gap: 1rem;
+    margin-bottom: 2rem;
+}
+
+.pagination button {
+    background: none;
+    border: none;
+    color: #94a3b8;
+    font-size: 1rem;
+    cursor: pointer;
+    padding: 0.5rem 1rem;
+    border-radius: 8px;
+    transition: all 0.2s;
+}
+
+.pagination button:hover {
+    background: rgba(148, 163, 184, 0.15);
+    color: #e2e8f0;
+}
+
+#current-page {
+    font-size: 1rem;
+    color: #94a3b8;
 }
 </style>
 
@@ -214,12 +338,14 @@
                 <h3 style="margin-top: 0; font-size: 1rem; color: #94a3b8;">Preview bìa sách</h3>
                 <div class="preview-book-card">
                     <div class="preview-author-top">Tác giả: {{.CurrentUser.Name}}</div>
+                    <div class="preview-info">
+                        <h4 id="preview-title">Tiêu đề sách</h4>
+                    </div>
                     <div class="preview-cover" id="preview-cover">
                         <span class="preview-placeholder">📖</span>
                         <img id="preview-cover-img" style="display: none;" alt="Book cover">
                     </div>
                     <div class="preview-info">
-                        <h4 id="preview-title">Tiêu đề sách</h4>
                         <p id="preview-description">Mô tả sẽ hiển thị ở đây...</p>
                     </div>
                 </div>
@@ -227,6 +353,7 @@
         </div>
     </div>
 </div>
+{{end}}
 
 <style>
 .modal {
@@ -402,10 +529,82 @@
     }
 }
 
+@media (max-width: 1024px) {
+    .books-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
 @media (max-width: 640px) {
     .books-grid {
         grid-template-columns: 1fr;
     }
+}
+
+/* Pagination */
+.pagination {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 0.5rem;
+    margin: 2rem 0;
+}
+
+.pagination button {
+    padding: 0.5rem 1rem;
+    background: rgba(30, 41, 59, 0.95);
+    border: 1px solid rgba(148, 163, 184, 0.3);
+    border-radius: 6px;
+    color: #e2e8f0;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.pagination button:hover:not(:disabled) {
+    background: rgba(56, 189, 248, 0.2);
+    border-color: #38bdf8;
+}
+
+.pagination button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.pagination .page-info {
+    color: #94a3b8;
+    font-size: 0.9rem;
+}
+
+/* Loading Spinner */
+.loading-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(15, 23, 42, 0.9);
+    backdrop-filter: blur(4px);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+}
+
+.loading-overlay.active {
+    display: flex;
+}
+
+.loading-spinner {
+    width: 50px;
+    height: 50px;
+    border: 4px solid rgba(148, 163, 184, 0.3);
+    border-top-color: #38bdf8;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
 }
 </style>
 
@@ -461,24 +660,57 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    // Function to calculate luminance and determine text color
+    function getTextColorForBackground(hexColor) {
+        // Convert hex to RGB
+        const r = parseInt(hexColor.substr(1, 2), 16);
+        const g = parseInt(hexColor.substr(3, 2), 16);
+        const b = parseInt(hexColor.substr(5, 2), 16);
+        
+        // Calculate relative luminance (ITU-R BT.709)
+        const luminance = (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255;
+        
+        // Return black for light backgrounds, white for dark backgrounds
+        return luminance > 0.5 ? '#000000' : '#ffffff';
+    }
+    
+    function updatePreviewColors(color) {
+        if (!previewCover) return;
+        
+        previewCover.style.backgroundColor = color;
+        const textColor = getTextColorForBackground(color);
+        
+        // Update all text elements in preview
+        const previewCard = previewCover.closest('.preview-book-card');
+        if (previewCard) {
+            const authorTop = previewCard.querySelector('.preview-author-top');
+            const title = previewCard.querySelector('#preview-title');
+            const description = previewCard.querySelector('#preview-description');
+            
+            if (authorTop) authorTop.style.color = textColor;
+            if (title) title.style.color = textColor;
+            if (description) description.style.color = textColor;
+        }
+    }
+
     // Color picker sync
     if (colorInput && colorTextInput && previewCover) {
         colorInput.addEventListener('input', (e) => {
             const color = e.target.value;
             colorTextInput.value = color;
-            previewCover.style.backgroundColor = color;
+            updatePreviewColors(color);
         });
 
         colorTextInput.addEventListener('input', (e) => {
             const color = e.target.value.trim();
             if (/^#[0-9A-Fa-f]{6}$/.test(color)) {
                 colorInput.value = color;
-                previewCover.style.backgroundColor = color;
+                updatePreviewColors(color);
             }
         });
 
         // Set initial color
-        previewCover.style.backgroundColor = colorInput.value;
+        updatePreviewColors(colorInput.value);
     }
 
     // Open modal
@@ -532,56 +764,563 @@ document.addEventListener('DOMContentLoaded', () => {
         window.addEventListener('hashchange', handleHash);
 
         // Form submit
-        form.addEventListener('submit', async (e) => {
+        if (form) {
+            form.addEventListener('submit', async (e) => {
+                e.preventDefault();
+
+                const formData = new FormData(form);
+                const data = {
+                    title: formData.get('title'),
+                    description: formData.get('description'),
+                    cover_url: formData.get('cover_url'),
+                    cover_color: formData.get('cover_color')
+                };
+
+                // Show loading
+                document.getElementById('loading-overlay').classList.add('active');
+                
+                try {
+                    const response = await fetch('/books', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify(data)
+                    });
+
+                    console.log('Response status:', response.status);
+                    
+                    // Handle authentication error
+                    if (response.status === 401) {
+                        alert('Vui lòng đăng nhập để tạo sách');
+                        window.location.href = '/auth/login?next=/books#create';
+                        return;
+                    }
+                    
+                    if (!response.ok) {
+                        const errorText = await response.text();
+                        console.error('Server error:', errorText);
+                        alert(`Lỗi từ server (${response.status}): ${errorText}`);
+                        return;
+                    }
+
+                    const result = await response.json();
+                    console.log('Result:', result);
+
+                    if (result.success) {
+                        // Close create modal
+                        closeModal();
+                        
+                        // Add new book to list immediately without page reload
+                        addNewBookToList(result.book_id, data);
+                        
+                        // Open book read modal
+                        setTimeout(() => {
+                            openBookModal(result.book_id);
+                        }, 300);
+                    } else {
+                        alert(result.error || 'Lỗi tạo sách');
+                    }
+                } catch (error) {
+                    console.error('Error:', error);
+                    alert('Lỗi kết nối: ' + error.message);
+                }
+            });
+        }
+    }
+
+    // Book Read Modal - Open book in overlay
+    const bookReadLinks = document.querySelectorAll('.book-read-link');
+    
+    bookReadLinks.forEach(link => {
+        link.addEventListener('click', function(e) {
             e.preventDefault();
+            e.stopPropagation();
+            const bookId = this.getAttribute('data-book-id');
+            if (bookId) {
+                openBookModal(bookId);
+            }
+        });
+    });
 
-            const formData = new FormData(form);
-            const data = {
-                title: formData.get('title'),
-                description: formData.get('description'),
-                cover_url: formData.get('cover_url'),
-                cover_color: formData.get('cover_color')
-            };
+    function openBookModal(bookId) {
+        const modal = document.getElementById('book-read-modal');
+        const iframe = document.getElementById('book-read-iframe');
+        const loading = document.getElementById('loading-overlay');
+        
+        if (!modal || !iframe) {
+            return;
+        }
+        
+        // Show loading
+        loading.classList.add('active');
+        
+        iframe.src = `/books/${bookId}/read`;
+        
+        // Hide loading when iframe loads
+        iframe.onload = () => {
+            loading.classList.remove('active');
+        };
+        
+        modal.classList.add('active');
+        document.body.style.overflow = 'hidden';
+    }
 
-            try {
-                const response = await fetch('/books', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify(data)
-                });
-
-                console.log('Response status:', response.status);
+    function closeBookModal() {
+        const modal = document.getElementById('book-read-modal');
+        const iframe = document.getElementById('book-read-iframe');
+        
+        modal.classList.remove('active');
+        setTimeout(() => {
+            iframe.src = '';
+        }, 500);
+        document.body.style.overflow = 'auto';
+    }
+    
+    // Add new book to the list without page reload
+    function addNewBookToList(bookId, bookData) {
+        const booksGrid = document.getElementById('books-grid');
+        if (!booksGrid) return;
+        
+        // Remove empty state if it exists
+        const emptyState = document.querySelector('.empty-state');
+        if (emptyState) {
+            emptyState.remove();
+        }
+        
+        // Get current user data from data attributes
+        const currentUserName = document.body.dataset.currentUserName || 'Unknown Author';
+        const isAuthenticated = document.body.dataset.isAuthenticated === 'true';
+        const currentUserId = document.body.dataset.currentUserId || '0';
+        
+        // Create book card HTML
+        const bookCard = document.createElement('article');
+        bookCard.className = 'card book-card';
+        bookCard.style.cssText = `background-color: ${bookData.cover_color || '#1e293b'}; width: 320px; max-width: 320px; padding: 0; display: flex; flex-direction: column; gap: 0;`;
+        
+        const coverLayout = document.createElement('div');
+        coverLayout.className = 'book-cover-layout';
+        
+        const authorTop = document.createElement('div');
+        authorTop.className = 'book-author-top';
+        authorTop.textContent = currentUserName;
+        coverLayout.appendChild(authorTop);
+        
+        const contentCenter = document.createElement('div');
+        contentCenter.className = 'book-content-center';
+        
+        const title = document.createElement('h1');
+        title.className = 'book-title-center';
+        title.textContent = bookData.title;
+        contentCenter.appendChild(title);
+        
+        if (bookData.cover_url) {
+            const coverImage = document.createElement('div');
+            coverImage.className = 'book-cover-image';
+            const img = document.createElement('img');
+            img.src = bookData.cover_url;
+            img.alt = bookData.title;
+            img.loading = 'lazy';
+            img.onerror = function() { this.style.display = 'none'; };
+            coverImage.appendChild(img);
+            contentCenter.appendChild(coverImage);
+        }
+        
+        if (bookData.description) {
+            const description = document.createElement('p');
+            description.className = 'book-description-bottom';
+            description.textContent = bookData.description;
+            contentCenter.appendChild(description);
+        }
+        
+        coverLayout.appendChild(contentCenter);
+        bookCard.appendChild(coverLayout);
+        
+        // Hover icons
+        const hoverIcons = document.createElement('div');
+        hoverIcons.className = 'book-hover-icons';
+        
+        const readLink = document.createElement('a');
+        readLink.href = 'javascript:void(0)';
+        readLink.setAttribute('data-book-id', bookId);
+        readLink.className = 'read-icon book-read-link';
+        readLink.title = 'Đọc sách';
+        hoverIcons.appendChild(readLink);
+        
+        // Add delete icon only if user is author
+        // For new books, user is always the author
+        if (isAuthenticated) {
+            const deleteLink = document.createElement('a');
+            deleteLink.href = 'javascript:void(0)';
+            deleteLink.setAttribute('data-book-id', bookId);
+            deleteLink.setAttribute('data-book-title', bookData.title);
+            deleteLink.className = 'delete-icon book-delete-link';
+            deleteLink.title = 'Xóa sách';
+            hoverIcons.appendChild(deleteLink);
+        }
+        
+        bookCard.appendChild(hoverIcons);
+        
+        // Add to grid at the beginning
+        booksGrid.insertBefore(bookCard, booksGrid.firstChild);
+        
+        // Apply text color
+        const bgColor = window.getComputedStyle(bookCard).backgroundColor;
+        const textColor = getTextColorForBackground(bgColor);
+        
+        const authorEl = bookCard.querySelector('.book-author-top');
+        const titleEl = bookCard.querySelector('.book-title-center');
+        const descEl = bookCard.querySelector('.book-description-bottom');
+        
+        if (authorEl) authorEl.style.color = textColor;
+        if (titleEl) titleEl.style.color = textColor;
+        if (descEl) descEl.style.color = textColor;
+        
+        // Add event listeners
+        const newReadLink = bookCard.querySelector('.book-read-link');
+        if (newReadLink) {
+            newReadLink.addEventListener('click', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                const id = this.getAttribute('data-book-id');
+                if (id) openBookModal(id);
+            });
+        }
+        
+        const newDeleteLink = bookCard.querySelector('.book-delete-link');
+        if (newDeleteLink) {
+            newDeleteLink.addEventListener('click', async function(e) {
+                e.preventDefault();
+                e.stopPropagation();
                 
-                // Handle authentication error
-                if (response.status === 401) {
-                    alert('Vui lòng đăng nhập để tạo sách');
-                    window.location.href = '/auth/login?next=/books#create';
-                    return;
-                }
+                const bookIdDel = this.dataset.bookId;
+                const bookTitle = this.dataset.bookTitle;
                 
-                if (!response.ok) {
-                    const errorText = await response.text();
-                    console.error('Server error:', errorText);
-                    alert(`Lỗi từ server (${response.status}): ${errorText}`);
-                    return;
+                // Confirm dialog
+                const confirmed = confirm(`Bạn có chắc chắn muốn xóa sách "${bookTitle}"?\n\nHành động này sẽ xóa vĩnh viễn sách và tất cả nội dung bên trong.`);
+                
+                if (!confirmed) return;
+                
+                // Show loading
+                const loadingOverlay = document.getElementById('loading-overlay');
+                if (loadingOverlay) loadingOverlay.style.display = 'flex';
+                
+                try {
+                    const response = await fetch(`/books/${bookIdDel}`, {
+                        method: 'DELETE',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        }
+                    });
+                    
+                    if (response.ok) {
+                        // Remove card from DOM
+                        bookCard.style.opacity = '0';
+                        bookCard.style.transform = 'scale(0.8)';
+                        setTimeout(() => {
+                            bookCard.remove();
+                            // Update pagination if needed
+                            location.reload();
+                        }, 300);
+                    } else {
+                        const error = await response.json();
+                        alert('Lỗi khi xóa sách: ' + (error.error || 'Unknown error'));
+                    }
+                } catch (error) {
+                    console.error('Error deleting book:', error);
+                    alert('Lỗi khi xóa sách. Vui lòng thử lại.');
+                } finally {
+                    if (loadingOverlay) loadingOverlay.style.display = 'none';
                 }
+            });
+        }
+        
+        // Update pagination
+        updatePagination();
+    }
+    
+    // Update pagination after adding/removing books
+    function updatePagination() {
+        const allBooks = Array.from(document.querySelectorAll('.book-card'));
+        const booksPerPage = 15;
+        const totalPages = Math.ceil(allBooks.length / booksPerPage);
+        
+        const pagination = document.getElementById('pagination');
+        const pageInfo = document.getElementById('page-info');
+        
+        if (allBooks.length <= booksPerPage) {
+            if (pagination) pagination.style.display = 'none';
+            // Show all books
+            allBooks.forEach(book => book.style.display = 'flex');
+        } else {
+            if (pagination) {
+                pagination.style.display = 'flex';
+                if (pageInfo) pageInfo.textContent = `Trang 1 / ${totalPages}`;
+                
+                const prevBtn = document.getElementById('prev-page');
+                const nextBtn = document.getElementById('next-page');
+                if (prevBtn) prevBtn.disabled = true;
+                if (nextBtn) nextBtn.disabled = totalPages === 1;
+                
+                // Show first page
+                showPage(1);
+            }
+        }
+    }
 
-                const result = await response.json();
-                console.log('Result:', result);
+    // Close button
+    const closeBtn = document.getElementById('book-modal-close-btn');
+    if (closeBtn) {
+        closeBtn.addEventListener('click', closeBookModal);
+    }
 
-                if (result.success) {
-                    window.location.href = `/books/${result.book_id}`;
-                } else {
-                    alert(result.error || 'Lỗi tạo sách');
-                }
-            } catch (error) {
-                console.error('Error:', error);
-                alert('Lỗi kết nối: ' + error.message);
+    // Click overlay to close
+    const modalOverlay = document.getElementById('book-read-modal');
+    if (modalOverlay) {
+        modalOverlay.addEventListener('click', function(e) {
+            if (e.target === this) {
+                closeBookModal();
             }
         });
     }
+
+    // Escape key to close
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+            const modal = document.getElementById('book-read-modal');
+            if (modal && modal.classList.contains('active')) {
+                closeBookModal();
+            }
+        }
+    });
+
+    // Pagination Logic
+    const booksPerPage = 15;
+    let currentPage = 1;
+    const allBooks = Array.from(document.querySelectorAll('.book-card'));
+    const totalPages = Math.ceil(allBooks.length / booksPerPage);
+    
+    const pagination = document.getElementById('pagination');
+    const prevBtn = document.getElementById('prev-page');
+    const nextBtn = document.getElementById('next-page');
+    const pageInfo = document.getElementById('page-info');
+    
+    function showPage(page) {
+        currentPage = page;
+        
+        // Hide all books
+        allBooks.forEach(book => book.style.display = 'none');
+        
+        // Show books for current page
+        const start = (page - 1) * booksPerPage;
+        const end = start + booksPerPage;
+        allBooks.slice(start, end).forEach(book => book.style.display = 'flex');
+        
+        // Update pagination UI
+        pageInfo.textContent = `Trang ${page} / ${totalPages}`;
+        prevBtn.disabled = page === 1;
+        nextBtn.disabled = page === totalPages;
+    }
+    
+    if (allBooks.length > booksPerPage) {
+        pagination.style.display = 'flex';
+        
+        prevBtn.addEventListener('click', () => {
+            if (currentPage > 1) {
+                showPage(currentPage - 1);
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            }
+        });
+        
+        nextBtn.addEventListener('click', () => {
+            if (currentPage < totalPages) {
+                showPage(currentPage + 1);
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            }
+        });
+        
+        // Show first page
+        showPage(1);
+    }
+
+    // Auto text color for book cards based on background
+    function getTextColorForBackground(hexColor) {
+        // Handle both #RRGGBB and rgb() formats
+        let r, g, b;
+        
+        if (hexColor.startsWith('#')) {
+            r = parseInt(hexColor.substr(1, 2), 16);
+            g = parseInt(hexColor.substr(3, 2), 16);
+            b = parseInt(hexColor.substr(5, 2), 16);
+        } else if (hexColor.startsWith('rgb')) {
+            const matches = hexColor.match(/\d+/g);
+            if (matches && matches.length >= 3) {
+                r = parseInt(matches[0]);
+                g = parseInt(matches[1]);
+                b = parseInt(matches[2]);
+            }
+        }
+        
+        if (r !== undefined && g !== undefined && b !== undefined) {
+            const luminance = (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255;
+            return luminance > 0.5 ? '#000000' : '#ffffff';
+        }
+        
+        return '#ffffff'; // Default to white
+    }
+    
+    // Apply text color to all book cards
+    document.querySelectorAll('.book-card').forEach(card => {
+        const bgColor = window.getComputedStyle(card).backgroundColor;
+        const textColor = getTextColorForBackground(bgColor);
+        
+        // Update all text elements
+        const author = card.querySelector('.book-author-top');
+        const title = card.querySelector('.book-title-center');
+        const description = card.querySelector('.book-description-bottom');
+        
+        if (author) author.style.color = textColor;
+        if (title) title.style.color = textColor;
+        if (description) description.style.color = textColor;
+    });
+    
+    // Handle delete book
+    document.querySelectorAll('.book-delete-link').forEach(link => {
+        link.addEventListener('click', async function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            
+            const bookId = this.dataset.bookId;
+            const bookTitle = this.dataset.bookTitle;
+            
+            // Confirm dialog
+            const confirmed = confirm(`Bạn có chắc chắn muốn xóa sách "${bookTitle}"?\n\nHành động này sẽ xóa vĩnh viễn sách và tất cả nội dung bên trong.`);
+            
+            if (!confirmed) return;
+            
+            // Show loading
+            const loadingOverlay = document.getElementById('loading-overlay');
+            if (loadingOverlay) loadingOverlay.style.display = 'flex';
+            
+            try {
+                const response = await fetch(`/books/${bookId}`, {
+                    method: 'DELETE',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                if (response.ok) {
+                    // Remove card from DOM
+                    const card = this.closest('.book-card');
+                    if (card) {
+                        card.style.opacity = '0';
+                        card.style.transform = 'scale(0.8)';
+                        setTimeout(() => {
+                            card.remove();
+                            // Update pagination if needed
+                            location.reload();
+                        }, 300);
+                    }
+                } else {
+                    const error = await response.json();
+                    alert('Lỗi khi xóa sách: ' + (error.error || 'Unknown error'));
+                }
+            } catch (error) {
+                console.error('Error deleting book:', error);
+                alert('Lỗi khi xóa sách. Vui lòng thử lại.');
+            } finally {
+                if (loadingOverlay) loadingOverlay.style.display = 'none';
+            }
+        });
+    });
 });
 </script>
-{{end}}
+
+<!-- Book Read Modal -->
+<div id="book-read-modal" class="book-read-modal">
+    <div class="book-read-modal-content">
+        <button id="book-modal-close-btn" class="book-modal-close-btn">×</button>
+        <iframe id="book-read-iframe" class="book-read-iframe" src="" frameborder="0"></iframe>
+    </div>
+</div>
+
+<style>
+.book-read-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(0, 0, 0, 0.3);
+    backdrop-filter: blur(2px);
+    z-index: 10000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    visibility: hidden;
+    transition: all 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.book-read-modal.active {
+    opacity: 1;
+    visibility: visible;
+}
+
+.book-read-modal-content {
+    position: relative;
+    width: 0;
+    height: 0;
+    overflow: hidden;
+    border-radius: 16px;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+    transition: all 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.book-read-modal.active .book-read-modal-content {
+    width: 95vw;
+    height: 95vh;
+}
+
+.book-read-iframe {
+    width: 100%;
+    height: 100%;
+    border: none;
+    border-radius: 16px;
+    opacity: 0;
+    transition: opacity 0.3s ease 0.4s;
+}
+
+.book-read-modal.active .book-read-iframe {
+    opacity: 1;
+}
+
+.book-modal-close-btn {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    width: 40px;
+    height: 40px;
+    background: rgba(0, 0, 0, 0.7);
+    color: white;
+    border: none;
+    border-radius: 50%;
+    font-size: 24px;
+    cursor: pointer;
+    z-index: 10001;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    transition: opacity 0.3s ease 0.6s;
+}
+
+.book-read-modal.active .book-modal-close-btn {
+    opacity: 1;
+}
+
+.book-modal-close-btn:hover {
+    background: rgba(0, 0, 0, 0.9);
+}
+</style>
