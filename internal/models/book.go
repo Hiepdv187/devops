@@ -22,13 +22,12 @@ type Book struct {
 }
 
 type BookPage struct {
-	ID          uint           `gorm:"primarykey" json:"id"`
-	CreatedAt   time.Time      `json:"created_at"`
-	UpdatedAt   time.Time      `json:"updated_at"`
-	DeletedAt   gorm.DeletedAt `gorm:"index" json:"-"`
-	BookID      uint           `gorm:"not null;index" json:"book_id"`
-	PageNumber  int            `gorm:"not null" json:"page_number"`
-	Title       string         `json:"title"`
-	Content     string         `gorm:"type:text" json:"content"`
-	Annotations []Annotation   `gorm:"foreignKey:BookPageID" json:"annotations,omitempty"`
+	ID         uint           `gorm:"primarykey" json:"id"`
+	CreatedAt  time.Time      `json:"created_at"`
+	UpdatedAt  time.Time      `json:"updated_at"`
+	DeletedAt  gorm.DeletedAt `gorm:"index" json:"-"`
+	BookID     uint           `gorm:"not null;index" json:"book_id"`
+	PageNumber int            `gorm:"not null" json:"page_number"`
+	Title      string         `json:"title"`
+	Content    string         `gorm:"type:text" json:"content"`
 }

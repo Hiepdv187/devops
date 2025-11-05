@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"encoding/json"
 	"log"
 	"strconv"
 	"strings"
@@ -127,19 +126,6 @@ func BookReadPage() fiber.Handler {
 			return db.Order("page_number ASC")
 		}).First(&book, bookID).Error; err != nil {
 			return c.Status(404).SendString("Không tìm thấy sách")
-		}
-
-		// Load annotations for each page
-		for i := range book.Pages {
-			var annotations []models.Annotation
-			db.Where("book_page_id = ?", book.Pages[i].ID).Find(&annotations)
-
-			// Convert to map[lineNumber]content
-			annotationsMap := make(map[int]string)
-			for _, ann := range annotations {
-				annotationsMap[ann.LineNumber] = ann.Content
-			}
-			book.Pages[i].Annotations = annotations
 		}
 
 		// Load author
@@ -309,10 +295,9 @@ func CreateBookPage() fiber.Handler {
 		}
 
 		var req struct {
-			Title           string `json:"title"`
-			Content         string `json:"content"`
-			PageNumber      int    `json:"page_number"`
-			LineAnnotations string `json:"line_annotations"`
+			Title      string `json:"title"`
+			Content    string `json:"content"`
+			PageNumber int    `json:"page_number"`
 		}
 
 		if err := c.BodyParser(&req); err != nil {
@@ -337,25 +322,6 @@ func CreateBookPage() fiber.Handler {
 
 		if err := db.Create(&page).Error; err != nil {
 			return c.Status(500).JSON(fiber.Map{"error": "Lỗi tạo trang"})
-		}
-
-		// Save annotations
-		if req.LineAnnotations != "" {
-			var annotationsMap map[string]string
-			if err := json.Unmarshal([]byte(req.LineAnnotations), &annotationsMap); err == nil {
-				for lineNumStr, annotationText := range annotationsMap {
-					lineNum, err := strconv.Atoi(lineNumStr)
-					if err != nil {
-						continue
-					}
-					annotation := models.Annotation{
-						BookPageID: page.ID,
-						LineNumber: lineNum,
-						Content:    strings.TrimSpace(annotationText),
-					}
-					db.Create(&annotation)
-				}
-			}
 		}
 
 		return c.JSON(page)
@@ -389,9 +355,8 @@ func UpdateBookPage() fiber.Handler {
 		}
 
 		var req struct {
-			Title           string `json:"title"`
-			Content         string `json:"content"`
-			LineAnnotations string `json:"line_annotations"`
+			Title   string `json:"title"`
+			Content string `json:"content"`
 		}
 
 		if err := c.BodyParser(&req); err != nil {
@@ -403,27 +368,6 @@ func UpdateBookPage() fiber.Handler {
 
 		if err := db.Save(&page).Error; err != nil {
 			return c.Status(500).JSON(fiber.Map{"error": "Lỗi cập nhật trang"})
-		}
-
-		// Update annotations
-		db.Where("book_page_id = ?", page.ID).Delete(&models.Annotation{})
-
-		if req.LineAnnotations != "" {
-			var annotationsMap map[string]string
-			if err := json.Unmarshal([]byte(req.LineAnnotations), &annotationsMap); err == nil {
-				for lineNumStr, annotationText := range annotationsMap {
-					lineNum, err := strconv.Atoi(lineNumStr)
-					if err != nil {
-						continue
-					}
-					annotation := models.Annotation{
-						BookPageID: page.ID,
-						LineNumber: lineNum,
-						Content:    strings.TrimSpace(annotationText),
-					}
-					db.Create(&annotation)
-				}
-			}
 		}
 
 		return c.JSON(fiber.Map{"success": true})

@@ -355,7 +355,7 @@ type createPostRequest struct {
 	Title           string `json:"title"`
 	Summary         string `json:"summary"`
 	Content         string `json:"content"`
-	ContentEncoded  string `json:"content_encoded"`  // Base64 encoded content to bypass WAF
+	ContentEncoded  string `json:"content_encoded"` // Base64 encoded content to bypass WAF
 	CoverURL        string `json:"cover_url"`
 	Tags            string `json:"tags"`
 	AuthorID        uint   `json:"author_id"`
@@ -383,7 +383,7 @@ func PostsPage() fiber.Handler {
 			// If not authenticated, redirect to login
 			return c.Redirect("/auth/login?next=/posts?create=true")
 		}
-		
+
 		db := database.Get()
 		query := strings.TrimSpace(c.Query("q"))
 		selectedTag := strings.TrimSpace(c.Query("tag"))
@@ -529,11 +529,21 @@ func PostDetailPage() fiber.Handler {
 
 		// Load annotations
 		var annotations []models.Annotation
-		db.Where("post_id = ?", post.ID).Find(&annotations)
+		result := db.Where("post_id = ?", post.ID).Find(&annotations)
+		fmt.Printf("Query executed, found %d rows\n", result.RowsAffected)
 
 		lineAnnotations := make(map[int]string)
 		for _, ann := range annotations {
-			lineAnnotations[ann.LineNumber] = ann.Content
+			fmt.Printf("Annotation: ID=%d, PostID=%v, LineNumber=%d, Content='%s'\n", ann.ID, ann.PostID, ann.LineNumber, ann.Content)
+			if ann.PostID != nil && *ann.PostID == post.ID {
+				lineAnnotations[ann.LineNumber] = ann.Content
+			}
+		}
+
+		// Debug: log loaded annotations
+		fmt.Printf("Loaded %d annotations for post %d\n", len(lineAnnotations), post.ID)
+		for line, content := range lineAnnotations {
+			fmt.Printf("Line %d: %s\n", line, content)
 		}
 
 		// Check if current user is author
@@ -722,7 +732,7 @@ func CreatePost() fiber.Handler {
 						continue
 					}
 					annotation := models.Annotation{
-						PostID:     post.ID,
+						PostID:     &[]uint{post.ID}[0],
 						LineNumber: lineNum,
 						Content:    strings.TrimSpace(annotationText),
 					}
@@ -864,15 +874,16 @@ func UpdatePost() fiber.Handler {
 			if err := json.Unmarshal([]byte(req.LineAnnotations), &annotationsMap); err == nil {
 				// Delete all existing annotations for this post
 				db.Where("post_id = ?", post.ID).Delete(&models.Annotation{})
-				
+
 				// Create new annotations from JSON
 				for lineNumStr, annotationText := range annotationsMap {
 					lineNum, err := strconv.Atoi(lineNumStr)
 					if err != nil {
 						continue
 					}
+
 					annotation := models.Annotation{
-						PostID:     post.ID,
+						PostID:     &[]uint{post.ID}[0],
 						LineNumber: lineNum,
 						Content:    strings.TrimSpace(annotationText),
 					}
@@ -1450,7 +1461,7 @@ func GetImage() fiber.Handler {
 
 		db := database.Get()
 		var image models.Image
-		
+
 		// Chỉ lấy metadata trước để kiểm tra
 		if err := db.Select("id", "content_type", "filename").First(&image, imageID).Error; err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -1519,9 +1530,10 @@ func CreateAnnotation() fiber.Handler {
 		db.Where("post_id = ? AND line_number = ?", postID, body.LineNumber).Delete(&models.Annotation{})
 
 		// Tạo mới
+		postIDUint := uint(postID)
 		annotation := models.Annotation{
 			Content:    strings.TrimSpace(body.Content),
-			PostID:     uint(postID),
+			PostID:     &postIDUint,
 			LineNumber: body.LineNumber,
 		}
 
