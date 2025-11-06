@@ -529,21 +529,13 @@ func PostDetailPage() fiber.Handler {
 
 		// Load annotations
 		var annotations []models.Annotation
-		result := db.Where("post_id = ?", post.ID).Find(&annotations)
-		fmt.Printf("Query executed, found %d rows\n", result.RowsAffected)
+		db.Where("post_id = ?", post.ID).Find(&annotations)
 
 		lineAnnotations := make(map[int]string)
 		for _, ann := range annotations {
-			fmt.Printf("Annotation: ID=%d, PostID=%v, LineNumber=%d, Content='%s'\n", ann.ID, ann.PostID, ann.LineNumber, ann.Content)
 			if ann.PostID != nil && *ann.PostID == post.ID {
 				lineAnnotations[ann.LineNumber] = ann.Content
 			}
-		}
-
-		// Debug: log loaded annotations
-		fmt.Printf("Loaded %d annotations for post %d\n", len(lineAnnotations), post.ID)
-		for line, content := range lineAnnotations {
-			fmt.Printf("Line %d: %s\n", line, content)
 		}
 
 		// Check if current user is author
@@ -736,12 +728,8 @@ func CreatePost() fiber.Handler {
 						LineNumber: lineNum,
 						Content:    strings.TrimSpace(annotationText),
 					}
-					if err := db.Create(&annotation).Error; err != nil {
-						fmt.Printf("Warning: Failed to create annotation for line %d: %v\n", lineNum, err)
-					}
+					db.Create(&annotation)
 				}
-			} else {
-				fmt.Printf("Warning: Failed to parse line_annotations JSON: %v\n", err)
 			}
 		}
 
@@ -887,12 +875,8 @@ func UpdatePost() fiber.Handler {
 						LineNumber: lineNum,
 						Content:    strings.TrimSpace(annotationText),
 					}
-					if err := db.Create(&annotation).Error; err != nil {
-						fmt.Printf("Warning: Failed to create annotation for line %d: %v\n", lineNum, err)
-					}
+					db.Create(&annotation)
 				}
-			} else {
-				fmt.Printf("Warning: Failed to parse line_annotations JSON: %v\n", err)
 			}
 		}
 

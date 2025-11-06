@@ -1068,13 +1068,9 @@
 
       /* Each sheet becomes a full-width page container */
       .sheet {
-        position: static;
-        display: flex;
-        flex-shrink: 0;
-        width: 100%;
-        height: 100%;
-        transform: none !important; /* Override flip transform */
-        box-shadow: none;
+        
+        display: contents;
+        
       }
 
       /* Each page becomes a scroll-snap item */
@@ -1089,11 +1085,23 @@
         backface-visibility: visible;
         border-left: none;
         border-right: none;
-        display: block; /* Ensure it's not hidden */
+        display: flex !important; /* Ensure it's not hidden */
+        flex-direction: column !important; /* Stack content vertically */
+      }
+      
+      /* Override page-front and page-back transforms on mobile */
+      .page-front,
+      .page-back {
+        transform: none !important;
+        border-radius: 0 !important;
       }
       
       .page-content {
         padding: 1.5rem 1rem;
+        width: 100% !important;
+        height: 100% !important;
+        display: flex !important;
+        flex-direction: column !important;
       }
 
       .page-number-left, .page-number-right {
@@ -1742,6 +1750,8 @@
           
           const frontPageData = finalPages[index * 2];
           const backPageData = finalPages[index * 2 + 1];
+          
+          console.log(`Sheet ${index}: frontPage=${frontPageData?.page_number}, backPage=${backPageData?.page_number}`);
 
           // --- Front Page ---
           if (frontPageData) {
