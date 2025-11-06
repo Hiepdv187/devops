@@ -1056,6 +1056,7 @@
         overflow-x: auto;
         overflow-y: hidden;
         scroll-snap-type: x mandatory;
+        -webkit-overflow-scrolling: touch;
         perspective: none;
         width: 100vw;
         height: 85vh;
@@ -1068,16 +1069,23 @@
 
       /* Each sheet becomes a full-width page container */
       .sheet {
-        
-        display: contents;
-        
+        position: relative;
+        left: 0;
+        top: 0;
+        width: 200%;
+        height: 100%;
+        transform-style: flat;
+        transform: none !important;
+        box-shadow: none;
+        display: flex; /* Make it a flex container for its children */
+        flex-shrink: 0;
       }
 
       /* Each page becomes a scroll-snap item */
       .page {
         position: relative; /* Change from absolute */
         flex-shrink: 0;
-        width: 100%;
+        width: 50%;
         height: 100%;
         scroll-snap-align: center;
         border-radius: 0 !important;
@@ -1085,23 +1093,12 @@
         backface-visibility: visible;
         border-left: none;
         border-right: none;
-        display: flex !important; /* Ensure it's not hidden */
-        flex-direction: column !important; /* Stack content vertically */
-      }
-      
-      /* Override page-front and page-back transforms on mobile */
-      .page-front,
-      .page-back {
-        transform: none !important;
-        border-radius: 0 !important;
+        
+        box-sizing: border-box;
       }
       
       .page-content {
         padding: 1.5rem 1rem;
-        width: 100% !important;
-        height: 100% !important;
-        display: flex !important;
-        flex-direction: column !important;
       }
 
       .page-number-left, .page-number-right {
@@ -1750,8 +1747,6 @@
           
           const frontPageData = finalPages[index * 2];
           const backPageData = finalPages[index * 2 + 1];
-          
-          console.log(`Sheet ${index}: frontPage=${frontPageData?.page_number}, backPage=${backPageData?.page_number}`);
 
           // --- Front Page ---
           if (frontPageData) {
