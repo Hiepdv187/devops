@@ -39,8 +39,19 @@ func Init() *gorm.DB {
 			dsn = defaultDSN
 		}
 
+		// Custom logger to only show errors, not slow SQL warnings
+		customLogger := logger.New(
+			log.New(os.Stdout, "\r\n", log.LstdFlags),
+			logger.Config{
+				SlowThreshold:             10 * time.Second, // Very high threshold to avoid SLOW SQL logs
+				LogLevel:                  logger.Error,     // Only log errors
+				IgnoreRecordNotFoundError: true,
+				Colorful:                  false,
+			},
+		)
+
 		dbConfig := &gorm.Config{
-			Logger:                                   logger.Default.LogMode(logger.Warn),
+			Logger:                                   customLogger,
 			NamingStrategy:                           schema.NamingStrategy{SingularTable: false},
 			PrepareStmt:                              false, // Disable prepared statement cache to avoid schema mismatch
 			DisableForeignKeyConstraintWhenMigrating: true,

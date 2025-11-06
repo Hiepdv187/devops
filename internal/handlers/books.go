@@ -51,11 +51,6 @@ func BooksPage() fiber.Handler {
 			return c.Status(500).SendString("Lỗi tải danh sách sách")
 		}
 
-		// Debug log
-		if user == nil {
-			log.Printf("Guest user viewing books page. Found %d published books", len(books))
-		}
-
 		// Load author names
 		for i := range books {
 			var author models.User
@@ -136,19 +131,22 @@ func BookReadPage() fiber.Handler {
 
 		isAuthor := user != nil && user.ID == book.AuthorID
 
+		isAuthenticated := user != nil
+
 		// Check if request accepts JSON (for AJAX/fetch calls)
 		if c.Get("Accept") == "application/json" {
 			return c.JSON(fiber.Map{
-				"id":          book.ID,
-				"title":       book.Title,
-				"description": book.Description,
-				"cover_url":   book.CoverURL,
-				"cover_color": book.CoverColor,
-				"author_id":   book.AuthorID,
-				"author_name": book.AuthorName,
-				"published":   book.Published,
-				"pages":       book.Pages,
-				"is_author":   isAuthor,
+				"id":              book.ID,
+				"title":           book.Title,
+				"description":     book.Description,
+				"cover_url":       book.CoverURL,
+				"cover_color":     book.CoverColor,
+				"author_id":       book.AuthorID,
+				"author_name":     book.AuthorName,
+				"published":       book.Published,
+				"pages":           book.Pages,
+				"is_author":       isAuthor,
+				"is_authenticated": isAuthenticated,
 			})
 		}
 
@@ -486,19 +484,21 @@ func SaveHighlight() fiber.Handler {
 		bookID, _ := strconv.Atoi(c.Params("bookId"))
 		pageID, _ := strconv.Atoi(c.Params("pageId"))
 
-		// Verify book ownership/access
+			// Verify book ownership/access
 		var book models.Book
 		if err := db.First(&book, bookID).Error; err != nil {
+			log.Printf("Book not found: %v", err)
 			return c.Status(404).JSON(fiber.Map{"error": "Không tìm thấy sách"})
 		}
 
 		// Verify page belongs to book
 		var page models.BookPage
 		if err := db.Where("id = ? AND book_id = ?", pageID, bookID).First(&page).Error; err != nil {
+			log.Printf("Page not found: pageID=%d, bookID=%d, error=%v", pageID, bookID, err)
 			return c.Status(404).JSON(fiber.Map{"error": "Không tìm thấy trang"})
 		}
 
-		var payload struct {
+			var payload struct {
 			Color           string `json:"color"`
 			HighlightedText string `json:"highlighted_text"`
 			Note            string `json:"note"`
@@ -521,26 +521,54 @@ func SaveHighlight() fiber.Handler {
 		}
 
 		if err := db.Create(&highlight).Error; err != nil {
-			return c.Status(500).JSON(fiber.Map{"error": "Lỗi lưu highlight"})
+			log.Printf("Error creating highlight: %v, PageID: %d, UserID: %d", err, page.ID, user.ID)
+			return c.Status(500).JSON(fiber.Map{"error": "Lỗi lưu highlight", "details": err.Error()})
 		}
 
 		return c.JSON(highlight)
 	}
 }
 
-// GetHighlights lấy tất cả highlights của một page (public - không cần auth)
+// GetHighlights lấy highlights của user hiện tại cho một page
 func GetHighlights() fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		db := database.Get()
+		bookID, _ := strconv.Atoi(c.Params("bookId"))
 		pageID, _ := strconv.Atoi(c.Params("pageId"))
 
-		// Load all highlights for this page from all users
-		var highlights []models.Highlight
-		if err := db.Where("book_page_id = ?", pageID).Preload("User").Find(&highlights).Error; err != nil {
-			return c.Status(500).JSON(fiber.Map{"error": "Lỗi tải highlights"})
+		// Get book to check author
+		var book models.Book
+		if err := db.First(&book, bookID).Error; err != nil {
+			return c.Status(404).JSON(fiber.Map{"error": "Không tìm thấy sách"})
 		}
 
-		// Return highlights with user info
+		// Get current user (may be nil if not logged in)
+		user := getUserForBooks(c)
+
+		// Load highlights based on user role:
+		// - Not logged in: see only author's highlights
+		// - Author: see only their own highlights
+		// - Other users: see author's highlights + their own highlights
+		var highlights []models.Highlight
+		
+		if user == nil {
+			// Not logged in: load only author's highlights
+			if err := db.Where("book_page_id = ? AND user_id = ?", pageID, book.AuthorID).Find(&highlights).Error; err != nil {
+				return c.Status(500).JSON(fiber.Map{"error": "Lỗi tải highlights"})
+			}
+		} else if book.AuthorID == user.ID {
+			// Author: load only their own highlights
+			if err := db.Where("book_page_id = ? AND user_id = ?", pageID, user.ID).Find(&highlights).Error; err != nil {
+				return c.Status(500).JSON(fiber.Map{"error": "Lỗi tải highlights"})
+			}
+		} else {
+			// Non-author logged in: load author's highlights + own highlights
+			if err := db.Where("book_page_id = ? AND (user_id = ? OR user_id = ?)", pageID, book.AuthorID, user.ID).Find(&highlights).Error; err != nil {
+				return c.Status(500).JSON(fiber.Map{"error": "Lỗi tải highlights"})
+			}
+		}
+
+		// Return highlights
 		type HighlightResponse struct {
 			ID              uint   `json:"id"`
 			Color           string `json:"color"`
@@ -548,15 +576,11 @@ func GetHighlights() fiber.Handler {
 			Note            string `json:"note"`
 			StartOffset     int    `json:"start_offset"`
 			EndOffset       int    `json:"end_offset"`
-			UserName        string `json:"user_name"`
 		}
 
-		var response []HighlightResponse
+		// Initialize as empty slice instead of nil to ensure JSON returns [] not null
+		response := make([]HighlightResponse, 0)
 		for _, h := range highlights {
-			userName := "Anonymous"
-			if h.User.ID != 0 {
-				userName = h.User.Name
-			}
 			response = append(response, HighlightResponse{
 				ID:              h.ID,
 				Color:           h.Color,
@@ -564,7 +588,6 @@ func GetHighlights() fiber.Handler {
 				Note:            h.Note,
 				StartOffset:     h.StartOffset,
 				EndOffset:       h.EndOffset,
-				UserName:        userName,
 			})
 		}
 

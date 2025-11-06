@@ -15,7 +15,7 @@ type Highlight struct {
 	UserID       uint   `gorm:"not null;index" json:"user_id"`
 	
 	// Highlight data
-	Color        string `gorm:"type:varchar(20);not null" json:"color"`          // e.g., "#ffeb3b", "#4caf50"
+	Color        string `gorm:"type:varchar(50);not null" json:"color"`          // e.g., "#ffeb3b", "#4caf50", "var(--highlight-yellow)"
 	HighlightedText string `gorm:"type:text;not null" json:"highlighted_text"`  // The actual text that was highlighted
 	Note         string `gorm:"type:text" json:"note"`                          // Optional note for the highlight
 	

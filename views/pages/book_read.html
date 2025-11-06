@@ -120,7 +120,7 @@
       backface-visibility: hidden;
       background-color: hsl(var(--card));
       border: 1px solid hsl(var(--border));
-      overflow: hidden;
+      overflow: visible; /* Allow tooltips to overflow */
     }
     .page-front {
       border-radius: 0 8px 8px 0;
@@ -207,7 +207,7 @@
       display: flex;
       flex-direction: column;
       box-sizing: border-box;
-      overflow: hidden; /* No scroll on page-content */
+      overflow: visible; /* Allow tooltips to overflow */
       position: relative;
     }
     .page-number-left {
@@ -248,6 +248,8 @@
       overflow-x: hidden;
       box-shadow: 0 0 0 0 hsl(var(--accent));
       animation: borderGlow 3s ease-in-out infinite;
+      /* Allow tooltips to overflow */
+      padding-top: 2.2rem; /* Add space at top for tooltips */
     }
     
     /* No border for cover pages */
@@ -311,7 +313,15 @@
         background-color: var(--highlight-yellow);
         border-radius: 3px;
         padding: 0.1em 0.3em;
-        text-align: center;
+        overflow: visible; /* Allow note to overflow */
+        /* Inherit all text styles from parent */
+        font-size: inherit;
+        font-weight: inherit;
+        font-style: inherit;
+        font-family: inherit;
+        line-height: inherit;
+        color: inherit;
+        text-decoration: inherit;
     }
     mark:hover .highlight-note {
       display: block;
@@ -319,7 +329,7 @@
     .highlight-note {
       display: none;
       position: absolute;
-      bottom: 100%;
+      bottom: calc(100% + 8px); /* Position above the mark */
       left: 50%;
       transform: translateX(-50%);
       background-color: #333;
@@ -327,10 +337,22 @@
       padding: 8px 12px;
       border-radius: 4px;
       font-size: 0.8rem;
-      width: 200px;
-      margin-bottom: 8px;
-      z-index: 100;
+      width: max-content;
+      max-width: 250px;
+      z-index: 10000; /* Very high z-index to be above everything */
       white-space: pre-wrap;
+      pointer-events: none; /* Don't block mouse events */
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+      /* Add arrow pointing down */
+    }
+    .highlight-note::after {
+      content: '';
+      position: absolute;
+      top: 100%;
+      left: 50%;
+      transform: translateX(-50%);
+      border: 6px solid transparent;
+      border-top-color: #333;
     }
 
     /* Button styles */
@@ -1340,6 +1362,7 @@
       let selectedImage = null;
       let debounceTimeout = null;
       let isAuthenticated = false; // Track if user is logged in
+      let isAuthor = false; // Track if user is the book author
 
       // --- DOM ELEMENTS ---
       const loader = document.getElementById('loader');
@@ -1414,11 +1437,13 @@
           }
           book.pages.sort((a, b) => a.page_number - b.page_number);
           
-          // Check if user is authenticated (book has user_id or is_author flag)
-          isAuthenticated = book.is_author || false;
+          // Check if user is authenticated and if they are the author
+          isAuthenticated = book.is_authenticated || false;
+          isAuthor = book.is_author || false;
           
           // Hide editor toolbar and add page button if not author
-          if (!isAuthenticated) {
+          // Note: isAuthenticated is for highlights, isAuthor is for editing
+          if (!isAuthor) {
               addPageBtn.style.display = 'none';
               editorToolbar.style.display = 'none';
           }
@@ -1487,7 +1512,10 @@
               const response = await fetch(`/books/${BOOK_ID}/pages/${pageId}/highlights`);
               if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
               const highlights = await response.json();
-              return highlights;
+              // Ensure highlights is an array
+              const highlightsArray = Array.isArray(highlights) ? highlights : [];
+              console.log(`Fetched ${highlightsArray.length} highlights for page ${pageId}:`, highlightsArray);
+              return highlightsArray;
           } catch(error) {
               console.error("Failed to fetch highlights:", error);
               return [];
@@ -1514,6 +1542,27 @@
               return;
           }
 
+          console.log(`loadHighlightsForPage called for page ${pageId}`);
+          
+          // First, clear all existing highlights to avoid duplicates
+          const existingHighlights = editableElement.querySelectorAll('mark[data-highlight-id]');
+          existingHighlights.forEach(mark => {
+              // Replace mark with its text content, preserving formatting
+              const parent = mark.parentNode;
+              while (mark.firstChild) {
+                  // Remove highlight-note spans
+                  if (mark.firstChild.classList && mark.firstChild.classList.contains('highlight-note')) {
+                      mark.removeChild(mark.firstChild);
+                  } else {
+                      parent.insertBefore(mark.firstChild, mark);
+                  }
+              }
+              parent.removeChild(mark);
+          });
+          
+          // Normalize text nodes to merge adjacent text nodes
+          editableElement.normalize();
+          
           // Try to load highlights (may fail if not authenticated, that's ok)
           let highlights = [];
           try {
@@ -1524,55 +1573,94 @@
               return;
           }
 
-          if (!highlights || highlights.length === 0) return;
+          if (!highlights || highlights.length === 0) {
+              console.log(`No highlights found for page ${pageId}`);
+              return;
+          }
+          
+          console.log(`Applying ${highlights.length} highlights to page ${pageId}`);
 
-          // Apply highlights to the content
-          const content = editableElement.textContent;
+          // Sort highlights by start_offset ascending to apply from start to end
+          highlights.sort((a, b) => a.start_offset - b.start_offset);
           
-          // Sort highlights by start_offset descending to apply from end to start
-          highlights.sort((a, b) => b.start_offset - a.start_offset);
-          
-          let newHTML = editableElement.innerHTML;
-          
+          // Apply highlights using a more robust method that preserves HTML
           for (const highlight of highlights) {
               try {
-                  // Create a temporary div to work with the content
-                  const tempDiv = document.createElement('div');
-                  tempDiv.innerHTML = newHTML;
-                  const textContent = tempDiv.textContent;
-                  
-                  // Find the text to highlight
-                  const beforeText = textContent.substring(0, highlight.start_offset);
-                  const highlightText = textContent.substring(highlight.start_offset, highlight.end_offset);
-                  const afterText = textContent.substring(highlight.end_offset);
-                  
-                  // Create mark element
-                  const mark = document.createElement('mark');
-                  mark.style.backgroundColor = highlight.color;
-                  mark.setAttribute('data-highlight-id', highlight.id);
-                  mark.textContent = highlightText;
-                  
-                  if (highlight.note) {
-                      const noteSpan = document.createElement('span');
-                      noteSpan.className = 'highlight-note';
-                      // Show user name and note
-                      const userName = highlight.user_name || 'Anonymous';
-                      noteSpan.textContent = `${userName}: ${highlight.note}`;
-                      mark.insertBefore(noteSpan, mark.firstChild);
-                  }
-                  
-                  // Reconstruct HTML
-                  tempDiv.textContent = beforeText;
-                  tempDiv.appendChild(mark);
-                  tempDiv.appendChild(document.createTextNode(afterText));
-                  
-                  newHTML = tempDiv.innerHTML;
+                  applyHighlightToElement(editableElement, highlight);
               } catch (e) {
                   console.error("Error applying highlight:", e, highlight);
               }
           }
+      }
+      
+      // Helper function to apply a single highlight while preserving HTML structure
+      function applyHighlightToElement(element, highlight) {
+          const range = document.createRange();
+          const walker = document.createTreeWalker(
+              element,
+              NodeFilter.SHOW_TEXT,
+              null,
+              false
+          );
           
-          editableElement.innerHTML = newHTML;
+          let currentOffset = 0;
+          let startNode = null;
+          let startOffset = 0;
+          let endNode = null;
+          let endOffset = 0;
+          
+          // Find the start and end text nodes
+          while (walker.nextNode()) {
+              const node = walker.currentNode;
+              const nodeLength = node.textContent.length;
+              
+              if (!startNode && currentOffset + nodeLength > highlight.start_offset) {
+                  startNode = node;
+                  startOffset = highlight.start_offset - currentOffset;
+              }
+              
+              if (!endNode && currentOffset + nodeLength >= highlight.end_offset) {
+                  endNode = node;
+                  endOffset = highlight.end_offset - currentOffset;
+                  break;
+              }
+              
+              currentOffset += nodeLength;
+          }
+          
+          if (!startNode || !endNode) {
+              console.warn("Could not find text nodes for highlight:", highlight);
+              return;
+          }
+          
+          // Create range and extract contents
+          range.setStart(startNode, startOffset);
+          range.setEnd(endNode, endOffset);
+          
+          // Create mark element
+          const mark = document.createElement('mark');
+          mark.style.backgroundColor = highlight.color;
+          mark.setAttribute('data-highlight-id', highlight.id);
+          
+          // Surround the range with the mark element
+          try {
+              range.surroundContents(mark);
+          } catch (e) {
+              // If surroundContents fails (e.g., range spans multiple elements),
+              // extract contents and wrap them
+              const contents = range.extractContents();
+              mark.appendChild(contents);
+              range.insertNode(mark);
+          }
+          
+          // Add note at the beginning (will be hidden by CSS)
+          if (highlight.note) {
+              const noteSpan = document.createElement('span');
+              noteSpan.className = 'highlight-note';
+              noteSpan.textContent = highlight.note;
+              // Insert at the beginning of mark
+              mark.insertBefore(noteSpan, mark.firstChild);
+          }
       }
 
       function getTextColorForBackground(hexColor) {
@@ -1687,19 +1775,19 @@
               pageContentFront.className = 'page-content';
               
               const editableFront = document.createElement('div');
-              // Only make editable if user is authenticated and not cover
-              editableFront.contentEditable = String(isAuthenticated && !isCover);
+              // Only make editable if user is the author and not cover
+              editableFront.contentEditable = String(isAuthor && !isCover);
               editableFront.className = 'editable-area';
               editableFront.setAttribute('data-page-id', frontPageData.id);
               editableFront.innerHTML = frontPageData.content || '';
               
               if (!isCover) {
-                if (isAuthenticated) {
+                // Only author can edit content
+                if (isAuthor) {
                   editableFront.addEventListener('input', handlePageInput);
                   editableFront.setAttribute('placeholder', `Start writing on page ${frontPageData.page_number}...`);
                 }
-                // Load highlights for this page
-                loadHighlightsForPage(frontPageData.id, editableFront);
+                // Don't load highlights immediately - will be loaded when page is visible
               }
               editableFront.addEventListener('focus', () => { activeEditableArea = editableFront; });
 
@@ -1744,19 +1832,19 @@
               pageContentBack.className = 'page-content';
               
               const editableBack = document.createElement('div');
-              // Only make editable if user is authenticated and not special pages
-              editableBack.contentEditable = String(isAuthenticated && !isBackCover && backPageData.id !== 'placeholder');
+              // Only make editable if user is the author and not special pages
+              editableBack.contentEditable = String(isAuthor && !isBackCover && backPageData.id !== 'placeholder');
               editableBack.className = 'editable-area';
               editableBack.setAttribute('data-page-id', backPageData.id);
               editableBack.innerHTML = backPageData.content || '';
               
               if (!isBackCover && backPageData.id !== 'placeholder') {
-                if (isAuthenticated) {
+                // Only author can edit content
+                if (isAuthor) {
                   editableBack.addEventListener('input', handlePageInput);
                   editableBack.setAttribute('placeholder', `Start writing on page ${backPageData.page_number}...`);
                 }
-                // Load highlights for this page
-                loadHighlightsForPage(backPageData.id, editableBack);
+                // Don't load highlights immediately - will be loaded when page is visible
               }
               editableBack.addEventListener('focus', () => { activeEditableArea = editableBack; });
 
@@ -1775,6 +1863,31 @@
           bookContainer.appendChild(sheet);
         }
         updateButtons();
+        
+        // Load highlights for visible pages after render
+        loadHighlightsForCurrentSpread();
+      }
+      
+      // Load highlights only for currently visible pages
+      async function loadHighlightsForCurrentSpread() {
+        const currentSheet = bookContainer.children[currentSpread];
+        if (!currentSheet) return;
+        
+        console.log(`Loading highlights for spread ${currentSpread}`);
+        const editableAreas = currentSheet.querySelectorAll('.editable-area');
+        for (const editableArea of editableAreas) {
+          const pageId = editableArea.getAttribute('data-page-id');
+          if (pageId && pageId !== 'cover' && pageId !== 'back-cover' && pageId !== 'placeholder' && !isNaN(parseInt(pageId))) {
+            // Check if highlights already loaded
+            if (!editableArea.hasAttribute('data-highlights-loaded')) {
+              console.log(`Loading highlights for page ${pageId}`);
+              await loadHighlightsForPage(pageId, editableArea);
+              editableArea.setAttribute('data-highlights-loaded', 'true');
+            } else {
+              console.log(`Highlights already loaded for page ${pageId}`);
+            }
+          }
+        }
       }
 
       function handlePageInput(event) {
@@ -1782,6 +1895,9 @@
           const pageId = editableArea.dataset.pageId;
 
           if (pageId === 'cover' || pageId === 'back-cover' || pageId === 'placeholder' || isNaN(parseInt(pageId))) return;
+          
+          // Only author can save page content
+          if (!isAuthor) return;
 
           clearTimeout(debounceTimeout);
           debounceTimeout = setTimeout(() => {
@@ -1825,6 +1941,8 @@
         setTimeout(() => {
           isFlipping = false;
           updateButtons();
+          // Load highlights for newly visible pages
+          loadHighlightsForCurrentSpread();
         }, FLIP_DURATION);
       }
 
@@ -2720,6 +2838,7 @@
                 if (!noteSpan) {
                     noteSpan = document.createElement('span');
                     noteSpan.className = 'highlight-note';
+                    // Insert at the beginning (will be hidden by CSS)
                     existingMark.insertBefore(noteSpan, existingMark.firstChild);
                 }
                 noteSpan.textContent = noteText;

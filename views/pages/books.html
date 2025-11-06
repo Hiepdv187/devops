@@ -25,64 +25,65 @@
     <div class="loading-spinner"></div>
 </div>
 
-<!-- Search Box -->
-<div class="search-container">
-    <div class="search-box">
-        <svg class="search-icon" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <circle cx="11" cy="11" r="8"></circle>
-            <path d="m21 21-4.35-4.35"></path>
-        </svg>
-        <input 
-            type="text" 
-            id="search-input" 
-            placeholder="Tìm kiếm theo tên sách hoặc tác giả..." 
-            autocomplete="off"
-        />
-        <button id="clear-search" class="clear-btn" style="display: none;">
-            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <line x1="18" y1="6" x2="6" y2="18"></line>
-                <line x1="6" y1="6" x2="18" y2="18"></line>
+<!-- Search and Filter Bar -->
+<div class="search-filter-container">
+    <div class="search-filter-wrapper">
+        <div class="search-box">
+            <svg class="search-icon" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="11" cy="11" r="8"></circle>
+                <path d="m21 21-4.35-4.35"></path>
             </svg>
-        </button>
+            <input 
+                type="text" 
+                id="search-input" 
+                placeholder="Tìm kiếm sách..." 
+                autocomplete="off"
+            />
+            <button id="clear-search" class="clear-btn" style="display: none;">
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
+            </button>
+        </div>
+        
+        <div class="filter-dropdowns">
+            <select id="category-select" class="filter-select">
+                <option value="">Tất cả danh mục</option>
+            </select>
+            
+            <select id="tag-select" class="filter-select">
+                <option value="">Tất cả tag</option>
+            </select>
+        </div>
     </div>
+    
     <div class="search-results-info" id="search-results-info" style="display: none;">
         Tìm thấy <strong id="results-count">0</strong> kết quả
     </div>
 </div>
 
-<!-- Category Filter -->
-<div class="category-filter" id="category-filter-container">
-    <button class="category-btn active" data-category="">Tất cả danh mục</button>
-</div>
-
-<!-- Tag Filter -->
-<div class="category-filter" id="tag-filter-container">
-    <button class="category-btn active" data-tag="">Tất cả tag</button>
-</div>
-
 {{if .Books}}
 <div class="books-grid" id="books-grid">
     {{range .Books}}
-    <article class="card book-card" style="background-color: {{if .CoverColor}}{{.CoverColor}}{{else}}#1e293b{{end}}; width: 320px; max-width: 320px; padding: 0; display: flex; flex-direction: column; gap: 0;" data-category="{{.BookCategory}}" data-tag="{{.BookTag}}">
-        <a href="/books/{{.ID}}/read" style="text-decoration: none; color: inherit; display: flex; flex-direction: column; height: 100%; position: relative;" data-book-title="{{.Title}}" data-author-name="{{.AuthorName}}">
-            <div class="book-cover-layout">
-                <div class="book-author-top">{{.AuthorName}}</div>
-                <div class="book-content-center">
-                    <h1 class="book-title-center">{{.Title}}</h1>
-                    {{if .CoverURL}}
-                    <div class="book-cover-image">
-                        <img src="{{.CoverURL}}" alt="{{.Title}}" loading="lazy" onerror="this.style.display='none'">
-                    </div>
-                    {{end}}
-                    {{if .Description}}
-                    <p class="book-description-bottom">{{.Description}}</p>
-                    {{end}}
+    <article class="card book-card" style="background-color: {{if .CoverColor}}{{.CoverColor}}{{else}}#1e293b{{end}}; width: 320px; max-width: 320px; padding: 0; display: flex; flex-direction: column; gap: 0; cursor: pointer;" data-book-id="{{.ID}}" data-category="{{.BookCategory}}" data-tag="{{.BookTag}}" data-book-title="{{.Title}}" data-author-name="{{.AuthorName}}">
+        <div class="book-cover-layout">
+            <div class="book-author-top">{{.AuthorName}}</div>
+            <div class="book-content-center">
+                <h1 class="book-title-center">{{.Title}}</h1>
+                {{if .CoverURL}}
+                <div class="book-cover-image">
+                    <img src="{{.CoverURL}}" alt="{{.Title}}" loading="lazy" onerror="this.style.display='none'">
                 </div>
-                {{if .BookTag}}
-                <div class="book-tag-badge">@{{.BookTag}}</div>
+                {{end}}
+                {{if .Description}}
+                <p class="book-description-bottom">{{.Description}}</p>
                 {{end}}
             </div>
-        </a>
+            {{if .BookTag}}
+            <div class="book-tag-badge">@{{.BookTag}}</div>
+            {{end}}
+        </div>
         <div class="book-hover-icons">
             <a href="javascript:void(0)" data-book-id="{{.ID}}" class="read-icon book-read-link" title="Đọc sách"></a>
             {{if and $.IsAuthenticated (eq .AuthorID $.CurrentUser.ID)}}
@@ -118,11 +119,18 @@
     cursor: pointer;
 }
 
-/* Search Container */
-.search-container {
+/* Search and Filter Container */
+.search-filter-container {
     max-width: 1200px;
     margin: 2rem auto 1.5rem;
     padding: 0 1rem;
+}
+
+.search-filter-wrapper {
+    display: flex;
+    gap: 1rem;
+    align-items: center;
+    flex-wrap: wrap;
 }
 
 .search-box {
@@ -135,11 +143,47 @@
     padding: 0.75rem 1rem;
     transition: all 0.3s ease;
     box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    flex: 1;
+    min-width: 250px;
+    max-width: 500px;
 }
 
 .search-box:focus-within {
     border-color: rgba(59, 130, 246, 0.5);
     box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.filter-dropdowns {
+    display: flex;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+}
+
+.filter-select {
+    background: rgba(30, 41, 59, 0.95);
+    border: 1px solid rgba(148, 163, 184, 0.3);
+    border-radius: 12px;
+    padding: 0.75rem 1rem;
+    color: #e2e8f0;
+    font-size: 0.95rem;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    min-width: 180px;
+    outline: none;
+}
+
+.filter-select:hover {
+    border-color: rgba(59, 130, 246, 0.5);
+}
+
+.filter-select:focus {
+    border-color: rgba(59, 130, 246, 0.5);
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.filter-select option {
+    background: #1e293b;
+    color: #e2e8f0;
 }
 
 .search-icon {
@@ -770,13 +814,20 @@
 
 /* Responsive */
 @media (max-width: 768px) {
-    .search-container {
+    .search-filter-container {
         padding: 0 0.5rem;
         margin: 1.5rem auto 1rem;
     }
     
+    .search-filter-wrapper {
+        flex-direction: column;
+        gap: 0.75rem;
+    }
+    
     .search-box {
         padding: 0.6rem 0.75rem;
+        max-width: 100%;
+        min-width: 100%;
     }
     
     .search-box input {
@@ -787,6 +838,17 @@
         width: 18px;
         height: 18px;
         margin-right: 0.5rem;
+    }
+    
+    .filter-dropdowns {
+        width: 100%;
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+    
+    .filter-select {
+        width: 100%;
+        min-width: 100%;
     }
 }
 </style>
@@ -897,7 +959,12 @@ document.addEventListener('DOMContentLoaded', () => {
     function createBookCard(book) {
         const article = document.createElement('article');
         article.className = 'card book-card';
-        article.style.cssText = `background-color: ${book.cover_color || '#1e293b'}; width: 320px; max-width: 320px; padding: 0; display: flex; flex-direction: column; gap: 0;`;
+        article.style.cssText = `background-color: ${book.cover_color || '#1e293b'}; width: 320px; max-width: 320px; padding: 0; display: flex; flex-direction: column; gap: 0; cursor: pointer;`;
+        article.setAttribute('data-book-id', book.id);
+        article.setAttribute('data-category', book.book_category || '');
+        article.setAttribute('data-tag', book.book_tag || '');
+        article.setAttribute('data-book-title', book.title);
+        article.setAttribute('data-author-name', book.author_name || 'Unknown');
         
         // Check if current user is the author
         const isAuthor = isAuthenticated && currentUserId && book.author_id === currentUserId;
@@ -921,13 +988,22 @@ document.addEventListener('DOMContentLoaded', () => {
             </div>
         `;
         
+        // Attach event listener to card click
+        article.addEventListener('click', function(e) {
+            // Don't open if clicking on delete button
+            if (e.target.closest('.delete-icon') || e.target.closest('.delete-btn')) {
+                return;
+            }
+            openBookModal(book.id);
+        });
+        
         // Attach event listener to read link - open modal
         const readLink = article.querySelector('.book-read-link');
         if (readLink) {
             readLink.addEventListener('click', function(e) {
                 e.preventDefault();
-                const bookId = this.getAttribute('data-book-id');
-                openBookModal(bookId);
+                e.stopPropagation();
+                openBookModal(book.id);
             });
         }
         
@@ -936,9 +1012,8 @@ document.addEventListener('DOMContentLoaded', () => {
         if (deleteLink) {
             deleteLink.addEventListener('click', function(e) {
                 e.preventDefault();
-                const bookId = this.getAttribute('data-book-id');
-                const bookTitle = this.getAttribute('data-book-title');
-                deleteBook(bookId, bookTitle);
+                e.stopPropagation();
+                deleteBook(book.id, book.title);
             });
         }
         
@@ -1008,14 +1083,14 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
     
-    // Category and Tag Filters
-    const categoryFilterContainer = document.getElementById('category-filter-container');
-    const tagFilterContainer = document.getElementById('tag-filter-container');
+    // Category and Tag Filters with Dropdowns
+    const categorySelect = document.getElementById('category-select');
+    const tagSelect = document.getElementById('tag-select');
     
     let selectedCategory = '';
     let selectedTag = '';
     
-    // Populate filter buttons from books
+    // Populate filter dropdowns from books
     if (booksGrid) {
         const categories = new Set();
         const tags = new Set();
@@ -1033,25 +1108,23 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
         
-        // Add category buttons
-        if (categoryFilterContainer) {
+        // Add category options
+        if (categorySelect) {
             categories.forEach(category => {
-                const btn = document.createElement('button');
-                btn.className = 'category-btn';
-                btn.setAttribute('data-category', category);
-                btn.textContent = category;
-                categoryFilterContainer.appendChild(btn);
+                const option = document.createElement('option');
+                option.value = category;
+                option.textContent = category;
+                categorySelect.appendChild(option);
             });
         }
         
-        // Add tag buttons
-        if (tagFilterContainer) {
+        // Add tag options
+        if (tagSelect) {
             tags.forEach(tag => {
-                const btn = document.createElement('button');
-                btn.className = 'category-btn';
-                btn.setAttribute('data-tag', tag);
-                btn.textContent = '@' + tag;
-                tagFilterContainer.appendChild(btn);
+                const option = document.createElement('option');
+                option.value = tag;
+                option.textContent = '@' + tag;
+                tagSelect.appendChild(option);
             });
         }
         
@@ -1063,9 +1136,8 @@ document.addEventListener('DOMContentLoaded', () => {
             bookCards.forEach(card => {
                 const cardCategory = card.getAttribute('data-category') || '';
                 const cardTag = card.getAttribute('data-tag') || '';
-                const link = card.querySelector('a');
-                const title = link ? link.getAttribute('data-book-title').toLowerCase() : '';
-                const author = link ? link.getAttribute('data-author-name').toLowerCase() : '';
+                const title = (card.getAttribute('data-book-title') || '').toLowerCase();
+                const author = (card.getAttribute('data-author-name') || '').toLowerCase();
                 
                 // Check category match
                 const categoryMatch = !selectedCategory || cardCategory === selectedCategory;
@@ -1098,43 +1170,19 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
         
-        // Category button clicks
-        if (categoryFilterContainer) {
-            categoryFilterContainer.addEventListener('click', (e) => {
-                if (e.target.classList.contains('category-btn')) {
-                    // Remove active from all category buttons
-                    categoryFilterContainer.querySelectorAll('.category-btn').forEach(btn => {
-                        btn.classList.remove('active');
-                    });
-                    
-                    // Add active to clicked button
-                    e.target.classList.add('active');
-                    
-                    // Update selected category
-                    selectedCategory = e.target.getAttribute('data-category') || '';
-                    
-                    applyFilters();
-                }
+        // Category dropdown change
+        if (categorySelect) {
+            categorySelect.addEventListener('change', (e) => {
+                selectedCategory = e.target.value;
+                applyFilters();
             });
         }
         
-        // Tag button clicks
-        if (tagFilterContainer) {
-            tagFilterContainer.addEventListener('click', (e) => {
-                if (e.target.classList.contains('category-btn')) {
-                    // Remove active from all tag buttons
-                    tagFilterContainer.querySelectorAll('.category-btn').forEach(btn => {
-                        btn.classList.remove('active');
-                    });
-                    
-                    // Add active to clicked button
-                    e.target.classList.add('active');
-                    
-                    // Update selected tag
-                    selectedTag = e.target.getAttribute('data-tag') || '';
-                    
-                    applyFilters();
-                }
+        // Tag dropdown change
+        if (tagSelect) {
+            tagSelect.addEventListener('change', (e) => {
+                selectedTag = e.target.value;
+                applyFilters();
             });
         }
     }
@@ -1362,6 +1410,21 @@ document.addEventListener('DOMContentLoaded', () => {
         link.addEventListener('click', function(e) {
             e.preventDefault();
             e.stopPropagation();
+            const bookId = this.getAttribute('data-book-id');
+            if (bookId) {
+                openBookModal(bookId);
+            }
+        });
+    });
+    
+    // Click on book card to open modal (except delete button)
+    const bookCards = document.querySelectorAll('.book-card');
+    bookCards.forEach(card => {
+        card.addEventListener('click', function(e) {
+            // Don't open if clicking on delete button
+            if (e.target.closest('.delete-icon') || e.target.closest('.delete-btn')) {
+                return;
+            }
             const bookId = this.getAttribute('data-book-id');
             if (bookId) {
                 openBookModal(bookId);
