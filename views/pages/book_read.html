@@ -755,8 +755,34 @@
     }
     
     @media (max-width: 768px) {
+        .modal-large {
+            width: 95vw !important;
+            max-height: 85vh;
+        }
+        
+        .modal-content {
+            max-height: 85vh;
+            overflow-y: auto;
+        }
+        
         .book-settings-grid {
             grid-template-columns: 1fr;
+        }
+        
+        .settings-preview-cover {
+            height: 160px;
+        }
+        
+        .modal-header h2 {
+            font-size: 1.25rem;
+        }
+        
+        .book-settings-form label {
+            margin-bottom: 0.75rem;
+        }
+        
+        form textarea {
+            min-height: 60px;
         }
         
         .book-search-container {
@@ -2200,12 +2226,21 @@
             mobileSearchResults.style.display = 'none';
             mobileSearchInput.blur();
             
-            // On mobile, find the sheet containing this page and scroll to it
-            // Each sheet has 2 pages, so sheet index = floor(pageIndex / 2)
-            const sheetIndex = Math.floor((result.pageIndex + 1) / 2); // +1 because cover is at index 0
-            const sheets = bookContainer.querySelectorAll('.sheet');
-            if (sheets[sheetIndex]) {
-              sheets[sheetIndex].scrollIntoView({ behavior: 'smooth', block: 'start', inline: 'start' });
+            // On mobile, pages are rendered in order: cover (index 0), then content pages
+            // pageIndex in search results corresponds to book.pages array (0-based)
+            // In DOM: page 0 = cover, page 1 = first content page (pageIndex 0), etc.
+            const pages = bookContainer.querySelectorAll('.page');
+            
+            console.log('Search click - pageIndex:', result.pageIndex, 'pageNumber:', result.pageNumber, 'total pages:', pages.length);
+            
+            // The target page in DOM is at index: result.pageIndex + 1 (because cover is at index 0)
+            const targetPageIndex = result.pageIndex + 1;
+            
+            if (pages[targetPageIndex]) {
+              console.log('Scrolling to page DOM index:', targetPageIndex);
+              pages[targetPageIndex].scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'start' });
+            } else {
+              console.error('Page not found at DOM index:', targetPageIndex, 'Available pages:', pages.length);
             }
           });
           
