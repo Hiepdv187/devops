@@ -4,8 +4,10 @@
     <p>{{.HeroSub}}</p>
     <div class="cta-group">
         <a href="/posts" class="btn primary">Khám phá bài viết</a>
+        <a href="/books" class="btn primary">Khám phá tủ sách</a>
         {{if .IsAuthenticated}}
         <a href="/posts#create" class="btn ghost">Viết chia sẻ đầu tiên</a>
+        <a href="//books#create" class="btn ghost">Bắt đầu viết sách</a>
         {{else}}
         <a href="/auth/register" class="btn ghost">Tham gia cộng đồng</a>
         {{end}}
@@ -62,6 +64,56 @@
     {{end}}
 </section>
 
+<section class="latest-books">
+    <header class="section-header">
+        <h2>Sách mới</h2>
+        <a href="/books" class="link">Xem toàn bộ</a>
+    </header>
+    {{if .RandomBooks}}
+    <div class="books-grid-home">
+        {{range .RandomBooks}}
+        <article class="card book-card" data-book-id="{{.ID}}">
+            <!-- Background image -->
+            {{if .CoverURL}}
+            <div class="book-bg-image" style="background-image: url('{{.CoverURL}}');"></div>
+            {{end}}
+            
+            <!-- Color overlay -->
+            <div class="book-color-overlay" style="background-color: {{if .CoverColor}}{{.CoverColor}}{{else}}#1e293b{{end}};"></div>
+            
+            <div class="book-cover-layout">
+                <!-- Top left: Author and Tag -->
+                <div class="book-top-left">
+                    <div class="book-author">{{.AuthorName}}</div>
+                    {{if .BookTag}}
+                    <div class="book-tag">@{{.BookTag}}</div>
+                    {{end}}
+                </div>
+                
+                <!-- Top right: Category -->
+                {{if .BookCategory}}
+                <div class="book-category">{{.BookCategory}}</div>
+                {{end}}
+                
+                <!-- Center: Title and Description -->
+                <div class="book-content-center">
+                    <h2 class="book-title">{{.Title}}</h2>
+                    {{if .Description}}
+                    <p class="book-description">{{.Description}}</p>
+                    {{end}}
+                </div>
+            </div>
+            <div class="book-hover-icons">
+                <a href="javascript:void(0)" data-book-id="{{.ID}}" class="read-icon book-read-link" title="Đọc sách"></a>
+            </div>
+        </article>
+        {{end}}
+    </div>
+    {{else}}
+    <p class="empty">Chưa có sách nào. {{if .IsAuthenticated}}Hãy tạo sách đầu tiên!{{end}}</p>
+    {{end}}
+</section>
+
 <section class="grid grid-3 tech-insights">
     {{range .TechInsights}}
     <article class="card insight-card">
@@ -87,4 +139,37 @@
         {{end}}
     </div>
 </section>
+
+<script>
+// Handle book card clicks on home page
+document.addEventListener('DOMContentLoaded', () => {
+    const bookReadLinks = document.querySelectorAll('.book-read-link');
+    
+    bookReadLinks.forEach(link => {
+        link.addEventListener('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            const bookId = this.getAttribute('data-book-id');
+            if (bookId) {
+                window.location.href = `/books/${bookId}`;
+            }
+        });
+    });
+    
+    // Click on book card to open book
+    const bookCards = document.querySelectorAll('.books-grid-home .book-card');
+    bookCards.forEach(card => {
+        card.addEventListener('click', function(e) {
+            // Don't trigger if clicking on read icon
+            if (e.target.closest('.book-hover-icons')) {
+                return;
+            }
+            const bookId = this.getAttribute('data-book-id');
+            if (bookId) {
+                window.location.href = `/books/${bookId}`;
+            }
+        });
+    });
+});
+</script>
 

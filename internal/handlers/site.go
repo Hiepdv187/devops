@@ -297,6 +297,26 @@ func Home() fiber.Handler {
 				})
 			}
 		}
+		
+		// Get 6 random published books
+		var books []models.Book
+		randomBooks := []fiber.Map{}
+		if err := db.Preload("Author").Where("published = ?", true).Order("RANDOM()").Limit(6).Find(&books).Error; err == nil {
+			for _, b := range books {
+				randomBooks = append(randomBooks, fiber.Map{
+					"ID":           b.ID,
+					"Title":        b.Title,
+					"Description":  b.Description,
+					"CoverURL":     b.CoverURL,
+					"CoverColor":   b.CoverColor,
+					"BookTag":      b.BookTag,
+					"BookCategory": b.BookCategory,
+					"AuthorName":   b.Author.Name,
+					"AuthorID":     b.AuthorID,
+				})
+			}
+		}
+		
 		return render(c, "pages/home", fiber.Map{
 			"Title":       "Học DevOps cùng cộng đồng",
 			"HeroHeading": "Thực chiến DevOps, làm chủ hạ tầng",
@@ -347,6 +367,7 @@ func Home() fiber.Handler {
 				},
 			},
 			"LatestPosts": latestPosts,
+			"RandomBooks": randomBooks,
 		}, "main")
 	}
 }

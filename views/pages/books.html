@@ -5,8 +5,8 @@
 <section class="hero hero-basic posts-hero">
     <div class="hero-header">
         <div class="hero-text">
-            <h1>📚 Sách</h1>
-            <p>Hãy cùng viết các cuốn sách mà bạn sẽ không thể mua được ở đâu, để chia sẻ kiến thức cùng cộng đồng. Tạo nên một kho tàng kiến thức để xây dựng nền tảng Devops vững chắc</p>
+            <h1>Tủ sách cộng đồng </h1>
+            <p>Hãy cùng viết các cuốn sách mà bạn sẽ không thể mua được ở đâu, để chia sẻ kiến thức cùng cộng đồng.</p>
         </div>
         {{if .IsAuthenticated}}
         <div style="margin-top: 1.5rem;">
@@ -122,6 +122,85 @@
     <p>Chưa có sách nào. {{if .IsAuthenticated}}Hãy tạo sách đầu tiên!{{end}}</p>
 </div>
 {{end}}
+
+<!-- Features Section -->
+<section class="features-section">
+    <div class="features-container">
+        <h2 class="features-title">Khám phá thư viện sách tương tác</h2>
+        <p class="features-subtitle">Nền tảng đọc và tạo sách với trải nghiệm độc đáo</p>
+        
+        <div class="features-grid">
+            <!-- Feature 1: Highlight -->
+            <div class="feature-card">
+                <h3>Highlight & Ghi chú thông minh</h3>
+                <p>Đăng nhập để highlight văn bản, thêm ghi chú cá nhân và lưu lại những đoạn quan trọng. Chọn màu yêu thích và quản lý highlights dễ dàng.</p>
+                <div class="feature-image">
+                    <svg viewBox="0 0 400 200" xmlns="http://www.w3.org/2000/svg">
+                        <!-- Book page -->
+                        <rect x="50" y="30" width="300" height="140" rx="8" fill="rgba(30, 41, 59, 0.6)" stroke="rgba(148, 163, 184, 0.3)" stroke-width="2"/>
+                        <!-- Text lines -->
+                        <line x1="70" y1="50" x2="330" y2="50" stroke="rgba(148, 163, 184, 0.5)" stroke-width="2"/>
+                        <line x1="70" y1="70" x2="330" y2="70" stroke="rgba(148, 163, 184, 0.5)" stroke-width="2"/>
+                        <!-- Highlighted text -->
+                        <rect x="65" y="85" width="200" height="20" rx="4" fill="rgba(250, 204, 21, 0.3)" stroke="rgba(250, 204, 21, 0.6)" stroke-width="2"/>
+                        <line x1="70" y1="95" x2="260" y2="95" stroke="rgba(250, 204, 21, 0.8)" stroke-width="3"/>
+                        <!-- More text -->
+                        <line x1="70" y1="120" x2="330" y2="120" stroke="rgba(148, 163, 184, 0.5)" stroke-width="2"/>
+                        <line x1="70" y1="140" x2="250" y2="140" stroke="rgba(148, 163, 184, 0.5)" stroke-width="2"/>
+                        <!-- Color picker -->
+                        <circle cx="320" cy="95" r="8" fill="rgba(250, 204, 21, 0.8)"/>
+                        <circle cx="340" cy="95" r="8" fill="rgba(236, 72, 153, 0.8)"/>
+                        <circle cx="360" cy="95" r="8" fill="rgba(59, 130, 246, 0.8)"/>
+                    </svg>
+                </div>
+            </div>
+            
+            <!-- Feature 2: Create Books -->
+            <div class="feature-card">
+                <h3>Tạo sách dễ dàng</h3>
+                <p>Công cụ soạn thảo trực quan với toolbar đầy đủ: định dạng văn bản, chèn ảnh, tạo bảng, chọn màu chữ và cỡ chữ. Xuất bản ngay khi hoàn thành!</p>
+                <div class="feature-image">
+                    <svg viewBox="0 0 400 200" xmlns="http://www.w3.org/2000/svg">
+                        <!-- Editor interface -->
+                        <rect x="50" y="30" width="300" height="140" rx="8" fill="rgba(30, 41, 59, 0.6)" stroke="rgba(148, 163, 184, 0.3)" stroke-width="2"/>
+                        <!-- Toolbar -->
+                        <rect x="60" y="40" width="280" height="30" rx="4" fill="rgba(51, 65, 85, 0.8)"/>
+                        <!-- Toolbar buttons -->
+                        <rect x="70" y="48" width="20" height="14" rx="2" fill="rgba(148, 163, 184, 0.4)"/>
+                        <rect x="95" y="48" width="20" height="14" rx="2" fill="rgba(148, 163, 184, 0.4)"/>
+                        <rect x="120" y="48" width="20" height="14" rx="2" fill="rgba(148, 163, 184, 0.4)"/>
+                        <rect x="150" y="48" width="25" height="14" rx="2" fill="rgba(59, 130, 246, 0.6)"/>
+                        <!-- Content area -->
+                        <rect x="60" y="80" width="280" height="80" rx="4" fill="rgba(15, 23, 42, 0.4)"/>
+                        <!-- Cursor/typing indicator -->
+                        <line x1="80" y1="100" x2="80" y2="115" stroke="rgba(59, 130, 246, 0.8)" stroke-width="2"/>
+                        <!-- Text lines -->
+                        <line x1="90" y1="107" x2="200" y2="107" stroke="rgba(148, 163, 184, 0.6)" stroke-width="2"/>
+                        <line x1="80" y1="130" x2="250" y2="130" stroke="rgba(148, 163, 184, 0.4)" stroke-width="2"/>
+                    </svg>
+                </div>
+            </div>
+            
+            <!-- Feature 3: Page Flip -->
+            <div class="feature-card">
+                <h3>Trải nghiệm lật trang 3D</h3>
+                <p>Hiệu ứng lật trang mượt mà như sách thật trên desktop. Trên mobile, vuốt ngang để chuyển trang với scroll-snap chính xác.</p>
+                <div class="feature-image">
+                    <svg viewBox="0 0 400 200" xmlns="http://www.w3.org/2000/svg">
+                        <!-- Left page -->
+                        <rect x="30" y="40" width="150" height="120" rx="4" fill="rgba(30, 41, 59, 0.6)" stroke="rgba(148, 163, 184, 0.3)" stroke-width="2"/>
+                        <!-- Right page (flipping) -->
+                        <path d="M 190 40 Q 240 80 190 160 L 340 160 Q 360 100 340 40 Z" fill="rgba(30, 41, 59, 0.8)" stroke="rgba(148, 163, 184, 0.4)" stroke-width="2"/>
+                        <!-- Page shadow -->
+                        <path d="M 190 40 Q 210 80 190 160" fill="none" stroke="rgba(0, 0, 0, 0.2)" stroke-width="3"/>
+                        <!-- Arrow -->
+                        <path d="M 370 100 L 385 100 L 378 93 M 385 100 L 378 107" stroke="rgba(59, 130, 246, 0.8)" stroke-width="2" fill="none"/>
+                    </svg>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
 
 <style>
 .hero-header {
@@ -533,6 +612,116 @@
 #current-page {
     font-size: 1rem;
     color: #94a3b8;
+}
+
+/* Features Section */
+.features-section {
+    margin: 4rem 0 2rem;
+    padding: 3rem 0;
+    background: linear-gradient(180deg, rgba(15, 23, 42, 0.4) 0%, rgba(30, 41, 59, 0.2) 100%);
+    border-radius: 16px;
+}
+
+.features-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 2rem;
+}
+
+.features-title {
+    text-align: center;
+    font-size: 2rem;
+    font-weight: 700;
+    margin-bottom: 0.5rem;
+    background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.features-subtitle {
+    text-align: center;
+    font-size: 1.1rem;
+    color: #94a3b8;
+    margin-bottom: 3rem;
+}
+
+.features-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 2rem;
+}
+
+.feature-card {
+    background: rgba(30, 41, 59, 0.4);
+    border: 1px solid rgba(148, 163, 184, 0.2);
+    border-radius: 12px;
+    padding: 2rem;
+    transition: all 0.3s ease;
+}
+
+.feature-card:hover {
+    transform: translateY(-4px);
+    border-color: rgba(59, 130, 246, 0.4);
+    box-shadow: 0 8px 24px rgba(59, 130, 246, 0.15);
+}
+
+.feature-icon {
+    font-size: 2.5rem;
+    margin-bottom: 1rem;
+}
+
+.feature-card h3 {
+    font-size: 1.25rem;
+    font-weight: 600;
+    margin-bottom: 0.75rem;
+    color: #e2e8f0;
+}
+
+.feature-card p {
+    color: #94a3b8;
+    line-height: 1.6;
+    margin-bottom: 1.5rem;
+}
+
+.feature-image {
+    width: 100%;
+    height: auto;
+    border-radius: 8px;
+    overflow: hidden;
+    background: rgba(15, 23, 42, 0.6);
+    padding: 1rem;
+}
+
+.feature-image svg {
+    width: 100%;
+    height: auto;
+    display: block;
+}
+
+@media (max-width: 768px) {
+    .features-section {
+        margin: 2rem 0 1rem;
+        padding: 2rem 0;
+    }
+    
+    .features-title {
+        font-size: 1.5rem;
+    }
+    
+    .features-subtitle {
+        font-size: 1rem;
+        margin-bottom: 2rem;
+    }
+    
+    .features-grid {
+        grid-template-columns: 1fr;
+        gap: 1.5rem;
+    }
+    
+    .feature-card {
+        padding: 1.5rem;
+    }
 }
 </style>
 

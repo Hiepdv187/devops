@@ -16,6 +16,7 @@ type Book struct {
 	CoverURL     string         `json:"cover_url"`
 	CoverColor   string         `gorm:"default:#1e293b" json:"cover_color"`
 	AuthorID     uint           `gorm:"not null" json:"author_id"`
+	Author       User           `gorm:"foreignKey:AuthorID" json:"author,omitempty"`
 	AuthorName   string         `gorm:"-" json:"author_name"`
 	Published    bool           `gorm:"default:false" json:"published"`
 	BookTag      string         `gorm:"index" json:"book_tag"`      // Tag for book (e.g., "linux", "golang")
