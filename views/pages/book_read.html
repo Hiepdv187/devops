@@ -124,6 +124,13 @@ main {
   background-color: hsl(var(--card));
   border: 1px solid hsl(var(--border));
   overflow: visible; /* Allow tooltips to overflow */
+  pointer-events: auto; /* Enable interactions by default */
+}
+.sheet:not(.flipped) .page-back {
+  pointer-events: none;
+}
+.sheet.flipped .page-front {
+  pointer-events: none;
 }
 .page-front {
   border-radius: 0 8px 8px 0;
@@ -1423,6 +1430,13 @@ mark:hover .highlight-note {
     overflow-y: auto; /* Page itself scrolls vertically */
     -webkit-overflow-scrolling: touch;
     box-sizing: border-box;
+    pointer-events: auto !important; /* Reset pointer-events for mobile */
+  }
+  
+  /* Reset pointer-events for mobile sheets */
+  .sheet .page-back,
+  .sheet .page-front {
+    pointer-events: auto !important;
   }
   
   .page-content {
@@ -2238,7 +2252,17 @@ document.addEventListener('DOMContentLoaded', () => {
       if (isFlipped) {
         sheet.classList.add('flipped');
       }
-      sheet.style.zIndex = isFlipped ? index + 1 : numSheets - index;
+      // Fix z-index: current spread should be on top
+      // Flipped sheets stack from bottom to top (1, 2, 3...)
+      // Unflipped sheets stack from top to bottom (numSheets, numSheets-1, ...)
+      // Current spread (index === currentSpread) should have highest z-index
+      if (index === currentSpread) {
+        sheet.style.zIndex = numSheets + 1; // Highest z-index for current spread
+      } else if (isFlipped) {
+        sheet.style.zIndex = index + 1;
+      } else {
+        sheet.style.zIndex = numSheets - index;
+      }
       
       const frontPageData = finalPages[index * 2];
       const backPageData = finalPages[index * 2 + 1];
@@ -2674,37 +2698,136 @@ document.addEventListener('DOMContentLoaded', () => {
   async function goToPageByIndex(pageIndex, fastFlip = true) {
     if (!book || !book.pages || isFlipping) return;
     
-    // Calculate which spread contains this page
-    // Page index starts at 0, each spread shows 2 pages
-    // Spread 0: cover (page -1) and page 0
-    // Spread 1: page 1 and page 2
-    // Spread 2: page 3 and page 4
-    // So: targetSpread = Math.ceil((pageIndex + 1) / 2)
-    const targetSpread = Math.ceil((pageIndex + 1) / 2);
+    const isMobile = window.innerWidth <= 767;
     
-    // Use faster flip duration for search navigation
-    const flipDelay = fastFlip ? 100 : FLIP_DURATION;
-    
-    // Flip to target spread with animation delay
-    if (currentSpread < targetSpread) {
-      // Flip forward
-      while (currentSpread < targetSpread && currentSpread < bookContainer.children.length) {
-        goToNextSpread();
-        await new Promise(resolve => setTimeout(resolve, flipDelay));
+    if (isMobile) {
+      // Mobile: Each page is a separate scroll item
+      // Find the actual page element by data-page-id
+      const allPages = bookContainer.querySelectorAll('.page');
+      let targetPageElement = null;
+      
+      // pageIndex is the index in book.pages array
+      // We need to find the page with matching page_number
+      const targetPageData = book.pages[pageIndex];
+      if (!targetPageData) return;
+      
+      // Find the page element with matching data-page-id
+      for (const pageEl of allPages) {
+        const editableArea = pageEl.querySelector('.editable-area');
+        if (editableArea) {
+          const pageId = editableArea.getAttribute('data-page-id');
+          if (pageId == targetPageData.id) {
+            targetPageElement = pageEl;
+            break;
+          }
+        }
       }
-    } else if (currentSpread > targetSpread) {
-      // Flip backward
-      while (currentSpread > targetSpread && currentSpread > 0) {
-        goToPrevSpread();
-        await new Promise(resolve => setTimeout(resolve, flipDelay));
+      
+      if (targetPageElement) {
+        // Scroll to the page
+        targetPageElement.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'start' });
+        
+        // After scrolling, highlight and scroll to search term
+        if (currentSearchQuery) {
+          setTimeout(() => {
+            highlightAndScrollToSearchTermMobile(targetPageElement, currentSearchQuery);
+          }, 500);
+        }
+      }
+    } else {
+      // Desktop: Use spread-based navigation
+      // Calculate which spread contains this page
+      // Page index starts at 0, each spread shows 2 pages
+      // Spread 0: cover (page -1) and page 0
+      // Spread 1: page 1 and page 2
+      // Spread 2: page 3 and page 4
+      // So: targetSpread = Math.ceil((pageIndex + 1) / 2)
+      const targetSpread = Math.ceil((pageIndex + 1) / 2);
+      
+      // Use faster flip duration for search navigation
+      const flipDelay = fastFlip ? 100 : FLIP_DURATION;
+      
+      // Flip to target spread with animation delay
+      if (currentSpread < targetSpread) {
+        // Flip forward
+        while (currentSpread < targetSpread && currentSpread < bookContainer.children.length) {
+          goToNextSpread();
+          await new Promise(resolve => setTimeout(resolve, flipDelay));
+        }
+      } else if (currentSpread > targetSpread) {
+        // Flip backward
+        while (currentSpread > targetSpread && currentSpread > 0) {
+          goToPrevSpread();
+          await new Promise(resolve => setTimeout(resolve, flipDelay));
+        }
+      }
+      
+      // After flipping, highlight and scroll to search term
+      if (currentSearchQuery) {
+        setTimeout(() => {
+          highlightAndScrollToSearchTerm(pageIndex, currentSearchQuery);
+        }, flipDelay + 100);
       }
     }
+  }
+  
+  function highlightAndScrollToSearchTermMobile(pageElement, query) {
+    if (!query || !pageElement) return;
     
-    // After flipping, highlight and scroll to search term
-    if (currentSearchQuery) {
-      setTimeout(() => {
-        highlightAndScrollToSearchTerm(pageIndex, currentSearchQuery);
-      }, flipDelay + 100);
+    const contentDiv = pageElement.querySelector('.page-content');
+    if (!contentDiv) return;
+    
+    const searchTerm = query.toLowerCase().trim();
+    
+    // Find and highlight the search term in the page content
+    const editableArea = contentDiv.querySelector('.editable-area');
+    if (!editableArea) return;
+    
+    const text = editableArea.textContent.toLowerCase();
+    if (!text.includes(searchTerm)) return;
+    
+    // Scroll the editable area to show the search term
+    const walker = document.createTreeWalker(
+      editableArea,
+      NodeFilter.SHOW_TEXT,
+      null,
+      false
+    );
+    
+    let node;
+    while (node = walker.nextNode()) {
+      const nodeText = node.textContent.toLowerCase();
+      const index = nodeText.indexOf(searchTerm);
+      
+      if (index !== -1) {
+        // Create a temporary span to scroll to
+        const range = document.createRange();
+        range.setStart(node, index);
+        range.setEnd(node, index + searchTerm.length);
+        
+        const tempSpan = document.createElement('span');
+        tempSpan.style.backgroundColor = 'rgba(59, 130, 246, 0.3)';
+        tempSpan.style.padding = '0.1rem 0.2rem';
+        tempSpan.style.borderRadius = '2px';
+        
+        try {
+          range.surroundContents(tempSpan);
+          tempSpan.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          
+          // Remove highlight after 2 seconds
+          setTimeout(() => {
+            const parent = tempSpan.parentNode;
+            if (parent) {
+              parent.replaceChild(document.createTextNode(tempSpan.textContent), tempSpan);
+              parent.normalize();
+            }
+          }, 2000);
+        } catch (e) {
+          console.warn('Could not highlight search term:', e);
+        }
+        
+        break;
+      }
     }
   }
   
