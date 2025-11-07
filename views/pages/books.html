@@ -52,13 +52,33 @@
         </div>
         
         <div class="filter-dropdowns">
-            <select id="category-select" class="filter-select">
-                <option value="">Tất cả danh mục</option>
-            </select>
+            <!-- Category Dropdown with Search -->
+            <div class="custom-dropdown" id="category-dropdown">
+                <button class="dropdown-toggle" id="category-toggle">
+                    <span class="dropdown-label">Tất cả danh mục</span>
+                    <span class="dropdown-arrow">▼</span>
+                </button>
+                <div class="dropdown-menu" id="category-menu">
+                    <input type="text" class="dropdown-search" id="category-search" placeholder="Tìm danh mục...">
+                    <div class="dropdown-items" id="category-items">
+                        <div class="dropdown-item" data-value="">Tất cả danh mục</div>
+                    </div>
+                </div>
+            </div>
             
-            <select id="tag-select" class="filter-select">
-                <option value="">Tất cả tag</option>
-            </select>
+            <!-- Tag Dropdown with Search -->
+            <div class="custom-dropdown" id="tag-dropdown">
+                <button class="dropdown-toggle" id="tag-toggle">
+                    <span class="dropdown-label">Tất cả tag</span>
+                    <span class="dropdown-arrow">▼</span>
+                </button>
+                <div class="dropdown-menu" id="tag-menu">
+                    <input type="text" class="dropdown-search" id="tag-search" placeholder="Tìm tag...">
+                    <div class="dropdown-items" id="tag-items">
+                        <div class="dropdown-item" data-value="">Tất cả tag</div>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
     
@@ -83,9 +103,6 @@
             <!-- Top left: Author and Tag -->
             <div class="book-top-left">
                 <div class="book-author">{{.AuthorName}}</div>
-                {{if .BookTag}}
-                <div class="book-tag">@{{.BookTag}}</div>
-                {{end}}
             </div>
             
             <!-- Top right: Category -->
@@ -100,6 +117,17 @@
                 <p class="book-description">{{.Description}}</p>
                 {{end}}
             </div>
+            
+            <!-- Bottom: Tags -->
+            {{if .BookTag}}
+            <div class="book-tags-container">
+                {{range $index, $tag := split .BookTag ","}}
+                {{if ne (trim $tag) ""}}
+                <span class="book-tag">@{{trim $tag}}</span>
+                {{end}}
+                {{end}}
+            </div>
+            {{end}}
         </div>
         <div class="book-hover-icons">
             <a href="javascript:void(0)" data-book-id="{{.ID}}" class="read-icon book-read-link" title="Đọc sách"></a>
@@ -253,6 +281,124 @@
     display: flex;
     gap: 0.75rem;
     flex-wrap: wrap;
+}
+
+/* Custom Dropdown Styles */
+.custom-dropdown {
+    position: relative;
+    min-width: 200px;
+}
+
+.dropdown-toggle {
+    width: 100%;
+    background: rgba(30, 41, 59, 0.95);
+    border: 1px solid rgba(148, 163, 184, 0.3);
+    border-radius: 12px;
+    padding: 0.75rem 1rem;
+    color: #e2e8f0;
+    font-size: 0.95rem;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 0.5rem;
+    outline: none;
+}
+
+.dropdown-toggle:hover {
+    border-color: rgba(59, 130, 246, 0.5);
+}
+
+.dropdown-toggle.active {
+    border-color: rgba(59, 130, 246, 0.5);
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.dropdown-label {
+    flex: 1;
+    text-align: left;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.dropdown-arrow {
+    font-size: 0.75rem;
+    transition: transform 0.3s ease;
+}
+
+.dropdown-toggle.active .dropdown-arrow {
+    transform: rotate(180deg);
+}
+
+.dropdown-menu {
+    position: absolute;
+    top: calc(100% + 0.5rem);
+    left: 0;
+    right: 0;
+    background: rgba(15, 23, 42, 0.98);
+    border: 1px solid rgba(148, 163, 184, 0.3);
+    border-radius: 12px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+    z-index: 100;
+    display: none;
+    flex-direction: column;
+    max-height: 320px;
+    overflow: hidden;
+}
+
+.dropdown-menu.active {
+    display: flex;
+}
+
+.dropdown-search {
+    width: 100%;
+    background: rgba(30, 41, 59, 0.8);
+    border: none;
+    border-bottom: 1px solid rgba(148, 163, 184, 0.2);
+    padding: 0.75rem 1rem;
+    color: #e2e8f0;
+    font-size: 0.9rem;
+    outline: none;
+    border-radius: 12px 12px 0 0;
+}
+
+.dropdown-search::placeholder {
+    color: #94a3b8;
+}
+
+.dropdown-search:focus {
+    background: rgba(30, 41, 59, 0.95);
+}
+
+.dropdown-items {
+    flex: 1;
+    overflow-y: auto;
+    padding: 0.5rem 0;
+}
+
+.dropdown-item {
+    padding: 0.75rem 1rem;
+    color: #e2e8f0;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-size: 0.95rem;
+}
+
+.dropdown-item:hover {
+    background: rgba(59, 130, 246, 0.15);
+    color: #60a5fa;
+}
+
+.dropdown-item.selected {
+    background: rgba(59, 130, 246, 0.2);
+    color: #60a5fa;
+    font-weight: 600;
+}
+
+.dropdown-item.hidden {
+    display: none;
 }
 
 .filter-select {
@@ -440,12 +586,35 @@
     letter-spacing: 0.3px;
 }
 
+.book-tags-container {
+    position: absolute;
+    bottom: 1rem;
+    left: 1.5rem;
+    right: 1.5rem;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+    justify-content: center;
+    z-index: 4;
+}
+
 .book-tag {
     font-size: 0.8rem;
     font-family: 'Lora', serif;
     text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
     font-style: italic;
     opacity: 0.9;
+    background: rgba(255, 255, 255, 0.15);
+    padding: 0.2rem 0.6rem;
+    border-radius: 6px;
+    white-space: nowrap;
+    transform: skewX(-5deg);
+    transition: all 0.2s ease;
+}
+
+.book-tag:hover {
+    background: rgba(255, 255, 255, 0.25);
+    transform: skewX(-5deg) scale(1.05);
 }
 
 /* Top right: Category */
@@ -1330,9 +1499,16 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
     
-    // Category and Tag Filters with Dropdowns
-    const categorySelect = document.getElementById('category-select');
-    const tagSelect = document.getElementById('tag-select');
+    // Custom Dropdown with Search
+    const categoryToggle = document.getElementById('category-toggle');
+    const categoryMenu = document.getElementById('category-menu');
+    const categorySearch = document.getElementById('category-search');
+    const categoryItems = document.getElementById('category-items');
+    
+    const tagToggle = document.getElementById('tag-toggle');
+    const tagMenu = document.getElementById('tag-menu');
+    const tagSearch = document.getElementById('tag-search');
+    const tagItems = document.getElementById('tag-items');
     
     let selectedCategory = '';
     let selectedTag = '';
@@ -1349,31 +1525,160 @@ document.addEventListener('DOMContentLoaded', () => {
                 categories.add(category.trim());
             }
             
-            const tag = card.getAttribute('data-tag');
-            if (tag && tag.trim()) {
-                tags.add(tag.trim());
+            // Split tags by comma and add each individually
+            const tagsStr = card.getAttribute('data-tag');
+            if (tagsStr && tagsStr.trim()) {
+                const cardTags = tagsStr.split(',').map(t => t.trim()).filter(t => t);
+                cardTags.forEach(tag => tags.add(tag));
             }
         });
         
-        // Add category options
-        if (categorySelect) {
-            categories.forEach(category => {
-                const option = document.createElement('option');
-                option.value = category;
-                option.textContent = category;
-                categorySelect.appendChild(option);
+        // Add category items
+        categories.forEach(category => {
+            const item = document.createElement('div');
+            item.className = 'dropdown-item';
+            item.setAttribute('data-value', category);
+            item.textContent = category;
+            categoryItems.appendChild(item);
+        });
+        
+        // Add tag items
+        tags.forEach(tag => {
+            const item = document.createElement('div');
+            item.className = 'dropdown-item';
+            item.setAttribute('data-value', tag);
+            item.textContent = '@' + tag;
+            tagItems.appendChild(item);
+        });
+        
+        // Toggle dropdown
+        function toggleDropdown(toggle, menu) {
+            const isActive = menu.classList.contains('active');
+            // Close all dropdowns
+            document.querySelectorAll('.dropdown-menu').forEach(m => m.classList.remove('active'));
+            document.querySelectorAll('.dropdown-toggle').forEach(t => t.classList.remove('active'));
+            
+            if (!isActive) {
+                menu.classList.add('active');
+                toggle.classList.add('active');
+            }
+        }
+        
+        // Category dropdown
+        if (categoryToggle) {
+            categoryToggle.addEventListener('click', (e) => {
+                e.stopPropagation();
+                toggleDropdown(categoryToggle, categoryMenu);
+                if (categoryMenu.classList.contains('active')) {
+                    categorySearch.focus();
+                }
             });
         }
         
-        // Add tag options
-        if (tagSelect) {
-            tags.forEach(tag => {
-                const option = document.createElement('option');
-                option.value = tag;
-                option.textContent = '@' + tag;
-                tagSelect.appendChild(option);
+        // Tag dropdown
+        if (tagToggle) {
+            tagToggle.addEventListener('click', (e) => {
+                e.stopPropagation();
+                toggleDropdown(tagToggle, tagMenu);
+                if (tagMenu.classList.contains('active')) {
+                    tagSearch.focus();
+                }
             });
         }
+        
+        // Category search
+        if (categorySearch) {
+            categorySearch.addEventListener('input', (e) => {
+                const query = e.target.value.toLowerCase();
+                categoryItems.querySelectorAll('.dropdown-item').forEach(item => {
+                    const text = item.textContent.toLowerCase();
+                    if (text.includes(query)) {
+                        item.classList.remove('hidden');
+                    } else {
+                        item.classList.add('hidden');
+                    }
+                });
+            });
+        }
+        
+        // Tag search
+        if (tagSearch) {
+            tagSearch.addEventListener('input', (e) => {
+                const query = e.target.value.toLowerCase();
+                tagItems.querySelectorAll('.dropdown-item').forEach(item => {
+                    const text = item.textContent.toLowerCase();
+                    if (text.includes(query)) {
+                        item.classList.remove('hidden');
+                    } else {
+                        item.classList.add('hidden');
+                    }
+                });
+            });
+        }
+        
+        // Category item click
+        categoryItems.addEventListener('click', (e) => {
+            if (e.target.classList.contains('dropdown-item')) {
+                const value = e.target.getAttribute('data-value');
+                selectedCategory = value;
+                
+                // Update label
+                const label = categoryToggle.querySelector('.dropdown-label');
+                label.textContent = value || 'Tất cả danh mục';
+                
+                // Update selected state
+                categoryItems.querySelectorAll('.dropdown-item').forEach(item => {
+                    item.classList.remove('selected');
+                });
+                e.target.classList.add('selected');
+                
+                // Close dropdown
+                categoryMenu.classList.remove('active');
+                categoryToggle.classList.remove('active');
+                categorySearch.value = '';
+                categoryItems.querySelectorAll('.dropdown-item').forEach(item => {
+                    item.classList.remove('hidden');
+                });
+                
+                applyFilters();
+            }
+        });
+        
+        // Tag item click
+        tagItems.addEventListener('click', (e) => {
+            if (e.target.classList.contains('dropdown-item')) {
+                const value = e.target.getAttribute('data-value');
+                selectedTag = value;
+                
+                // Update label
+                const label = tagToggle.querySelector('.dropdown-label');
+                label.textContent = value ? '@' + value : 'Tất cả tag';
+                
+                // Update selected state
+                tagItems.querySelectorAll('.dropdown-item').forEach(item => {
+                    item.classList.remove('selected');
+                });
+                e.target.classList.add('selected');
+                
+                // Close dropdown
+                tagMenu.classList.remove('active');
+                tagToggle.classList.remove('active');
+                tagSearch.value = '';
+                tagItems.querySelectorAll('.dropdown-item').forEach(item => {
+                    item.classList.remove('hidden');
+                });
+                
+                applyFilters();
+            }
+        });
+        
+        // Close dropdowns when clicking outside
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('.custom-dropdown')) {
+                document.querySelectorAll('.dropdown-menu').forEach(m => m.classList.remove('active'));
+                document.querySelectorAll('.dropdown-toggle').forEach(t => t.classList.remove('active'));
+            }
+        });
         
         // Handle filter changes
         function applyFilters() {
@@ -1382,21 +1687,22 @@ document.addEventListener('DOMContentLoaded', () => {
             
             bookCards.forEach(card => {
                 const cardCategory = card.getAttribute('data-category') || '';
-                const cardTag = card.getAttribute('data-tag') || '';
+                const cardTagsStr = card.getAttribute('data-tag') || '';
+                const cardTags = cardTagsStr.split(',').map(t => t.trim()).filter(t => t);
                 const title = (card.getAttribute('data-book-title') || '').toLowerCase();
                 const author = (card.getAttribute('data-author-name') || '').toLowerCase();
                 
                 // Check category match
                 const categoryMatch = !selectedCategory || cardCategory === selectedCategory;
                 
-                // Check tag match
-                const tagMatch = !selectedTag || cardTag === selectedTag;
+                // Check tag match - check if selected tag is in card's tags
+                const tagMatch = !selectedTag || cardTags.includes(selectedTag);
                 
                 // Check search match
                 const searchMatch = !searchQuery || 
                     title.includes(searchQuery) || 
                     author.includes(searchQuery) ||
-                    cardTag.toLowerCase().includes(searchQuery);
+                    cardTags.some(tag => tag.toLowerCase().includes(searchQuery));
                 
                 if (categoryMatch && tagMatch && searchMatch) {
                     card.style.display = '';
@@ -1415,22 +1721,6 @@ document.addEventListener('DOMContentLoaded', () => {
                     searchResultsInfo.style.display = 'none';
                 }
             }
-        }
-        
-        // Category dropdown change
-        if (categorySelect) {
-            categorySelect.addEventListener('change', (e) => {
-                selectedCategory = e.target.value;
-                applyFilters();
-            });
-        }
-        
-        // Tag dropdown change
-        if (tagSelect) {
-            tagSelect.addEventListener('change', (e) => {
-                selectedTag = e.target.value;
-                applyFilters();
-            });
         }
     }
 
@@ -2160,3 +2450,178 @@ document.addEventListener('DOMContentLoaded', () => {
     background: rgba(0, 0, 0, 0.9);
 }
 </style>
+
+<script>
+// Auto text color based on background color
+function getTextColorForBackground(hexColor) {
+    if (!hexColor) return '#ffffff';
+    
+    // Remove # if present
+    hexColor = hexColor.replace('#', '');
+    
+    // Convert hex to RGB
+    const r = parseInt(hexColor.substr(0, 2), 16);
+    const g = parseInt(hexColor.substr(2, 2), 16);
+    const b = parseInt(hexColor.substr(4, 2), 16);
+    
+    // Calculate relative luminance (ITU-R BT.709)
+    const luminance = (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255;
+    
+    // Return black for light backgrounds, white for dark backgrounds
+    return luminance > 0.5 ? '#000000' : '#ffffff';
+}
+
+// Apply text color to all book cards
+document.addEventListener('DOMContentLoaded', function() {
+    const bookCards = document.querySelectorAll('.book-card');
+    
+    bookCards.forEach(card => {
+        const overlay = card.querySelector('.book-color-overlay');
+        if (!overlay) return;
+        
+        const bgColor = overlay.style.backgroundColor;
+        // Extract hex color from rgb/rgba
+        let hexColor = '#1e293b'; // default
+        
+        if (bgColor) {
+            // Try to get from inline style or compute
+            const computed = window.getComputedStyle(overlay).backgroundColor;
+            if (computed) {
+                // Convert rgb(r, g, b) to hex
+                const match = computed.match(/^rgb\((\d+),\s*(\d+),\s*(\d+)\)$/);
+                if (match) {
+                    const r = parseInt(match[1]);
+                    const g = parseInt(match[2]);
+                    const b = parseInt(match[3]);
+                    hexColor = '#' + ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1);
+                }
+            }
+        }
+        
+        const textColor = getTextColorForBackground(hexColor);
+        
+        // Apply to all text elements
+        const author = card.querySelector('.book-author');
+        const tags = card.querySelectorAll('.book-tag');
+        const category = card.querySelector('.book-category');
+        const title = card.querySelector('.book-title');
+        const description = card.querySelector('.book-description');
+        
+        if (author) author.style.color = textColor;
+        tags.forEach(tag => tag.style.color = textColor);
+        if (category) category.style.color = textColor;
+        if (title) title.style.color = textColor;
+        if (description) description.style.color = textColor;
+    });
+    
+    // Listen for book updates from other pages
+    window.addEventListener('storage', function(e) {
+        if (e.key === 'book_update_event' && e.newValue) {
+            try {
+                const event = JSON.parse(e.newValue);
+                if (event.type === 'book_updated') {
+                    updateBookCard(event.bookId, event.data);
+                }
+            } catch (err) {
+                console.error('Error parsing book update event:', err);
+            }
+        }
+    });
+    
+    // Also listen for postMessage from iframe
+    window.addEventListener('message', function(e) {
+        if (e.data && e.data.type === 'book_updated') {
+            updateBookCard(e.data.bookId, e.data.data);
+        }
+    });
+    
+    function updateBookCard(bookId, data) {
+        const card = document.querySelector(`.book-card[data-book-id="${bookId}"]`);
+        if (!card) return;
+        
+        // Update cover color overlay
+        const overlay = card.querySelector('.book-color-overlay');
+        if (overlay && data.cover_color) {
+            overlay.style.backgroundColor = data.cover_color;
+        }
+        
+        // Update background image
+        let bgImage = card.querySelector('.book-bg-image');
+        if (data.cover_url) {
+            if (!bgImage) {
+                bgImage = document.createElement('div');
+                bgImage.className = 'book-bg-image';
+                card.insertBefore(bgImage, card.firstChild);
+            }
+            bgImage.style.backgroundImage = `url('${data.cover_url}')`;
+        } else if (bgImage) {
+            bgImage.remove();
+        }
+        
+        // Update text content
+        const author = card.querySelector('.book-author');
+        const title = card.querySelector('.book-title');
+        const description = card.querySelector('.book-description');
+        const category = card.querySelector('.book-category');
+        
+        if (author && data.author_name) author.textContent = data.author_name;
+        if (title && data.title) title.textContent = data.title;
+        if (description) {
+            if (data.description) {
+                description.textContent = data.description;
+                description.style.display = '';
+            } else {
+                description.style.display = 'none';
+            }
+        }
+        if (category) {
+            if (data.book_category) {
+                category.textContent = data.book_category;
+                category.style.display = '';
+            } else {
+                category.style.display = 'none';
+            }
+        }
+        
+        // Update tags
+        let tagsContainer = card.querySelector('.book-tags-container');
+        if (data.book_tag) {
+            const tags = data.book_tag.split(',').map(t => t.trim()).filter(t => t);
+            
+            if (!tagsContainer) {
+                tagsContainer = document.createElement('div');
+                tagsContainer.className = 'book-tags-container';
+                const layout = card.querySelector('.book-cover-layout');
+                if (layout) layout.appendChild(tagsContainer);
+            }
+            
+            tagsContainer.innerHTML = '';
+            tags.forEach(tagText => {
+                const tagSpan = document.createElement('span');
+                tagSpan.className = 'book-tag';
+                tagSpan.textContent = '@' + tagText;
+                tagsContainer.appendChild(tagSpan);
+            });
+        } else if (tagsContainer) {
+            tagsContainer.remove();
+        }
+        
+        // Update data attributes for filtering
+        card.setAttribute('data-tag', data.book_tag || '');
+        card.setAttribute('data-category', data.book_category || '');
+        card.setAttribute('data-book-title', data.title || '');
+        
+        // Recalculate text color
+        if (data.cover_color) {
+            const textColor = getTextColorForBackground(data.cover_color);
+            const allTags = card.querySelectorAll('.book-tag');
+            
+            if (author) author.style.color = textColor;
+            allTags.forEach(tag => tag.style.color = textColor);
+            if (category) category.style.color = textColor;
+            if (title) title.style.color = textColor;
+            if (description) description.style.color = textColor;
+        }
+    }
+});
+</script>

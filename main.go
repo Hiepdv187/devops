@@ -7,6 +7,7 @@ import (
 	"log"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
@@ -208,6 +209,15 @@ func main() {
 	})
 	engine.AddFunc("add", func(a, b int) int {
 		return a + b
+	})
+	engine.AddFunc("split", func(s, sep string) []string {
+		if s == "" {
+			return []string{}
+		}
+		return strings.Split(s, sep)
+	})
+	engine.AddFunc("trim", func(s string) string {
+		return strings.TrimSpace(s)
 	})
 	app := fiber.New(fiber.Config{
 		Views:       engine,

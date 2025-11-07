@@ -297,7 +297,7 @@ func Home() fiber.Handler {
 				})
 			}
 		}
-		
+
 		// Get 6 random published books
 		var books []models.Book
 		randomBooks := []fiber.Map{}
@@ -316,7 +316,7 @@ func Home() fiber.Handler {
 				})
 			}
 		}
-		
+
 		return render(c, "pages/home", fiber.Map{
 			"Title":       "Học DevOps cùng cộng đồng",
 			"HeroHeading": "Thực chiến DevOps, làm chủ hạ tầng",

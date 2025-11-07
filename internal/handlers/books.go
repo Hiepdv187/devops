@@ -135,18 +135,26 @@ func BookReadPage() fiber.Handler {
 
 		// Check if request accepts JSON (for AJAX/fetch calls)
 		if c.Get("Accept") == "application/json" {
+			var currentUserID uint
+			if user != nil {
+				currentUserID = user.ID
+			}
+			
 			return c.JSON(fiber.Map{
-				"id":              book.ID,
-				"title":           book.Title,
-				"description":     book.Description,
-				"cover_url":       book.CoverURL,
-				"cover_color":     book.CoverColor,
-				"author_id":       book.AuthorID,
-				"author_name":     book.AuthorName,
-				"published":       book.Published,
-				"pages":           book.Pages,
-				"is_author":       isAuthor,
+				"id":               book.ID,
+				"title":            book.Title,
+				"description":      book.Description,
+				"cover_url":        book.CoverURL,
+				"cover_color":      book.CoverColor,
+				"book_tag":         book.BookTag,
+				"book_category":    book.BookCategory,
+				"author_id":        book.AuthorID,
+				"author_name":      book.AuthorName,
+				"published":        book.Published,
+				"pages":            book.Pages,
+				"is_author":        isAuthor,
 				"is_authenticated": isAuthenticated,
+				"current_user_id":  currentUserID,
 			})
 		}
 

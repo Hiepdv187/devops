@@ -125,25 +125,6 @@ main {
   border: 1px solid hsl(var(--border));
   overflow: visible; /* Allow tooltips to overflow */
 }
-.page::after {
-    content: '';
-    position: absolute;
-    top: 0;
-    right: 0;
-    width: 100%;
-    height: 100%;
-    background: linear-gradient(to left, rgba(0,0,0,0.2) 0%, rgba(0,0,0,0) 10%);
-    opacity: 0;
-    transition: opacity 0.6s ease-in-out;
-}
-.sheet.flipping .page-front::after {
-    opacity: 1;
-    transition-delay: 0.1s;
-}
-  .sheet.flipping .page-back::after {
-    opacity: 1;
-    background: linear-gradient(to right, rgba(0,0,0,0.2) 0%, rgba(0,0,0,0) 10%);
-}
 .page-front {
   border-radius: 0 8px 8px 0;
 }
@@ -349,12 +330,35 @@ main {
     letter-spacing: 0.3px;
 }
 
+.page.is-cover .cover-tags-container {
+    position: absolute;
+    bottom: 1rem;
+    left: 1.5rem;
+    right: 1.5rem;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+    justify-content: center;
+    z-index: 4;
+}
+
 .page.is-cover .cover-tag {
     font-size: 0.8rem;
     font-family: 'Lora', serif;
     text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
     font-style: italic;
     opacity: 0.9;
+    background: rgba(255, 255, 255, 0.15);
+    padding: 0.2rem 0.6rem;
+    border-radius: 6px;
+    white-space: nowrap;
+    transform: skewX(-5deg);
+    transition: all 0.2s ease;
+}
+
+.page.is-cover .cover-tag:hover {
+    background: rgba(255, 255, 255, 0.25);
+    transform: skewX(-5deg) scale(1.05);
 }
 
 /* Top right: Category */
@@ -466,6 +470,23 @@ main {
   animation: borderGlow 3s ease-in-out infinite;
   /* Allow tooltips to overflow */
   padding-top: 2.2rem; /* Add space at top for tooltips */
+  /* Allow text selection even when not editable */
+  user-select: text !important;
+  -webkit-user-select: text !important;
+  -moz-user-select: text !important;
+  -ms-user-select: text !important;
+}
+
+/* Read-only mode for non-authors */
+.editable-area[data-is-author="false"] {
+  border-color: rgba(148, 163, 184, 0.3);
+  animation: none;
+  cursor: text;
+}
+
+.editable-area[data-is-author="false"]:focus {
+  border-color: rgba(148, 163, 184, 0.5);
+  box-shadow: 0 0 0 2px rgba(148, 163, 184, 0.1);
 }
 
 /* No border for cover pages */
@@ -494,6 +515,31 @@ main {
     border-color: hsl(280, 100%, 60%);
     box-shadow: 0 0 5px hsl(280, 100%, 60%);
   }
+}
+
+@keyframes highlight-pulse {
+  0%, 100% {
+    background-color: #fef08a;
+    transform: scale(1);
+  }
+  50% {
+    background-color: #fde047;
+    transform: scale(1.05);
+  }
+}
+
+/* Search highlight - different from user highlights */
+.search-highlight {
+  background-color: #fef08a !important;
+  padding: 2px 4px;
+  border-radius: 2px;
+  font-weight: 600;
+  color: #854d0e;
+}
+
+mark.search-highlight {
+  background-color: #fef08a;
+  animation: highlight-pulse 1s ease-in-out 2;
 }
 /* Inline styles from Quill editor are preserved */
 .editable-area img {
@@ -1231,6 +1277,11 @@ mark:hover .highlight-note {
   color: #cbd5e1;
   font-size: 0.85rem;
   line-height: 1.4;
+  font-family: 'Courier New', monospace;
+}
+
+.search-result-content::first-letter {
+  font-weight: bold;
 }
 
 .mobile-search-results .search-result-content mark {
@@ -1676,6 +1727,8 @@ document.addEventListener('DOMContentLoaded', () => {
   let debounceTimeout = null;
   let isAuthenticated = false; // Track if user is logged in
   let isAuthor = false; // Track if user is the book author
+  let currentUserId = 0; // Current logged in user ID
+  let authorId = 0; // Book author ID
 
   // --- DOM ELEMENTS ---
   const loader = document.getElementById('loader');
@@ -1753,6 +1806,10 @@ document.addEventListener('DOMContentLoaded', () => {
       // Check if user is authenticated and if they are the author
       isAuthenticated = book.is_authenticated || false;
       isAuthor = book.is_author || false;
+      currentUserId = book.current_user_id || 0;
+      authorId = book.author_id || 0;
+      
+      console.log('User info - isAuth:', isAuthenticated, 'isAuthor:', isAuthor, 'currentUserId:', currentUserId, 'authorId:', authorId);
       
       // Hide editor toolbar and add page button if not author
       // Note: isAuthenticated is for highlights, isAuthor is for editing
@@ -1989,6 +2046,122 @@ document.addEventListener('DOMContentLoaded', () => {
       return luminance > 0.5 ? '#000000' : '#ffffff';
   }
 
+  // Live update cover display without full re-render
+  function updateCoverDisplay() {
+      const coverPage = document.querySelector('.page.is-cover');
+      if (!coverPage) return;
+      
+      // Update background color
+      if (book.cover_color) {
+          coverPage.style.backgroundColor = book.cover_color;
+          const textColor = getTextColorForBackground(book.cover_color);
+          coverPage.style.color = textColor;
+          
+          // Update overlay
+          const overlay = coverPage.querySelector('.cover-color-overlay');
+          if (overlay) overlay.style.backgroundColor = book.cover_color;
+      }
+      
+      // Update background image
+      let bgImage = coverPage.querySelector('.cover-bg-image');
+      if (book.cover_url) {
+          if (!bgImage) {
+              bgImage = document.createElement('div');
+              bgImage.className = 'cover-bg-image';
+              const coverContainer = coverPage.querySelector('.cover-container');
+              if (coverContainer) {
+                  coverContainer.insertBefore(bgImage, coverContainer.firstChild);
+              }
+          }
+          bgImage.style.backgroundImage = `url('${book.cover_url}')`;
+      } else if (bgImage) {
+          bgImage.remove();
+      }
+      
+      // Update author
+      const author = coverPage.querySelector('.cover-author');
+      if (author) {
+          author.textContent = book.author_name || 'Ẩn danh';
+          if (book.cover_color) {
+              author.style.color = getTextColorForBackground(book.cover_color);
+          }
+      }
+      
+      // Update tags (multiple) - now at bottom
+      const coverContainer = coverPage.querySelector('.cover-container');
+      let tagsContainer = coverPage.querySelector('.cover-tags-container');
+      
+      if (book.book_tag) {
+          const tags = book.book_tag.split(',').map(t => t.trim()).filter(t => t);
+          
+          if (!tagsContainer) {
+              tagsContainer = document.createElement('div');
+              tagsContainer.className = 'cover-tags-container';
+              if (coverContainer) coverContainer.appendChild(tagsContainer);
+          }
+          
+          // Clear and rebuild tags
+          tagsContainer.innerHTML = '';
+          tags.forEach(tagText => {
+              const tagSpan = document.createElement('span');
+              tagSpan.className = 'cover-tag';
+              tagSpan.textContent = '@' + tagText;
+              if (book.cover_color) {
+                  tagSpan.style.color = getTextColorForBackground(book.cover_color);
+              }
+              tagsContainer.appendChild(tagSpan);
+          });
+      } else if (tagsContainer) {
+          tagsContainer.remove();
+      }
+      
+      // Update category
+      let category = coverPage.querySelector('.cover-category');
+      if (book.book_category) {
+          if (!category) {
+              category = document.createElement('div');
+              category.className = 'cover-category';
+              category.style.position = 'absolute';
+              category.style.top = '0.5rem';
+              category.style.right = '0.5rem';
+              const coverContainer = coverPage.querySelector('.cover-container');
+              if (coverContainer) coverContainer.appendChild(category);
+          }
+          category.textContent = book.book_category;
+          if (book.cover_color) {
+              category.style.color = getTextColorForBackground(book.cover_color);
+          }
+      } else if (category) {
+          category.remove();
+      }
+      
+      // Update title
+      const title = coverPage.querySelector('.cover-title');
+      if (title) {
+          title.textContent = book.title || 'Book Title';
+          if (book.cover_color) {
+              title.style.color = getTextColorForBackground(book.cover_color);
+          }
+      }
+      
+      // Update description
+      let description = coverPage.querySelector('.cover-description');
+      if (book.description) {
+          if (!description) {
+              description = document.createElement('div');
+              description.className = 'cover-description';
+              const contentCenter = coverPage.querySelector('.cover-content-center');
+              if (contentCenter) contentCenter.appendChild(description);
+          }
+          description.textContent = book.description;
+          if (book.cover_color) {
+              description.style.color = getTextColorForBackground(book.cover_color);
+          }
+      } else if (description) {
+          description.remove();
+      }
+  }
+
   async function renderBook() {
     bookContainer.innerHTML = '';
     if (!book) {
@@ -2025,18 +2198,26 @@ document.addEventListener('DOMContentLoaded', () => {
     const finalPages = [...contentPages];
 
     // 3. Add Cover and Back Cover
+    // Parse multiple tags
+    const tags = book.book_tag ? book.book_tag.split(',').map(t => t.trim()).filter(t => t) : [];
+    const tagsHTML = tags.length > 0 ? `
+        <div class="cover-tags-container">
+            ${tags.map(tag => `<span class="cover-tag">@${tag}</span>`).join('')}
+        </div>
+    ` : '';
+    
     const coverContent = `
         ${book.cover_url ? `<div class="cover-bg-image" style="background-image: url('${book.cover_url}');"></div>` : ''}
         <div class="cover-color-overlay"></div>
         <div class="cover-top-left">
             <div class="cover-author">${book.author_name || 'Ẩn danh'}</div>
-            ${book.book_tag ? `<div class="cover-tag">@${book.book_tag}</div>` : ''}
         </div>
         ${book.book_category ? `<div class="cover-category">${book.book_category}</div>` : ''}
         <div class="cover-content-center">
             <h1 class="cover-title">${book.title || 'Book Title'}</h1>
             ${book.description ? `<div class="cover-description">${book.description}</div>` : ''}
         </div>
+        ${tagsHTML}
     `;
     finalPages.unshift({id: 'cover', page_number: 0, content: coverContent});
     
@@ -2145,15 +2326,38 @@ document.addEventListener('DOMContentLoaded', () => {
           } else {
               // Normal pages use editable-area
               const editableFront = document.createElement('div');
-              editableFront.contentEditable = String(isAuthor);
+              // Always set contentEditable to true to allow text selection
+              // But prevent editing for non-authors via event handlers
+              editableFront.contentEditable = 'true';
               editableFront.className = 'editable-area';
               editableFront.setAttribute('data-page-id', frontPageData.id);
+              editableFront.setAttribute('data-is-author', String(isAuthor));
               editableFront.innerHTML = frontPageData.content || '';
+              
+              // Debug log
+              console.log('Front page created:', {
+                pageId: frontPageData.id,
+                isAuthor: isAuthor,
+                contentEditable: editableFront.contentEditable,
+                dataIsAuthor: editableFront.getAttribute('data-is-author')
+              });
               
               // Only author can edit content
               if (isAuthor) {
                 editableFront.addEventListener('input', handlePageInput);
                 editableFront.setAttribute('placeholder', `Start writing on page ${frontPageData.page_number}...`);
+              } else {
+                // Prevent editing for non-authors while allowing selection
+                editableFront.addEventListener('keydown', (e) => {
+                  // Allow Ctrl+C, Ctrl+A for copy and select all
+                  if (e.ctrlKey && (e.key === 'c' || e.key === 'a')) {
+                    return;
+                  }
+                  e.preventDefault();
+                });
+                editableFront.addEventListener('paste', (e) => e.preventDefault());
+                editableFront.addEventListener('cut', (e) => e.preventDefault());
+                editableFront.addEventListener('drop', (e) => e.preventDefault());
               }
               editableFront.addEventListener('focus', () => { activeEditableArea = editableFront; });
               pageContentFront.appendChild(editableFront);
@@ -2198,10 +2402,13 @@ document.addEventListener('DOMContentLoaded', () => {
           pageContentBack.className = 'page-content';
           
           const editableBack = document.createElement('div');
-          // Only make editable if user is the author and not special pages
-          editableBack.contentEditable = String(isAuthor && !isBackCover && backPageData.id !== 'placeholder');
+          // Always set contentEditable to true to allow text selection
+          // But prevent editing for non-authors via event handlers
+          const canEdit = isAuthor && !isBackCover && backPageData.id !== 'placeholder';
+          editableBack.contentEditable = 'true';
           editableBack.className = 'editable-area';
           editableBack.setAttribute('data-page-id', backPageData.id);
+          editableBack.setAttribute('data-is-author', String(canEdit));
           editableBack.innerHTML = backPageData.content || '';
           
           if (!isBackCover && backPageData.id !== 'placeholder') {
@@ -2209,8 +2416,31 @@ document.addEventListener('DOMContentLoaded', () => {
             if (isAuthor) {
               editableBack.addEventListener('input', handlePageInput);
               editableBack.setAttribute('placeholder', `Start writing on page ${backPageData.page_number}...`);
+            } else {
+              // Prevent editing for non-authors while allowing selection
+              editableBack.addEventListener('keydown', (e) => {
+                // Allow Ctrl+C, Ctrl+A for copy and select all
+                if (e.ctrlKey && (e.key === 'c' || e.key === 'a')) {
+                  return;
+                }
+                e.preventDefault();
+              });
+              editableBack.addEventListener('paste', (e) => e.preventDefault());
+              editableBack.addEventListener('cut', (e) => e.preventDefault());
+              editableBack.addEventListener('drop', (e) => e.preventDefault());
             }
             // Don't load highlights immediately - will be loaded when page is visible
+          } else {
+            // Back cover and placeholder - prevent all editing
+            editableBack.addEventListener('keydown', (e) => {
+              if (e.ctrlKey && (e.key === 'c' || e.key === 'a')) {
+                return;
+              }
+              e.preventDefault();
+            });
+            editableBack.addEventListener('paste', (e) => e.preventDefault());
+            editableBack.addEventListener('cut', (e) => e.preventDefault());
+            editableBack.addEventListener('drop', (e) => e.preventDefault());
           }
           editableBack.addEventListener('focus', () => { activeEditableArea = editableBack; });
 
@@ -2336,6 +2566,9 @@ document.addEventListener('DOMContentLoaded', () => {
   }
   
   // --- SEARCH FUNCTIONALITY ---
+  let currentSearchQuery = ''; // Store current search query
+  let currentSearchFoundInHighlight = false; // Store if search result was found in highlight
+  
   function searchInBook(query) {
     if (!book || !book.pages || !query.trim()) {
       return [];
@@ -2349,25 +2582,56 @@ document.addEventListener('DOMContentLoaded', () => {
       const plainText = content.replace(/<[^>]*>/g, ''); // Strip HTML
       const lowerContent = plainText.toLowerCase();
       
-      if (lowerContent.includes(searchTerm)) {
+      // Also search in highlights for this page
+      // Only search in current user's own highlights
+      let highlightText = '';
+      if (book.highlights && book.highlights.length > 0 && isAuthenticated && currentUserId > 0) {
+        const pageHighlights = book.highlights.filter(h => {
+          // Only include highlights that belong to current user
+          return h.page_id === page.id && h.user_id === currentUserId;
+        });
+        highlightText = pageHighlights.map(h => h.highlighted_text || h.text || '').join(' ');
+      }
+      const lowerHighlightText = highlightText.toLowerCase();
+      
+      // Check if found in content or highlights
+      const foundInContent = lowerContent.includes(searchTerm);
+      const foundInHighlight = lowerHighlightText.includes(searchTerm);
+      
+      if (foundInContent || foundInHighlight) {
+        // Prioritize highlight match, otherwise use content match
+        let matchIndex, sourceText;
+        if (foundInHighlight) {
+          matchIndex = lowerHighlightText.indexOf(searchTerm);
+          sourceText = highlightText;
+        } else {
+          matchIndex = lowerContent.indexOf(searchTerm);
+          sourceText = plainText;
+        }
+        
         // Find context around the match
-        const matchIndex = lowerContent.indexOf(searchTerm);
         const start = Math.max(0, matchIndex - 50);
-        const end = Math.min(plainText.length, matchIndex + searchTerm.length + 50);
-        let snippet = plainText.substring(start, end);
+        const end = Math.min(sourceText.length, matchIndex + searchTerm.length + 50);
+        let snippet = sourceText.substring(start, end);
         
         // Add ellipsis
         if (start > 0) snippet = '...' + snippet;
-        if (end < plainText.length) snippet = snippet + '...';
+        if (end < sourceText.length) snippet = snippet + '...';
         
-        // Highlight the search term
+        // Wrap snippet with %...% if from highlight
+        if (foundInHighlight) {
+          snippet = '%' + snippet + '%';
+        }
+        
+        // Highlight the search term with special class for search results
         const regex = new RegExp(`(${searchTerm})`, 'gi');
-        snippet = snippet.replace(regex, '<mark>$1</mark>');
+        snippet = snippet.replace(regex, '<mark class="search-highlight">$1</mark>');
         
         results.push({
           pageIndex: index,
           pageNumber: page.page_number,
-          snippet: snippet
+          snippet: snippet,
+          foundInHighlight: foundInHighlight
         });
       }
     });
@@ -2387,14 +2651,17 @@ document.addEventListener('DOMContentLoaded', () => {
     results.forEach(result => {
       const item = document.createElement('div');
       item.className = 'search-result-item';
+      const highlightBadge = result.foundInHighlight ? '<span style="background: #fef08a; color: #854d0e; padding: 2px 6px; border-radius: 4px; font-size: 0.7rem; margin-left: 0.5rem; font-weight: 600;">✨ Highlight</span>' : '';
       item.innerHTML = `
-        <div class="search-result-page">Trang ${result.pageNumber}</div>
+        <div class="search-result-page">Trang ${result.pageNumber}${highlightBadge}</div>
         <div class="search-result-content">${result.snippet}</div>
       `;
       
       item.addEventListener('click', async () => {
         bookSearchResults.style.display = 'none';
         bookSearchInput.blur();
+        currentSearchQuery = query; // Store query for highlighting
+        currentSearchFoundInHighlight = result.foundInHighlight; // Store if found in highlight
         await goToPageByIndex(result.pageIndex);
       });
       
@@ -2404,7 +2671,7 @@ document.addEventListener('DOMContentLoaded', () => {
     bookSearchResults.style.display = 'block';
   }
   
-  async function goToPageByIndex(pageIndex) {
+  async function goToPageByIndex(pageIndex, fastFlip = true) {
     if (!book || !book.pages || isFlipping) return;
     
     // Calculate which spread contains this page
@@ -2415,20 +2682,141 @@ document.addEventListener('DOMContentLoaded', () => {
     // So: targetSpread = Math.ceil((pageIndex + 1) / 2)
     const targetSpread = Math.ceil((pageIndex + 1) / 2);
     
+    // Use faster flip duration for search navigation
+    const flipDelay = fastFlip ? 100 : FLIP_DURATION;
+    
     // Flip to target spread with animation delay
     if (currentSpread < targetSpread) {
       // Flip forward
       while (currentSpread < targetSpread && currentSpread < bookContainer.children.length) {
         goToNextSpread();
-        await new Promise(resolve => setTimeout(resolve, FLIP_DURATION));
+        await new Promise(resolve => setTimeout(resolve, flipDelay));
       }
     } else if (currentSpread > targetSpread) {
       // Flip backward
       while (currentSpread > targetSpread && currentSpread > 0) {
         goToPrevSpread();
-        await new Promise(resolve => setTimeout(resolve, FLIP_DURATION));
+        await new Promise(resolve => setTimeout(resolve, flipDelay));
       }
     }
+    
+    // After flipping, highlight and scroll to search term
+    if (currentSearchQuery) {
+      setTimeout(() => {
+        highlightAndScrollToSearchTerm(pageIndex, currentSearchQuery);
+      }, flipDelay + 100);
+    }
+  }
+  
+  function highlightAndScrollToSearchTerm(pageIndex, query) {
+    if (!query) return;
+    
+    // Find the page element
+    const spread = bookContainer.children[currentSpread];
+    if (!spread) return;
+    
+    const pages = spread.querySelectorAll('.page');
+    let targetPage = null;
+    
+    // Determine if it's left or right page
+    // pageIndex 0 is right page of spread 0
+    // pageIndex 1 is left page of spread 1, etc.
+    if (pageIndex === 0) {
+      targetPage = pages[1]; // Right page of first spread
+    } else {
+      const isLeftPage = pageIndex % 2 === 1;
+      targetPage = isLeftPage ? pages[0] : pages[1];
+    }
+    
+    if (!targetPage) return;
+    
+    const contentDiv = targetPage.querySelector('.page-content');
+    if (!contentDiv) return;
+    
+    const searchTerm = query.toLowerCase().trim();
+    
+    // If search was found in user highlight, just scroll to existing highlight
+    if (currentSearchFoundInHighlight) {
+      // Find existing user highlight (mark elements) containing the search term
+      const highlightMarks = contentDiv.querySelectorAll('mark[data-highlight-id]');
+      for (const mark of highlightMarks) {
+        const text = mark.textContent.toLowerCase();
+        if (text.includes(searchTerm)) {
+          mark.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          // Add temporary pulse animation to existing highlight
+          const originalAnimation = mark.style.animation;
+          mark.style.animation = 'highlight-pulse 1s ease-in-out 2';
+          setTimeout(() => {
+            mark.style.animation = originalAnimation;
+          }, 2000);
+          break;
+        }
+      }
+      currentSearchQuery = '';
+      currentSearchFoundInHighlight = false;
+      return;
+    }
+    
+    // Otherwise, create search highlights for plain text search
+    const walker = document.createTreeWalker(
+      contentDiv,
+      NodeFilter.SHOW_TEXT,
+      null,
+      false
+    );
+    
+    let firstMatch = null;
+    const nodesToHighlight = [];
+    
+    // Find all text nodes containing the search term (excluding user highlights)
+    while (walker.nextNode()) {
+      const node = walker.currentNode;
+      
+      // Skip if this text node is inside a user highlight
+      const parentMark = node.parentElement?.closest('mark[data-highlight-id]');
+      if (parentMark) continue;
+      
+      const text = node.textContent;
+      const lowerText = text.toLowerCase();
+      
+      if (lowerText.includes(searchTerm)) {
+        nodesToHighlight.push(node);
+        if (!firstMatch) firstMatch = node;
+      }
+    }
+    
+    // Highlight all matches with search-highlight class
+    nodesToHighlight.forEach(node => {
+      const text = node.textContent;
+      const lowerText = text.toLowerCase();
+      const regex = new RegExp(`(${searchTerm})`, 'gi');
+      
+      if (regex.test(text)) {
+        const span = document.createElement('span');
+        span.innerHTML = text.replace(regex, '<mark class="search-highlight">$1</mark>');
+        node.parentNode.replaceChild(span, node);
+      }
+    });
+    
+    // Scroll to first match
+    if (firstMatch) {
+      const mark = contentDiv.querySelector('mark.search-highlight');
+      if (mark) {
+        mark.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    }
+    
+    // Clear search highlights after a delay
+    setTimeout(() => {
+      const marks = contentDiv.querySelectorAll('mark.search-highlight');
+      marks.forEach(mark => {
+        const parent = mark.parentNode;
+        parent.replaceChild(document.createTextNode(mark.textContent), mark);
+        parent.normalize();
+      });
+      currentSearchQuery = '';
+      currentSearchFoundInHighlight = false;
+    }, 3000);
   }
   
   // Search event listeners
@@ -2554,8 +2942,9 @@ document.addEventListener('DOMContentLoaded', () => {
     results.forEach(result => {
       const item = document.createElement('div');
       item.className = 'search-result-item';
+      const highlightBadge = result.foundInHighlight ? '<span style="background: #fef08a; color: #854d0e; padding: 2px 6px; border-radius: 4px; font-size: 0.7rem; margin-left: 0.5rem; font-weight: 600;">✨ Highlight</span>' : '';
       item.innerHTML = `
-        <div class="search-result-page">Trang ${result.pageNumber}</div>
+        <div class="search-result-page">Trang ${result.pageNumber}${highlightBadge}</div>
         <div class="search-result-content">${result.snippet}</div>
       `;
       
@@ -2563,21 +2952,63 @@ document.addEventListener('DOMContentLoaded', () => {
         mobileSearchResults.style.display = 'none';
         mobileSearchInput.blur();
         
-        // On mobile, pages are rendered in order: cover (index 0), then content pages
-        // pageIndex in search results corresponds to book.pages array (0-based)
-        // In DOM: page 0 = cover, page 1 = first content page (pageIndex 0), etc.
-        const pages = bookContainer.querySelectorAll('.page');
+        currentSearchQuery = query; // Store query for highlighting
+        currentSearchFoundInHighlight = result.foundInHighlight; // Store if found in highlight
         
-        console.log('Search click - pageIndex:', result.pageIndex, 'pageNumber:', result.pageNumber, 'total pages:', pages.length);
+        // Find the target page by matching page number
+        // result.pageNumber is the actual page number from database
+        const pages = Array.from(bookContainer.querySelectorAll('.page'));
         
-        // The target page in DOM is at index: result.pageIndex + 1 (because cover is at index 0)
-        const targetPageIndex = result.pageIndex + 1;
+        console.log('Mobile search click - pageIndex:', result.pageIndex, 'pageNumber:', result.pageNumber, 'total pages:', pages.length);
         
-        if (pages[targetPageIndex]) {
-          console.log('Scrolling to page DOM index:', targetPageIndex);
-          pages[targetPageIndex].scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'start' });
+        // Find page by page number displayed
+        let targetPage = null;
+        
+        // First try: Find by displayed page number
+        for (const page of pages) {
+          const pageNumberElem = page.querySelector('.page-number-left, .page-number-right');
+          if (pageNumberElem) {
+            const displayedPageNum = parseInt(pageNumberElem.textContent);
+            if (displayedPageNum === result.pageNumber) {
+              targetPage = page;
+              console.log('Found target page by number:', result.pageNumber);
+              break;
+            }
+          }
+        }
+        
+        // Fallback: Use index-based approach if page number search failed
+        // Mobile structure: pages[0] = cover, pages[1] = page 1, pages[2] = page 2, etc.
+        if (!targetPage) {
+          console.log('Page number search failed, trying index-based approach');
+          console.log('All pages with numbers:');
+          pages.forEach((p, idx) => {
+            const numElem = p.querySelector('.page-number-left, .page-number-right');
+            console.log(`  pages[${idx}]: ${numElem ? numElem.textContent : 'no number'}`);
+          });
+          
+          // result.pageIndex is 0-based index in book.pages (no cover)
+          // DOM index = result.pageIndex + 1 (because cover is at index 0)
+          const domIndex = result.pageIndex + 1;
+          console.log('Calculated domIndex:', domIndex);
+          if (pages[domIndex]) {
+            targetPage = pages[domIndex];
+            console.log('Found target page by index:', domIndex);
+          } else {
+            console.error('domIndex out of bounds:', domIndex, 'total pages:', pages.length);
+          }
+        }
+        
+        if (targetPage) {
+          console.log('Scrolling to target page');
+          targetPage.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'start' });
+          
+          // Highlight search term on mobile after scroll
+          setTimeout(() => {
+            highlightSearchTermOnMobilePage(targetPage, query);
+          }, 500);
         } else {
-          console.error('Page not found at DOM index:', targetPageIndex, 'Available pages:', pages.length);
+          console.error('Page not found - pageNumber:', result.pageNumber, 'pageIndex:', result.pageIndex, 'Available pages:', pages.length);
         }
       });
       
@@ -2585,6 +3016,96 @@ document.addEventListener('DOMContentLoaded', () => {
     });
     
     mobileSearchResults.style.display = 'block';
+  }
+  
+  // Highlight search term on mobile page
+  function highlightSearchTermOnMobilePage(pageElement, query) {
+    if (!query || !pageElement) return;
+    
+    const contentDiv = pageElement.querySelector('.page-content');
+    if (!contentDiv) return;
+    
+    const searchTerm = query.toLowerCase().trim();
+    
+    // If search was found in user highlight, just scroll to existing highlight
+    if (currentSearchFoundInHighlight) {
+      // Find existing user highlight (mark elements) containing the search term
+      const highlightMarks = contentDiv.querySelectorAll('mark[data-highlight-id]');
+      for (const mark of highlightMarks) {
+        const text = mark.textContent.toLowerCase();
+        if (text.includes(searchTerm)) {
+          mark.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          // Add temporary pulse animation to existing highlight
+          const originalAnimation = mark.style.animation;
+          mark.style.animation = 'highlight-pulse 1s ease-in-out 2';
+          setTimeout(() => {
+            mark.style.animation = originalAnimation;
+          }, 2000);
+          break;
+        }
+      }
+      currentSearchFoundInHighlight = false;
+      return;
+    }
+    
+    // Otherwise, create search highlights for plain text search
+    const walker = document.createTreeWalker(
+      contentDiv,
+      NodeFilter.SHOW_TEXT,
+      null,
+      false
+    );
+    
+    let firstMatch = null;
+    const nodesToHighlight = [];
+    
+    // Find all text nodes containing the search term (excluding user highlights)
+    while (walker.nextNode()) {
+      const node = walker.currentNode;
+      
+      // Skip if this text node is inside a user highlight
+      const parentMark = node.parentElement?.closest('mark[data-highlight-id]');
+      if (parentMark) continue;
+      
+      const text = node.textContent;
+      const lowerText = text.toLowerCase();
+      
+      if (lowerText.includes(searchTerm)) {
+        nodesToHighlight.push(node);
+        if (!firstMatch) firstMatch = node;
+      }
+    }
+    
+    // Highlight all matches with search-highlight class
+    nodesToHighlight.forEach(node => {
+      const text = node.textContent;
+      const regex = new RegExp(`(${searchTerm})`, 'gi');
+      
+      if (regex.test(text)) {
+        const span = document.createElement('span');
+        span.innerHTML = text.replace(regex, '<mark class="search-highlight">$1</mark>');
+        node.parentNode.replaceChild(span, node);
+      }
+    });
+    
+    // Scroll to first match within page
+    if (firstMatch) {
+      const mark = contentDiv.querySelector('mark.search-highlight');
+      if (mark) {
+        mark.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    }
+    
+    // Clear search highlights after 3 seconds
+    setTimeout(() => {
+      const marks = contentDiv.querySelectorAll('mark.search-highlight');
+      marks.forEach(mark => {
+        const parent = mark.parentNode;
+        parent.replaceChild(document.createTextNode(mark.textContent), mark);
+        parent.normalize(); // Merge adjacent text nodes
+      });
+      currentSearchFoundInHighlight = false;
+    }, 3000);
   }
   
   // Mobile Menu Toggle
@@ -3436,7 +3957,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
                   const result = await response.json();
                   if (result.success) {
-                      // Update the book data and re-render
+                      // Update the book data
                       book.title = data.title;
                       book.description = data.description;
                       book.cover_url = data.cover_url;
@@ -3445,8 +3966,32 @@ document.addEventListener('DOMContentLoaded', () => {
                       book.book_tag = data.book_tag;
                       book.book_category = data.book_category;
                       
+                      // Live update cover without full re-render
+                      updateCoverDisplay();
+                      
+                      // Broadcast update to other pages via localStorage
+                      const updateEvent = {
+                          type: 'book_updated',
+                          bookId: BOOK_ID,
+                          data: {
+                              title: data.title,
+                              description: data.description,
+                              cover_url: data.cover_url,
+                              cover_color: data.cover_color,
+                              book_tag: data.book_tag,
+                              book_category: data.book_category,
+                              author_name: book.author_name
+                          },
+                          timestamp: Date.now()
+                      };
+                      localStorage.setItem('book_update_event', JSON.stringify(updateEvent));
+                      
+                      // Also try postMessage to parent if in iframe
+                      if (window.parent !== window) {
+                          window.parent.postMessage(updateEvent, '*');
+                      }
+                      
                       bookSettingsModal.style.display = 'none';
-                      await renderBook(); // Re-render to show updated cover
                       alert('Cập nhật sách thành công!');
                   } else {
                       alert(result.error || 'Lỗi cập nhật sách');

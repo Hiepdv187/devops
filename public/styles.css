@@ -693,6 +693,7 @@ nav a.active::after {
   top: 2rem;
   max-height: calc(100vh - 4rem);
   overflow-y: auto;
+  z-index: 1;
 }
 
 /* Preview content: force wrapping and prevent overflow */
@@ -892,7 +893,56 @@ nav a.active::after {
   text-decoration: none;
 }
 .latest-books .section-header {
-  padding-top: 0.5rem;
+  background: rgba(255, 255, 255, 0.02);
+  padding: 0.75rem 1.5rem;
+  border-radius: 8px;
+  margin-bottom: 1rem;
+}
+.latest-books .section-header h2 {
+  color: #ffffff;
+  font-weight: 700;
+  font-size: 2rem;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+.latest-books .section-header .link {
+  color: #60a5fa;
+  font-weight: 600;
+  font-size: 1rem;
+  text-decoration: none;
+  transition: color 0.3s ease;
+}
+.latest-books .section-header .link:hover {
+  color: #93c5fd;
+  text-decoration: underline;
+}
+
+/* Card style for other sections */
+.latest-posts .section-header,
+.community-updates .section-header {
+  background: rgba(255, 255, 255, 0.02);
+  padding: 0.75rem 1.5rem;
+  border-radius: 8px;
+  margin-bottom: 1rem;
+}
+.latest-posts .section-header h2,
+.community-updates .section-header h2 {
+  color: #ffffff;
+  font-weight: 700;
+  font-size: 2rem;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+.latest-posts .section-header .link,
+.community-updates .section-header .link {
+  color: #60a5fa;
+  font-weight: 600;
+  font-size: 1rem;
+  text-decoration: none;
+  transition: color 0.3s ease;
+}
+.latest-posts .section-header .link:hover,
+.community-updates .section-header .link:hover {
+  color: #93c5fd;
+  text-decoration: underline;
 }
 
 .tech-insights .card {
@@ -1054,6 +1104,7 @@ nav a.active::after {
   position: relative;
   gap: 0.75rem;
   padding: 1.2rem;
+  z-index: 1;
 }
 
 .post-card-cover {
@@ -1558,7 +1609,6 @@ button:hover {
 
 .books-grid-home .book-card {
   position: relative;
-  width: 360px;
   max-width: 360px;
   height: 520px;
   border-radius: 16px;
@@ -1566,6 +1616,7 @@ button:hover {
   cursor: pointer;
   transition: all 0.3s ease;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  z-index: 1;
 }
 
 .books-grid-home .book-card:hover {
@@ -1578,6 +1629,7 @@ button:hover {
   inset: 0;
   background-size: cover;
   background-position: center;
+  background-repeat: no-repeat;
   z-index: 1;
 }
 
@@ -1594,7 +1646,6 @@ button:hover {
 }
 
 .books-grid-home .book-cover-layout {
-  position: relative;
   width: 100%;
   height: 100%;
   display: flex;
@@ -1619,14 +1670,35 @@ button:hover {
   text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
 }
 
+.books-grid-home .book-tags-container {
+  position: absolute;
+  bottom: 1rem;
+  left: 1.5rem;
+  right: 1.5rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  justify-content: center;
+  z-index: 4;
+}
+
 .books-grid-home .book-tag {
-  font-size: 0.75rem;
-  color: rgba(255, 255, 255, 0.8);
-  background: rgba(0, 0, 0, 0.3);
-  padding: 0.25rem 0.5rem;
-  border-radius: 12px;
-  width: fit-content;
-  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+  font-size: 0.8rem;
+  font-family: 'Lora', serif;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+  font-style: italic;
+  opacity: 0.9;
+  background: rgba(255, 255, 255, 0.15);
+  padding: 0.2rem 0.6rem;
+  border-radius: 6px;
+  white-space: nowrap;
+  transform: skewX(-5deg);
+  transition: all 0.2s ease;
+}
+
+.books-grid-home .book-tag:hover {
+  background: rgba(255, 255, 255, 0.25);
+  transform: skewX(-5deg) scale(1.05);
 }
 
 .books-grid-home .book-category {

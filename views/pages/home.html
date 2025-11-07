@@ -82,12 +82,9 @@
             <div class="book-color-overlay" style="background-color: {{if .CoverColor}}{{.CoverColor}}{{else}}#1e293b{{end}};"></div>
             
             <div class="book-cover-layout">
-                <!-- Top left: Author and Tag -->
+                <!-- Top left: Author -->
                 <div class="book-top-left">
                     <div class="book-author">{{.AuthorName}}</div>
-                    {{if .BookTag}}
-                    <div class="book-tag">@{{.BookTag}}</div>
-                    {{end}}
                 </div>
                 
                 <!-- Top right: Category -->
@@ -102,6 +99,17 @@
                     <p class="book-description">{{.Description}}</p>
                     {{end}}
                 </div>
+                
+                <!-- Bottom: Tags -->
+                {{if .BookTag}}
+                <div class="book-tags-container">
+                    {{range $index, $tag := split .BookTag ","}}
+                    {{if ne (trim $tag) ""}}
+                    <span class="book-tag">@{{trim $tag}}</span>
+                    {{end}}
+                    {{end}}
+                </div>
+                {{end}}
             </div>
             <div class="book-hover-icons">
                 <a href="javascript:void(0)" data-book-id="{{.ID}}" class="read-icon book-read-link" title="Đọc sách"></a>
@@ -140,23 +148,153 @@
     </div>
 </section>
 
+<!-- Loading Overlay -->
+<div class="loading-overlay" id="loading-overlay">
+    <div class="loading-spinner"></div>
+</div>
+
+<!-- Book Read Modal -->
+<div id="book-read-modal" class="book-read-modal">
+    <div class="book-read-modal-content">
+        <button id="book-modal-close-btn" class="book-modal-close-btn">×</button>
+        <iframe id="book-read-iframe" class="book-read-iframe" src="" frameborder="0"></iframe>
+    </div>
+</div>
+
+<style>
+.book-read-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.9);
+    z-index: 10000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    visibility: hidden;
+    transition: all 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.book-read-modal.active {
+    opacity: 1;
+    visibility: visible;
+}
+
+.book-read-modal-content {
+    position: relative;
+    width: 0;
+    height: 0;
+    background: hsl(var(--background));
+    border-radius: 12px;
+    overflow: hidden;
+    transition: all 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.book-read-modal.active .book-read-modal-content {
+    width: 95vw;
+    height: 95vh;
+}
+
+.book-read-iframe {
+    width: 100%;
+    height: 100%;
+    border: none;
+    border-radius: 12px;
+    opacity: 0;
+    transition: opacity 0.3s ease 0.4s;
+}
+
+.book-read-modal.active .book-read-iframe {
+    opacity: 1;
+}
+
+.book-modal-close-btn {
+    position: absolute;
+    top: 1rem;
+    right: 1rem;
+    background: rgba(0, 0, 0, 0.6);
+    border: 2px solid rgba(255, 255, 255, 0.5);
+    color: white;
+    font-size: 2rem;
+    width: 3rem;
+    height: 3rem;
+    border-radius: 50%;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    transition: all 0.3s ease 0.6s;
+    z-index: 10001;
+}
+
+.book-read-modal.active .book-modal-close-btn {
+    opacity: 1;
+}
+
+.book-modal-close-btn:hover {
+    background: rgba(0, 0, 0, 0.8);
+    border-color: rgba(255, 255, 255, 0.8);
+    transform: scale(1.1);
+}
+</style>
+
 <script>
 // Handle book card clicks on home page
 document.addEventListener('DOMContentLoaded', () => {
     const bookReadLinks = document.querySelectorAll('.book-read-link');
     
+    // Open book modal function
+    function openBookModal(bookId) {
+        const modal = document.getElementById('book-read-modal');
+        const iframe = document.getElementById('book-read-iframe');
+        const loading = document.getElementById('loading-overlay');
+        
+        if (!modal || !iframe) {
+            return;
+        }
+        
+        // Show loading
+        loading.classList.add('active');
+        
+        iframe.src = `/books/${bookId}/read`;
+        
+        // Hide loading when iframe loads
+        iframe.onload = () => {
+            loading.classList.remove('active');
+        };
+        
+        modal.classList.add('active');
+        document.body.style.overflow = 'hidden';
+    }
+
+    function closeBookModal() {
+        const modal = document.getElementById('book-read-modal');
+        const iframe = document.getElementById('book-read-iframe');
+        
+        modal.classList.remove('active');
+        setTimeout(() => {
+            iframe.src = '';
+        }, 500);
+        document.body.style.overflow = 'auto';
+    }
+    
+    // Read link clicks
     bookReadLinks.forEach(link => {
         link.addEventListener('click', function(e) {
             e.preventDefault();
             e.stopPropagation();
             const bookId = this.getAttribute('data-book-id');
             if (bookId) {
-                window.location.href = `/books/${bookId}`;
+                openBookModal(bookId);
             }
         });
     });
     
-    // Click on book card to open book
+    // Click on book card to open modal
     const bookCards = document.querySelectorAll('.books-grid-home .book-card');
     bookCards.forEach(card => {
         card.addEventListener('click', function(e) {
@@ -166,10 +304,202 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             const bookId = this.getAttribute('data-book-id');
             if (bookId) {
-                window.location.href = `/books/${bookId}`;
+                openBookModal(bookId);
             }
         });
     });
+    
+    // Close button
+    const closeBtn = document.getElementById('book-modal-close-btn');
+    if (closeBtn) {
+        closeBtn.addEventListener('click', closeBookModal);
+    }
+
+    // Click overlay to close
+    const modalOverlay = document.getElementById('book-read-modal');
+    if (modalOverlay) {
+        modalOverlay.addEventListener('click', function(e) {
+            if (e.target === this) {
+                closeBookModal();
+            }
+        });
+    }
+
+    // Escape key to close
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+            const modal = document.getElementById('book-read-modal');
+            if (modal && modal.classList.contains('active')) {
+                closeBookModal();
+            }
+        }
+    });
+    
+    // Auto text color based on background color
+    function getTextColorForBackground(hexColor) {
+        if (!hexColor) return '#ffffff';
+        
+        // Remove # if present
+        hexColor = hexColor.replace('#', '');
+        
+        // Convert hex to RGB
+        const r = parseInt(hexColor.substr(0, 2), 16);
+        const g = parseInt(hexColor.substr(2, 2), 16);
+        const b = parseInt(hexColor.substr(4, 2), 16);
+        
+        // Calculate relative luminance (ITU-R BT.709)
+        const luminance = (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255;
+        
+        // Return black for light backgrounds, white for dark backgrounds
+        return luminance > 0.5 ? '#000000' : '#ffffff';
+    }
+    
+    // Apply text color to all book cards
+    const bookCardsForColor = document.querySelectorAll('.book-card');
+    
+    bookCardsForColor.forEach(card => {
+        const overlay = card.querySelector('.book-color-overlay');
+        if (!overlay) return;
+        
+        const bgColor = overlay.style.backgroundColor;
+        // Extract hex color from rgb/rgba
+        let hexColor = '#1e293b'; // default
+        
+        if (bgColor) {
+            // Try to get from inline style or compute
+            const computed = window.getComputedStyle(overlay).backgroundColor;
+            if (computed) {
+                // Convert rgb(r, g, b) to hex
+                const match = computed.match(/^rgb\((\d+),\s*(\d+),\s*(\d+)\)$/);
+                if (match) {
+                    const r = parseInt(match[1]);
+                    const g = parseInt(match[2]);
+                    const b = parseInt(match[3]);
+                    hexColor = '#' + ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1);
+                }
+            }
+        }
+        
+        const textColor = getTextColorForBackground(hexColor);
+        
+        // Apply to all text elements
+        const author = card.querySelector('.book-author');
+        const tags = card.querySelectorAll('.book-tag');
+        const category = card.querySelector('.book-category');
+        const title = card.querySelector('.book-title');
+        const description = card.querySelector('.book-description');
+        
+        if (author) author.style.color = textColor;
+        tags.forEach(tag => tag.style.color = textColor);
+        if (category) category.style.color = textColor;
+        if (title) title.style.color = textColor;
+        if (description) description.style.color = textColor;
+    });
+    
+    // Listen for book updates from other pages
+    window.addEventListener('storage', function(e) {
+        if (e.key === 'book_update_event' && e.newValue) {
+            try {
+                const event = JSON.parse(e.newValue);
+                if (event.type === 'book_updated') {
+                    updateBookCard(event.bookId, event.data);
+                }
+            } catch (err) {
+                console.error('Error parsing book update event:', err);
+            }
+        }
+    });
+    
+    // Also listen for postMessage from iframe
+    window.addEventListener('message', function(e) {
+        if (e.data && e.data.type === 'book_updated') {
+            updateBookCard(e.data.bookId, e.data.data);
+        }
+    });
+    
+    function updateBookCard(bookId, data) {
+        const card = document.querySelector(`.book-card[data-book-id="${bookId}"]`);
+        if (!card) return;
+        
+        // Update cover color overlay
+        const overlay = card.querySelector('.book-color-overlay');
+        if (overlay && data.cover_color) {
+            overlay.style.backgroundColor = data.cover_color;
+        }
+        
+        // Update background image
+        let bgImage = card.querySelector('.book-bg-image');
+        if (data.cover_url) {
+            if (!bgImage) {
+                bgImage = document.createElement('div');
+                bgImage.className = 'book-bg-image';
+                card.insertBefore(bgImage, card.firstChild);
+            }
+            bgImage.style.backgroundImage = `url('${data.cover_url}')`;
+        } else if (bgImage) {
+            bgImage.remove();
+        }
+        
+        // Update text content
+        const author = card.querySelector('.book-author');
+        const title = card.querySelector('.book-title');
+        const description = card.querySelector('.book-description');
+        const category = card.querySelector('.book-category');
+        
+        if (author && data.author_name) author.textContent = data.author_name;
+        if (title && data.title) title.textContent = data.title;
+        if (description) {
+            if (data.description) {
+                description.textContent = data.description;
+                description.style.display = '';
+            } else {
+                description.style.display = 'none';
+            }
+        }
+        if (category) {
+            if (data.book_category) {
+                category.textContent = data.book_category;
+                category.style.display = '';
+            } else {
+                category.style.display = 'none';
+            }
+        }
+        
+        // Update tags
+        let tagsContainer = card.querySelector('.book-tags-container');
+        if (data.book_tag) {
+            const tags = data.book_tag.split(',').map(t => t.trim()).filter(t => t);
+            
+            if (!tagsContainer) {
+                tagsContainer = document.createElement('div');
+                tagsContainer.className = 'book-tags-container';
+                const layout = card.querySelector('.book-cover-layout');
+                if (layout) layout.appendChild(tagsContainer);
+            }
+            
+            tagsContainer.innerHTML = '';
+            tags.forEach(tagText => {
+                const tagSpan = document.createElement('span');
+                tagSpan.className = 'book-tag';
+                tagSpan.textContent = '@' + tagText;
+                tagsContainer.appendChild(tagSpan);
+            });
+        } else if (tagsContainer) {
+            tagsContainer.remove();
+        }
+        
+        // Recalculate text color
+        if (data.cover_color) {
+            const textColor = getTextColorForBackground(data.cover_color);
+            const allTags = card.querySelectorAll('.book-tag');
+            
+            if (author) author.style.color = textColor;
+            allTags.forEach(tag => tag.style.color = textColor);
+            if (category) category.style.color = textColor;
+            if (title) title.style.color = textColor;
+            if (description) description.style.color = textColor;
+        }
+    }
 });
 </script>
 
