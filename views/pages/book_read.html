@@ -138,6 +138,11 @@ main {
 .page-back {
   transform: rotateY(180deg);
   border-radius: 8px 0 0 8px;
+  /* Fix rendering issues with rotated pages */
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  filter: brightness(1) !important;
+  opacity: 1 !important;
 }
 .page.is-cover, .page.is-back-cover {
   background-color: hsl(var(--accent));
@@ -474,7 +479,7 @@ main {
   overflow-y: auto; /* Scroll on editable area only */
   overflow-x: hidden;
   box-shadow: 0 0 0 0 hsl(var(--accent));
-  animation: borderGlow 3s ease-in-out infinite;
+  animation: borderGlow 3s ease-in-out infinite; /* Animation for all users */
   /* Allow tooltips to overflow */
   padding-top: 2.2rem; /* Add space at top for tooltips */
   /* Allow text selection even when not editable */
@@ -484,15 +489,12 @@ main {
   -ms-user-select: text !important;
 }
 
-/* Read-only mode for non-authors */
+/* Read-only mode for non-authors - keep animation */
 .editable-area[data-is-author="false"] {
-  border-color: rgba(148, 163, 184, 0.3);
-  animation: none;
   cursor: text;
 }
 
 .editable-area[data-is-author="false"]:focus {
-  border-color: rgba(148, 163, 184, 0.5);
   box-shadow: 0 0 0 2px rgba(148, 163, 184, 0.1);
 }
 
