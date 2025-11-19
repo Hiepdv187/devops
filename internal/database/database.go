@@ -29,12 +29,14 @@ func Init() *gorm.DB {
 		// Priority 1: Check for DATABASE_URL (Supabase standard)
 		databaseURL := strings.TrimSpace(os.Getenv("DATABASE_URL"))
 		if databaseURL != "" {
-			// Add prefer_simple_protocol if not already present (required for Supabase pooler)
+			// Add multiple parameters to disable prepared statements completely
+			additionalParams := "prefer_simple_protocol=true&default_query_exec_mode=simple_protocol&statement_cache_mode=disabled"
+
 			if !strings.Contains(databaseURL, "prefer_simple_protocol") {
 				if strings.Contains(databaseURL, "?") {
-					dsn = databaseURL + "&prefer_simple_protocol=true"
+					dsn = databaseURL + "&" + additionalParams
 				} else {
-					dsn = databaseURL + "?prefer_simple_protocol=true"
+					dsn = databaseURL + "?" + additionalParams
 				}
 			} else {
 				dsn = databaseURL
@@ -55,7 +57,7 @@ func Init() *gorm.DB {
 				database := getEnv("DB_NAME", "postgres")
 				sslmode := getEnv("DB_SSLMODE", "disable")
 
-				dsn = "host=" + host + " user=" + user + " password=" + password + " dbname=" + database + " port=" + port + " sslmode=" + sslmode + " prefer_simple_protocol=true"
+				dsn = "host=" + host + " user=" + user + " password=" + password + " dbname=" + database + " port=" + port + " sslmode=" + sslmode + " prefer_simple_protocol=true default_query_exec_mode=simple_protocol statement_cache_mode=disabled"
 				log.Println("✓ Using individual DB_* variables for connection")
 			}
 		}
@@ -68,6 +70,7 @@ func Init() *gorm.DB {
 			NamingStrategy:                           schema.NamingStrategy{SingularTable: false},
 			PrepareStmt:                              false, // Disable prepared statement cache to avoid schema mismatch
 			DisableForeignKeyConstraintWhenMigrating: true,
+			SkipDefaultTransaction:                   true, // Disable transactions to avoid prepared statements
 		}
 
 		var err error
@@ -140,8 +143,9 @@ func safeMigrate(db *gorm.DB) error {
 }
 
 func seedDemoUser() {
+	// Use raw SQL to avoid prepared statement issues
 	var count int64
-	if err := db.Model(&models.User{}).Count(&count).Error; err != nil {
+	if err := db.Raw("SELECT COUNT(*) FROM users").Scan(&count).Error; err != nil {
 		log.Printf("failed to count users: %v", err)
 		return
 	}
@@ -155,13 +159,14 @@ func seedDemoUser() {
 		return
 	}
 
-	demo := models.User{
-		Name:         "DevOps Maintainer",
-		Email:        "admin@hocdevops.community",
-		PasswordHash: string(hash),
-	}
-
-	if err := db.Create(&demo).Error; err != nil {
+	// Use raw SQL to insert user
+	if err := db.Exec(`
+		INSERT INTO users (name, email, password_hash, created_at, updated_at) 
+		VALUES (?, ?, ?, NOW(), NOW())`,
+		"DevOps Maintainer",
+		"admin@hocdevops.community",
+		string(hash),
+	).Error; err != nil {
 		log.Printf("failed to create demo user: %v", err)
 	}
 }
