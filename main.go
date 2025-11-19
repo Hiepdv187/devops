@@ -16,6 +16,7 @@ import (
 	"github.com/gomarkdown/markdown"
 	mdhtml "github.com/gomarkdown/markdown/html"
 	"github.com/gomarkdown/markdown/parser"
+	"github.com/joho/godotenv"
 	"github.com/microcosm-cc/bluemonday"
 	xhtml "golang.org/x/net/html"
 
@@ -184,6 +185,10 @@ func init() {
 }
 
 func main() {
+	if err := godotenv.Load(); err != nil {
+		log.Println("Warning: .env file not found, using OS environment")
+	}
+
 	database.Init()
 
 	engine := html.New("./views", ".html")

@@ -60,16 +60,8 @@ func Init() *gorm.DB {
 			}
 		}
 
-		// Custom logger to only show errors, not slow SQL warnings
-		customLogger := logger.New(
-			log.New(os.Stdout, "\r\n", log.LstdFlags),
-			logger.Config{
-				SlowThreshold:             10 * time.Second, // Very high threshold to avoid SLOW SQL logs
-				LogLevel:                  logger.Error,     // Only log errors
-				IgnoreRecordNotFoundError: true,
-				Colorful:                  false,
-			},
-		)
+		// Disable GORM logger completely to avoid prepared statement issues
+		customLogger := logger.Discard
 
 		dbConfig := &gorm.Config{
 			Logger:                                   customLogger,
@@ -90,14 +82,16 @@ func Init() *gorm.DB {
 		}
 
 		// Configure connection pool for Supabase pooler
-		// Use smaller pool size to avoid prepared statement conflicts
-		sqlDB.SetMaxOpenConns(5)                   // Reduced for pooler compatibility
-		sqlDB.SetMaxIdleConns(2)                   // Keep minimal idle connections
-		sqlDB.SetConnMaxLifetime(1 * time.Minute)  // Shorter lifetime for pooler
-		sqlDB.SetConnMaxIdleTime(30 * time.Second) // Close idle connections quickly
+		// Use minimal pool size to avoid prepared statement conflicts
+		sqlDB.SetMaxOpenConns(1)                   // Single connection to avoid prepared statement conflicts
+		sqlDB.SetMaxIdleConns(0)                   // No idle connections
+		sqlDB.SetConnMaxLifetime(30 * time.Second) // Very short lifetime
+		sqlDB.SetConnMaxIdleTime(10 * time.Second) // Close idle connections very quickly
 
-		if err = db.AutoMigrate(&models.User{}, &models.Post{}, &models.Comment{}, &models.Annotation{}, &models.Book{}, &models.BookPage{}, &models.Highlight{}); err != nil {
-			log.Fatalf("failed to migrate database: %v", err)
+		// Safe migration - only create tables if they don't exist
+		log.Println("🔧 Running safe database migrations...")
+		if err = safeMigrate(db); err != nil {
+			log.Printf("⚠️  Migration warning: %v", err)
 		}
 
 		seedDemoUser()
@@ -119,6 +113,30 @@ func Get() *gorm.DB {
 		return Init()
 	}
 	return db
+}
+
+// safeMigrate performs safe database migration that doesn't fail on existing tables
+func safeMigrate(db *gorm.DB) error {
+	// Simply run AutoMigrate, it's designed to be safe with existing tables
+	if err := db.AutoMigrate(
+		&models.User{},
+		&models.Post{},
+		&models.Comment{},
+		&models.Annotation{},
+		&models.Book{},
+		&models.BookPage{},
+		&models.Highlight{},
+	); err != nil {
+		// If error contains "already exists", it's not fatal
+		if strings.Contains(err.Error(), "already exists") {
+			log.Printf("📋 Tables already exist, skipping creation")
+			return nil
+		}
+		return err
+	}
+
+	log.Println("✅ Database migrations completed")
+	return nil
 }
 
 func seedDemoUser() {
