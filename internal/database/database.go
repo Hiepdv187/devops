@@ -29,7 +29,16 @@ func Init() *gorm.DB {
 		// Priority 1: Check for DATABASE_URL (Supabase standard)
 		databaseURL := strings.TrimSpace(os.Getenv("DATABASE_URL"))
 		if databaseURL != "" {
-			dsn = databaseURL
+			// Add prefer_simple_protocol if not already present (required for Supabase pooler)
+			if !strings.Contains(databaseURL, "prefer_simple_protocol") {
+				if strings.Contains(databaseURL, "?") {
+					dsn = databaseURL + "&prefer_simple_protocol=true"
+				} else {
+					dsn = databaseURL + "?prefer_simple_protocol=true"
+				}
+			} else {
+				dsn = databaseURL
+			}
 			log.Println("✓ Using DATABASE_URL for connection")
 		} else {
 			// Priority 2: Check for DATABASE_DSN
@@ -39,12 +48,12 @@ func Init() *gorm.DB {
 				log.Println("✓ Using DATABASE_DSN for connection")
 			} else {
 				// Priority 3: Build from individual environment variables
-				host := getEnv("DB_HOST", "aws-1-ap-southeast-2.pooler.supabase.com")
-				port := getEnv("DB_PORT", "6543")
-				user := getEnv("DB_USER", "postgres.gtdxzzzibtyhnwhyfwuo")
-				password := getEnv("DB_PASSWORD", "IoegArMosFmBvGQ5")
+				host := getEnv("DB_HOST", "localhost")
+				port := getEnv("DB_PORT", "5432")
+				user := getEnv("DB_USER", "postgres")
+				password := getEnv("DB_PASSWORD", "")
 				database := getEnv("DB_NAME", "postgres")
-				sslmode := getEnv("DB_SSLMODE", "require")
+				sslmode := getEnv("DB_SSLMODE", "disable")
 
 				dsn = "host=" + host + " user=" + user + " password=" + password + " dbname=" + database + " port=" + port + " sslmode=" + sslmode + " prefer_simple_protocol=true"
 				log.Println("✓ Using individual DB_* variables for connection")
@@ -80,15 +89,12 @@ func Init() *gorm.DB {
 			log.Fatalf("failed to retrieve sql DB instance: %v", err)
 		}
 
-		// Close all existing connections to clear prepared statements
-		sqlDB.SetMaxOpenConns(0)
-		sqlDB.SetMaxIdleConns(0)
-		time.Sleep(100 * time.Millisecond) // Wait for connections to close
-
-		// Set new connection pool settings
-		sqlDB.SetMaxOpenConns(25)
-		sqlDB.SetMaxIdleConns(10)
-		sqlDB.SetConnMaxLifetime(5 * time.Minute) // Shorter lifetime to avoid stale connections
+		// Configure connection pool for Supabase pooler
+		// Use smaller pool size to avoid prepared statement conflicts
+		sqlDB.SetMaxOpenConns(5)                   // Reduced for pooler compatibility
+		sqlDB.SetMaxIdleConns(2)                   // Keep minimal idle connections
+		sqlDB.SetConnMaxLifetime(1 * time.Minute)  // Shorter lifetime for pooler
+		sqlDB.SetConnMaxIdleTime(30 * time.Second) // Close idle connections quickly
 
 		if err = db.AutoMigrate(&models.User{}, &models.Post{}, &models.Comment{}, &models.Annotation{}, &models.Book{}, &models.BookPage{}, &models.Highlight{}); err != nil {
 			log.Fatalf("failed to migrate database: %v", err)
