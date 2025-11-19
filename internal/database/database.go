@@ -24,19 +24,31 @@ var (
 // Init khởi tạo kết nối GORM.
 func Init() *gorm.DB {
 	once.Do(func() {
-		// PostgreSQL connection parameters
-		host := getEnv("DB_HOST", "ep-odd-morning-a7ox4rz0-pooler.ap-southeast-2.aws.neon.tech")
-		port := getEnv("DB_PORT", "5432")
-		user := getEnv("DB_USER", "neondb_owner")
-		password := getEnv("DB_PASSWORD", "npg_ZCva2xmGOt3g")
-		database := getEnv("DB_NAME", "wedevops")
-		sslmode := getEnv("DB_SSLMODE", "require")
+		var dsn string
 
-		// Tạo PostgreSQL DSN with prefer_simple_protocol to avoid prepared statement issues
-		defaultDSN := "host=" + host + " user=" + user + " password=" + password + " dbname=" + database + " port=" + port + " sslmode=" + sslmode + " prefer_simple_protocol=true"
-		dsn := strings.TrimSpace(getEnv("DATABASE_DSN", defaultDSN))
-		if dsn == "" {
-			dsn = defaultDSN
+		// Priority 1: Check for DATABASE_URL (Supabase standard)
+		databaseURL := strings.TrimSpace(os.Getenv("DATABASE_URL"))
+		if databaseURL != "" {
+			dsn = databaseURL
+			log.Println("✓ Using DATABASE_URL for connection")
+		} else {
+			// Priority 2: Check for DATABASE_DSN
+			databaseDSN := strings.TrimSpace(os.Getenv("DATABASE_DSN"))
+			if databaseDSN != "" {
+				dsn = databaseDSN
+				log.Println("✓ Using DATABASE_DSN for connection")
+			} else {
+				// Priority 3: Build from individual environment variables
+				host := getEnv("DB_HOST", "aws-1-ap-southeast-2.pooler.supabase.com")
+				port := getEnv("DB_PORT", "6543")
+				user := getEnv("DB_USER", "postgres.gtdxzzzibtyhnwhyfwuo")
+				password := getEnv("DB_PASSWORD", "IoegArMosFmBvGQ5")
+				database := getEnv("DB_NAME", "postgres")
+				sslmode := getEnv("DB_SSLMODE", "require")
+
+				dsn = "host=" + host + " user=" + user + " password=" + password + " dbname=" + database + " port=" + port + " sslmode=" + sslmode + " prefer_simple_protocol=true"
+				log.Println("✓ Using individual DB_* variables for connection")
+			}
 		}
 
 		// Custom logger to only show errors, not slow SQL warnings
@@ -67,12 +79,12 @@ func Init() *gorm.DB {
 		if err != nil {
 			log.Fatalf("failed to retrieve sql DB instance: %v", err)
 		}
-		
+
 		// Close all existing connections to clear prepared statements
 		sqlDB.SetMaxOpenConns(0)
 		sqlDB.SetMaxIdleConns(0)
 		time.Sleep(100 * time.Millisecond) // Wait for connections to close
-		
+
 		// Set new connection pool settings
 		sqlDB.SetMaxOpenConns(25)
 		sqlDB.SetMaxIdleConns(10)
