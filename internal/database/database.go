@@ -50,9 +50,9 @@ func Init() *gorm.DB {
 				log.Println("✓ Using DATABASE_DSN for connection")
 			} else {
 				// Priority 3: Build from individual environment variables
-				host := getEnv("DB_HOST", "localhost")
-				port := getEnv("DB_PORT", "5432")
-				user := getEnv("DB_USER", "postgres")
+				host := getEnv("DB_HOST", "aws-1-ap-southeast-2.pooler.supabase.com")
+				port := getEnv("DB_PORT", "6543")
+				user := getEnv("DB_USER", "postgres.gtdxzzzibtyhnwhyfwuo")
 				password := getEnv("DB_PASSWORD", "")
 				database := getEnv("DB_NAME", "postgres")
 				sslmode := getEnv("DB_SSLMODE", "disable")
