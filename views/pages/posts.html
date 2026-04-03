@@ -513,16 +513,21 @@ document.addEventListener('DOMContentLoaded', function () {
     // Remove any existing listener first
     document.removeEventListener('selectionchange', handleSelectionChange);
     document.addEventListener('selectionchange', handleSelectionChange);
-    
+
+    // Ensure editor container reference exists before adding DOM listeners
+    const editorContainer = document.getElementById('editor-container');
+
     // Also listen to mouseup for immediate response
-    editorContainer.addEventListener('mouseup', (e) => {
+    if (editorContainer) {
+        editorContainer.addEventListener('mouseup', (e) => {
         setTimeout(() => {
             const selection = window.getSelection();
             if (selection && selection.toString().trim().length > 0) {
                 updateBubbleToolbar();
             }
         }, 50);
-    });
+        });
+    }
 
     // Hide bubble toolbar when clicking outside
     document.addEventListener('click', (e) => {
@@ -573,7 +578,6 @@ document.addEventListener('DOMContentLoaded', function () {
     }, 300);
 
     // Prevent scroll to top on paste - maintain cursor position
-    const editorContainer = document.getElementById('editor-container');
     let isPasting = false;
     let savedScrollPos = 0;
     let savedSelection = null;
@@ -670,52 +674,65 @@ document.addEventListener('DOMContentLoaded', function () {
         
         requestAnimationFrame(() => {
             const editorContent = quill.root;
-            const lines = editorContent.querySelectorAll('p, h1, h2, h3, h4, h5, h6, li');
-            
+
             // Save existing values
             const existingNotices = {};
             noticeList.querySelectorAll('input[data-line]').forEach(input => {
                 if (input.value) existingNotices[input.dataset.line] = input.value;
             });
-            
+
             // Clear and rebuild
             noticeList.innerHTML = '';
-            
-            if (lines.length === 0) {
+
+            // Build a robust list of lines that treats <br> and Shift+Enter as separate lines
+            const parsedLines = [];
+            const children = Array.from(editorContent.childNodes || []);
+            children.forEach(node => {
+                if (node.nodeType === Node.TEXT_NODE) {
+                    const text = node.nodeValue || '';
+                    text.split('\n').map(s => s.trim()).forEach(s => { if (s) parsedLines.push(s); });
+                } else if (node.nodeType === Node.ELEMENT_NODE) {
+                    // Replace <br> with newline, then extract text and split
+                    const html = node.innerHTML || '';
+                    const withNewlines = html.replace(/<br\s*\/?>/gi, '\n');
+                    const tmp = document.createElement('div');
+                    tmp.innerHTML = withNewlines;
+                    const text = tmp.textContent || tmp.innerText || '';
+                    text.split('\n').map(s => s.trim()).forEach(s => { if (s) parsedLines.push(s); });
+                }
+            });
+
+            if (parsedLines.length === 0) {
                 noticeList.innerHTML = '<p style="color: #64748b; font-style: italic; font-size: 0.9rem;">Nhập nội dung để thấy danh sách dòng...</p>';
                 return;
             }
-            
-            let lineNum = 0; // Counter for non-empty lines only
-            lines.forEach((line, index) => {
-                const lineText = line.textContent.trim();
-                if (!lineText) return; // Skip empty lines without incrementing counter
-                
-                lineNum++; // Increment only for non-empty lines
-                
+
+            parsedLines.forEach((lineText, idx) => {
+                const lineNum = idx + 1;
+
                 // Create sidebar item - vertical layout
                 const noticeItem = document.createElement('div');
                 noticeItem.className = 'notice-item';
                 noticeItem.style.cssText = 'display: flex; flex-direction: column; gap: 0.5rem; padding: 0.75rem; background: rgba(15, 23, 42, 0.4); border: 1px solid rgba(148, 163, 184, 0.2); border-radius: 8px;';
-                
+
                 // Header: line number + preview
                 const header = document.createElement('div');
                 header.style.cssText = 'display: flex; gap: 0.5rem; align-items: center;';
-                
+
                 const lineLabel = document.createElement('span');
                 lineLabel.className = 'notice-line-num';
                 lineLabel.textContent = lineNum;
                 lineLabel.style.cssText = 'min-width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; background: rgba(56, 189, 248, 0.15); color: #38bdf8; border-radius: 6px; font-size: 0.8rem; font-weight: 600; flex-shrink: 0;';
-                
+
                 const linePreview = document.createElement('div');
                 linePreview.className = 'line-preview-text';
                 linePreview.textContent = lineText.length > 50 ? lineText.substring(0, 50) + '...' : lineText;
                 linePreview.dataset.fullText = lineText;
                 linePreview.style.cssText = 'color: #cbd5e1; font-size: 0.85rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1;';
-                
+
                 header.appendChild(lineLabel);
                 header.appendChild(linePreview);
-                
+
                 // Notice input
                 const sidebarInput = document.createElement('input');
                 sidebarInput.type = 'text';
@@ -723,7 +740,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 sidebarInput.dataset.line = lineNum;
                 sidebarInput.value = existingNotices[lineNum] || '';
                 sidebarInput.style.cssText = 'width: 95%; padding: 0.5rem; background: rgba(76, 29, 149, 0.15); border: 1px solid rgba(168, 85, 247, 0.3); border-radius: 6px; color: #e2e8f0; font-size: 0.85rem; transition: all 0.2s ease;';
-                
+
                 sidebarInput.addEventListener('focus', function() {
                     this.style.background = 'rgba(76, 29, 149, 0.25)';
                     this.style.borderColor = 'rgba(168, 85, 247, 0.5)';
@@ -732,7 +749,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     this.style.background = 'rgba(76, 29, 149, 0.15)';
                     this.style.borderColor = 'rgba(168, 85, 247, 0.3)';
                 });
-                
+
                 noticeItem.appendChild(header);
                 noticeItem.appendChild(sidebarInput);
                 noticeList.appendChild(noticeItem);

@@ -1,17 +1,18 @@
 services:
-  db-fiber-learning:
-    image: mysql:8.4
-    container_name: fiber-learning-db
+  db-postgres:
+    image: postgres:15
+    container_name: fiber-learning-pg
     restart: unless-stopped
     environment:
-      MYSQL_ROOT_PASSWORD: rootpass
-      MYSQL_DATABASE: fiber_learning
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: postgres
     ports:
-      - "3308:3306"
+      - "5432:5432"
     volumes:
-      - db_data:/var/lib/mysql
+      - pg_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER}" ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -23,11 +24,13 @@ services:
     restart: unless-stopped
     ports:
       - "3003:3000"
+    env_file:
+      - .env
     volumes:
       - uploads_data:/app/public/uploads
     depends_on:
-      - db-fiber-learning
+      - db-postgres
 
 volumes:
-  db_data:
+  pg_data:
   uploads_data:
