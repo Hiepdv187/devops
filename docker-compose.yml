@@ -23,7 +23,7 @@ services:
     container_name: fiber-learning-app
     restart: unless-stopped
     ports:
-      - "3003:3000"
+      - "3003:3003"
     env_file:
       - .env
     volumes:

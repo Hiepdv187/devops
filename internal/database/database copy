@@ -26,9 +26,9 @@ func Init() *gorm.DB {
 	once.Do(func() {
 		host := getEnv("DB_HOST", "znovxl.h.filess.io")
 		port := getEnv("DB_PORT", "3306")
-		user := getEnv("DB_USER", "Wedevops_queenplant")
+		user := getEnv("DB_USER", "WeDev-ED_queenplant")
 		password := getEnv("DB_PASSWORD", "856333f8b461857adb56cfaa544f250bfae28f9c")
-		database := getEnv("DB_NAME", "Wedevops_queenplant")
+		database := getEnv("DB_NAME", "WeDev-ED_queenplant")
 
 		// Tạo DSN từ các biến môi trường hoặc sử dụng DATABASE_DSN trực tiếp
 		defaultDSN := user + ":" + password + "@tcp(" + host + ":" + port + ")/" + database + "?charset=utf8mb4&parseTime=True&loc=Local"
@@ -98,7 +98,7 @@ func seedDemoUser() {
 	}
 
 	demo := models.User{
-		Name:         "DevOps Maintainer",
+		Name:         "Dev-ED Maintainer",
 		Email:        "admin@hocdevops.community",
 		PasswordHash: string(hash),
 	}

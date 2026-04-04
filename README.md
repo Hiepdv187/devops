@@ -1,6 +1,6 @@
-# Cộng đồng Học DevOps
+# Cộng đồng Học Dev-ED
 
-Website được xây dựng bằng [Fiber](https://github.com/gofiber/fiber) giúp cộng đồng chia sẻ và đóng góp bài học DevOps. Ứng dụng sử dụng GORM với PostgreSQL (Supabase) để lưu trữ dữ liệu.
+Website được xây dựng bằng [Fiber](https://github.com/gofiber/fiber) giúp cộng đồng chia sẻ và đóng góp bài học Dev-ED. Ứng dụng sử dụng GORM với PostgreSQL (Supabase) để lưu trữ dữ liệu.
 
 ## Yêu cầu
 

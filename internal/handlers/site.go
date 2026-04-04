@@ -239,7 +239,7 @@ func respondError(c *fiber.Ctx, status int, message, redirect string) error {
 
 func render(c *fiber.Ctx, view string, data fiber.Map, layout string) error {
 	base := fiber.Map{
-		"AppName":         "Cộng đồng Học DevOps",
+		"AppName":         "Gia đình nhà Dev-ED",
 		"Year":            time.Now().Year(),
 		"IsAuthenticated": false,
 		"RequestPath":     c.OriginalURL(),
@@ -318,21 +318,21 @@ func Home() fiber.Handler {
 		}
 
 		return render(c, "pages/home", fiber.Map{
-			"Title":       "Học DevOps cùng cộng đồng",
-			"HeroHeading": "Thực chiến DevOps, làm chủ hạ tầng",
-			"HeroSub":     "Khám phá lộ trình DevOps toàn diện từ kiến trúc hệ thống, tự động hóa, đến vận hành an toàn qua đóng góp của cộng đồng.",
+			"Title":       "Gia đình Dev-ED",
+			"HeroHeading": "Gia đình Dev-ED, làm chủ cả tầng",
+			"HeroSub":     "Khám phá lộ trình toàn diện từ kiến trúc hệ thống, tự động hóa, đến vận hành an toàn qua đóng góp của cộng đồng.",
 			"Highlights": []fiber.Map{
 				{
-					"Title":       "Lộ trình DevOps",
+					"Title":       "Lộ trình",
 					"Description": "Phủ đầy từ Linux cơ bản, mạng, container, CI/CD đến vận hành cloud-native.",
 				},
 				{
 					"Title":       "Học từ trải nghiệm thật",
-					"Description": "Nhận tài liệu, checklist và case study từ những kỹ sư DevOps đang vận hành sản phẩm lớn.",
+					"Description": "Nhận tài liệu, checklist và case study từ những kỹ sư đang vận hành sản phẩm lớn.",
 				},
 				{
 					"Title":       "Đóng góp không giới hạn",
-					"Description": "Cập nhật thực tiễn mới nhất về cloud, observability, bảo mật và công cụ DevOps.",
+					"Description": "Cập nhật thực tiễn mới nhất về cloud, observability, bảo mật và công cụ.",
 				},
 			},
 			"TechInsights": []fiber.Map{
@@ -1226,14 +1226,14 @@ func Login() fiber.Handler {
 func Courses() fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		return render(c, "pages/courses", fiber.Map{
-			"Title":       "Lộ trình DevOps",
-			"Description": "Các module DevOps do cộng đồng đóng góp, dễ dàng tùy chỉnh theo nhu cầu đội ngũ của bạn.",
+			"Title":       "Lộ trình Dev-ED",
+			"Description": "Các module Dev-ED do cộng đồng đóng góp, dễ dàng tùy chỉnh theo nhu cầu đội ngũ của bạn.",
 			"Courses": []fiber.Map{
 				{
-					"Name":        "Nền tảng DevOps & Linux",
+					"Name":        "Nền tảng Dev-ED & Linux",
 					"Level":       "Beginner",
 					"Duration":    "8 giờ",
-					"Summary":     "Nắm hệ điều hành Linux, quản trị hệ thống cơ bản và các nguyên tắc DevOps cốt lõi.",
+					"Summary":     "Nắm hệ điều hành Linux, quản trị hệ thống cơ bản và các nguyên tắc Dev-ED cốt lõi.",
 					"Contributor": "Bảo Trần",
 				},
 				{
@@ -1259,7 +1259,7 @@ func Contributors() fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		return render(c, "pages/contributors", fiber.Map{
 			"Title":       "Thành viên đóng góp",
-			"Description": "Những kỹ sư DevOps đang cùng xây dựng thư viện kiến thức mở.",
+			"Description": "Những kỹ sư đang cùng xây dựng thư viện kiến thức mở.",
 			"Contributors": []fiber.Map{
 				{
 					"Name":          "Lan Nguyễn",
@@ -1288,11 +1288,11 @@ func About() fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		return render(c, "pages/about", fiber.Map{
 			"Title":       "Về dự án",
-			"Description": "Cộng đồng Học DevOps được xây dựng bởi các kỹ sư đam mê tự động hóa, quan sát hệ thống và văn hóa DevOps tại Việt Nam.",
+			"Description": "Cộng đồng được xây dựng bởi các kỹ sư đam mê tự động hóa, quan sát hệ thống và văn hóa Dev-ED tại Việt Nam.",
 			"Sections": []fiber.Map{
 				{
 					"Heading": "Sứ mệnh",
-					"Content": "Mang đến tài nguyên DevOps tiếng Việt chất lượng cao, giúp đội ngũ kỹ thuật áp dụng nhanh vào công việc thực tế.",
+					"Content": "Mang đến tài nguyên tiếng Việt chất lượng cao, giúp đội ngũ kỹ thuật áp dụng nhanh vào công việc thực tế.",
 				},
 				{
 					"Heading": "Giá trị cốt lõi",
@@ -1300,7 +1300,7 @@ func About() fiber.Handler {
 				},
 				{
 					"Heading": "Hướng phát triển",
-					"Content": "Hoàn thiện các lộ trình DevOps theo cấp độ, xây dựng thư viện bài viết chuyên sâu và kho tài nguyên mã nguồn mở.",
+					"Content": "Hoàn thiện các lộ trình theo cấp độ, xây dựng thư viện bài viết chuyên sâu và kho tài nguyên mã nguồn mở.",
 				},
 			},
 			"Stats": []fiber.Map{
@@ -1320,7 +1320,7 @@ func About() fiber.Handler {
 			"Milestones": []fiber.Map{
 				{
 					"Period":      "Q1 2024",
-					"Title":       "Ra mắt lộ trình DevOps căn bản",
+					"Title":       "Ra mắt lộ trình căn bản",
 					"Description": "Hoàn thiện bộ tài liệu học tập 8 tuần với bài tập thực hành và checklist đánh giá kỹ năng.",
 				},
 				{
@@ -1331,11 +1331,11 @@ func About() fiber.Handler {
 				{
 					"Period":      "2025",
 					"Title":       "Xây dựng thư viện template mở",
-					"Description": "Cung cấp Terraform, Ansible, và pipeline mẫu giúp doanh nghiệp khởi động DevOps nhanh chóng.",
+					"Description": "Cung cấp Terraform, Ansible, và pipeline mẫu giúp doanh nghiệp khởi động nhanh chóng.",
 				},
 			},
 			"CTA": fiber.Map{
-				"Heading":     "Cùng đóng góp để DevOps Việt Nam lớn mạnh",
+				"Heading":     "Cùng đóng góp để Việt Nam lớn mạnh",
 				"Text":        "Chia sẻ kinh nghiệm thực tế, mentoring cho thành viên mới, hoặc mở một workshop tại cộng đồng.",
 				"ActionLabel": "Bắt đầu đóng góp",
 				"ActionLink":  "/contribute",
@@ -1347,12 +1347,12 @@ func About() fiber.Handler {
 func Contribute() fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		return render(c, "pages/contribute", fiber.Map{
-			"Title":       "Đóng góp kiến thức DevOps",
-			"Description": "Cùng xây dựng kho tri thức DevOps mở và giàu tính ứng dụng.",
+			"Title":       "Đóng góp kiến thức",
+			"Description": "Cùng xây dựng kho tri thức mở và giàu tính ứng dụng.",
 			"Steps": []fiber.Map{
 				{
 					"Order":   1,
-					"Heading": "Chọn chủ đề DevOps",
+					"Heading": "Chọn chủ đề",
 					"Text":    "Tập trung vào lĩnh vực bạn am hiểu như CI/CD, IaC, observability, hay bảo mật.",
 				},
 				{
@@ -1366,7 +1366,7 @@ func Contribute() fiber.Handler {
 					"Text":    "Tạo pull request trên GitHub của dự án hoặc tham gia phiên review nội dung định kỳ.",
 				},
 			},
-			"ContactEmail": "devops@example.com",
+			"ContactEmail": "dev-ed@example.com",
 		}, "main")
 	}
 }

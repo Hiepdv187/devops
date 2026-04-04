@@ -29,10 +29,16 @@ func Init() *gorm.DB {
 		// Priority 1: Check for DATABASE_URL (Supabase standard)
 		databaseURL := strings.TrimSpace(os.Getenv("DATABASE_URL"))
 		if databaseURL != "" {
-			// Add multiple parameters to disable prepared statements completely
+			// Add multiple parameters to disable prepared statements completely for
+			// remote poolers (Supabase/Neon). For local/dev Postgres instances these
+			// parameters can be rejected by the server, so only append them when
+			// connecting to a remote pooler host.
 			additionalParams := "prefer_simple_protocol=true&default_query_exec_mode=simple_protocol&statement_cache_mode=disabled"
 
-			if !strings.Contains(databaseURL, "prefer_simple_protocol") {
+			// Detect hosts where we should NOT append pooler-specific params
+			isLocalHost := strings.Contains(databaseURL, "localhost") || strings.Contains(databaseURL, "127.0.0.1") || strings.Contains(databaseURL, "db-postgres")
+
+			if !isLocalHost && !strings.Contains(databaseURL, "prefer_simple_protocol") {
 				if strings.Contains(databaseURL, "?") {
 					dsn = databaseURL + "&" + additionalParams
 				} else {
@@ -163,7 +169,7 @@ func seedDemoUser() {
 	if err := db.Exec(`
 		INSERT INTO users (name, email, password_hash, created_at, updated_at) 
 		VALUES (?, ?, ?, NOW(), NOW())`,
-		"DevOps Maintainer",
+		"Dev-ED Maintainer",
 		"admin@hocdevops.community",
 		string(hash),
 	).Error; err != nil {
